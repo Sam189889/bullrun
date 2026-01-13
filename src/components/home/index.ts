@@ -1,0 +1,11 @@
+export { Header } from './Header';
+export { HeroSection } from './HeroSection';
+export { FeaturesSection } from './FeaturesSection';
+export { PackagesSection } from './PackagesSection';
+export { LevelsSection } from './LevelsSection';
+export { TeamSection } from './TeamSection';
+export { BurningSection } from './BurningSection';
+export { HowItWorksSection } from './HowItWorksSection';
+export { CTASection } from './CTASection';
+export { Footer } from './Footer';
+export { BottomNav } from './BottomNav';
