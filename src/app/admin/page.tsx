@@ -1,6 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { useIsAdmin } from '@/hooks';
+import { WalletConnect } from '@/components';
+import { ADMIN_WALLETS } from '@/config';
 import {
     AdminHeader,
     AdminNav,
@@ -9,12 +12,13 @@ import {
     TransactionsTab,
     PackagesTab,
     SettingsTab,
+    WeeklyPoolTab,
 } from './components';
 
 export default function AdminPage() {
     const [activeTab, setActiveTab] = useState('overview');
     const [isTransitioning, setIsTransitioning] = useState(false);
-    const [isWalletConnected, setIsWalletConnected] = useState(false);
+    const { isAdmin, address, isConnected } = useIsAdmin();
 
     const handleTabChange = (tab: string) => {
         if (tab === activeTab) return;
@@ -37,13 +41,15 @@ export default function AdminPage() {
                 return <PackagesTab />;
             case 'settings':
                 return <SettingsTab />;
+            case 'weekly':
+                return <WeeklyPoolTab />;
             default:
                 return <OverviewTab />;
         }
     };
 
     // Show connect wallet screen if not connected
-    if (!isWalletConnected) {
+    if (!isConnected) {
         return (
             <div className="min-h-screen bg-[#0F172A] flex items-center justify-center">
                 {/* Animated Background */}
@@ -65,23 +71,55 @@ export default function AdminPage() {
                     </h1>
                     <p className="text-xs sm:text-sm text-[#64748B] mb-6 sm:mb-8">Connect your wallet to access admin controls</p>
 
-                    {/* Connect Button */}
-                    <button
-                        onClick={() => setIsWalletConnected(true)}
-                        className="group relative overflow-hidden inline-flex items-center gap-2 sm:gap-3 px-6 sm:px-8 md:px-10 py-3 sm:py-4 bg-gradient-to-r from-[#EC4899] to-[#D946EF] rounded-xl sm:rounded-2xl font-bold text-[#0F172A] text-sm sm:text-base md:text-lg shadow-[0_0_30px_rgba(255,215,0,0.3)] hover:shadow-[0_0_50px_rgba(255,215,0,0.5)] transition-all duration-300 active:scale-95"
-                    >
-                        {/* Shimmer */}
-                        <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-
-                        <svg className="w-5 h-5 sm:w-6 sm:h-6 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                        </svg>
-                        <span className="relative z-10">Connect Wallet</span>
-                    </button>
+                    {/* RainbowKit Connect Button */}
+                    <WalletConnect />
 
                     <p className="text-[10px] sm:text-xs text-[#475569] mt-4 sm:mt-6">
                         Admin access required
                     </p>
+                </div>
+            </div>
+        );
+    }
+
+    // Show access denied if connected but not admin
+    if (isConnected && !isAdmin) {
+        return (
+            <div className="min-h-screen bg-[#0F172A] flex items-center justify-center">
+                {/* Animated Background */}
+                <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+                    <div className="absolute top-20 left-10 w-64 h-64 bg-[#EF4444]/5 rounded-full blur-3xl float-slow" />
+                    <div className="absolute bottom-40 right-10 w-80 h-80 bg-[#D946EF]/5 rounded-full blur-3xl float-medium" style={{ animationDelay: '2s' }} />
+                </div>
+
+                {/* Access Denied Card */}
+                <div className="relative z-10 text-center p-6 sm:p-8 md:p-10 max-w-md">
+                    {/* Icon */}
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 sm:mb-6 rounded-2xl bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center shadow-[0_0_40px_rgba(239,68,68,0.3)]">
+                        <span className="text-3xl sm:text-4xl">🚫</span>
+                    </div>
+
+                    <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-[#F8FAFC] mb-2">
+                        <span className="bg-gradient-to-r from-red-500 to-red-400 bg-clip-text text-transparent">Access Denied</span>
+                    </h1>
+                    <p className="text-sm text-[#94A3B8] mb-4">
+                        Your wallet is not authorized to access admin panel.
+                    </p>
+                    <p className="text-xs text-[#64748B] mb-6 font-mono break-all">
+                        Connected: {address}
+                    </p>
+
+                    {/* Disconnect and try another wallet */}
+                    <WalletConnect />
+
+                    <div className="mt-6 p-4 bg-[#1E293B]/50 rounded-xl border border-[#334155]">
+                        <p className="text-xs text-[#64748B] mb-2">Authorized wallets:</p>
+                        {ADMIN_WALLETS.map((wallet, idx) => (
+                            <p key={idx} className="text-[10px] font-mono text-[#475569] truncate">
+                                {wallet}
+                            </p>
+                        ))}
+                    </div>
                 </div>
             </div>
         );

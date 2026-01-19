@@ -9,8 +9,8 @@ const navItems = [
     { id: 'home', icon: '🏠', label: 'Home', color: '#EC4899' },
     { id: 'marketplace', icon: '💎', label: 'NFTs', color: '#D946EF' },
     { id: 'earnings', icon: '💰', label: 'Earnings', color: '#10B981' },
+    { id: 'ranks', icon: '🏆', label: 'Ranks', color: '#F59E0B' },
     { id: 'team', icon: '👥', label: 'Team', color: '#3B82F6' },
-    { id: 'burning', icon: '🔥', label: 'Burning', color: '#EF4444' },
     { id: 'levels', icon: '📈', label: 'Levels', color: '#8B5CF6' },
 ];
 

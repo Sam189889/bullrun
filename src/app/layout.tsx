@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Poppins, JetBrains_Mono } from "next/font/google";
+import { Toaster } from "react-hot-toast";
+import { Web3Provider } from "@/config/providers";
 import "./globals.css";
 
 const inter = Inter({
@@ -37,9 +39,34 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${poppins.variable} ${jetbrainsMono.variable} antialiased`}
       >
-        {children}
+        <Web3Provider>
+          {children}
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: '#1a1a2e',
+                color: '#fff',
+                border: '1px solid rgba(245, 158, 11, 0.3)',
+                borderRadius: '12px',
+              },
+              success: {
+                iconTheme: {
+                  primary: '#f59e0b',
+                  secondary: '#1a1a2e',
+                },
+              },
+              error: {
+                iconTheme: {
+                  primary: '#ef4444',
+                  secondary: '#1a1a2e',
+                },
+              },
+            }}
+          />
+        </Web3Provider>
       </body>
     </html>
   );
 }
-

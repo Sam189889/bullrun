@@ -1,214 +1,316 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { WarningBanner } from '@/components/layout/WarningBanner';
-import { Navbar } from '@/components/layout/Navbar';
+import { useAccount, useBalance } from 'wagmi';
+import { formatUnits, formatEther } from 'viem';
+import { WalletConnect } from '@/components';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { packages } from '@/lib/mockData';
-import { Package } from '@/lib/types';
+import { usePackage, useUserId, useUSDTBalance, useUSDTAllowance, useRegister, useUserExists } from '@/hooks/useContracts';
+import { useApproveUSDT } from '@/hooks/useAdminContracts';
+import toast from 'react-hot-toast';
 
-function PackageCard({
-    pkg,
-    selected,
-    onSelect,
-}: {
-    pkg: Package;
-    selected: boolean;
-    onSelect: () => void;
-}) {
-    const hasRequirements = pkg.requirements !== undefined;
-    const isLocked = hasRequirements; // In real app, check user's referrals
+// Minimum gas required for transactions (0.001 tBNB)
+const MIN_GAS_REQUIRED = 0.0003;
 
+// Wrapper with Suspense for useSearchParams
+export default function RegisterPage() {
     return (
-        <div
-            onClick={() => !isLocked && onSelect()}
-            className={`
-        relative rounded-xl border-2 p-5 cursor-pointer transition-all duration-300
-        ${selected
-                    ? 'border-[#EC4899] bg-[#EC4899]/10 shadow-[0_0_30px_rgba(255,215,0,0.3)]'
-                    : 'border-[#334155] bg-[#1E293B] hover:border-[#475569]'
-                }
-        ${isLocked ? 'opacity-60 cursor-not-allowed' : ''}
-      `}
-        >
-            {/* Lock Badge */}
-            {isLocked && (
-                <div className="absolute top-3 right-3">
-                    <span className="badge badge-warning">🔒 Locked</span>
-                </div>
-            )}
-
-            {/* Package Header */}
-            <div className="text-center mb-4">
-                <span className="text-4xl">💰</span>
-                <h3 className="text-2xl font-bold text-[#EC4899] mt-2">${pkg.registrationFee}</h3>
-                <p className="text-sm text-[#94A3B8]">Registration Fee</p>
-            </div>
-
-            {/* Package Details */}
-            <div className="space-y-3 mb-4">
-                <div className="flex justify-between text-sm">
-                    <span className="text-[#64748B]">NFT Value:</span>
-                    <span className="text-[#F8FAFC] font-mono">${pkg.nftValue.toLocaleString()}</span>
-                </div>
-                <div className="text-xs text-[#64748B] text-center bg-[#0F172A] rounded px-2 py-1">
-                    Formula: {pkg.formula}
-                </div>
-            </div>
-
-            {/* Requirements */}
-            {hasRequirements && (
-                <div className="border-t border-[#334155] pt-3 mb-4">
-                    <p className="text-xs font-semibold text-[#94A3B8] mb-2">Requirements:</p>
-                    <ul className="text-xs text-[#64748B] space-y-1">
-                        <li>• {pkg.requirements?.directReferrals} direct referrals</li>
-                        <li>• {pkg.requirements?.teamRequirement}</li>
-                    </ul>
-                </div>
-            )}
-
-            {!hasRequirements && (
-                <div className="border-t border-[#334155] pt-3 mb-4">
-                    <p className="text-xs text-[#10B981]">✅ No requirements</p>
-                </div>
-            )}
-
-            {/* Select Button */}
-            <Button
-                variant={selected ? 'primary' : 'secondary'}
-                size="sm"
-                className="w-full"
-                disabled={isLocked}
-            >
-                {selected ? '✓ Selected' : 'Select Package'}
-            </Button>
-        </div>
+        <Suspense fallback={<div className="min-h-screen bg-[#0F172A] flex items-center justify-center"><p className="text-[#64748B]">Loading...</p></div>}>
+            <RegisterContent />
+        </Suspense>
     );
 }
 
-export default function RegisterPage() {
-    const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
-    const [walletAddress, setWalletAddress] = useState('');
-    const [referralCode, setReferralCode] = useState('');
-    const [agreed, setAgreed] = useState(false);
+function RegisterContent() {
+    const searchParams = useSearchParams();
+    const refParam = searchParams.get('ref');
 
-    const selectedPkg = packages.find((p) => p.id === selectedPackage);
+    const { address, isConnected } = useAccount();
+    const referrerId = refParam || '';  // No default - must have referral link
+    const hasReferralLink = !!refParam && refParam.trim() !== '';
+    const [agreed, setAgreed] = useState(false);
+    const toastShown = useRef(false);
+
+    // Check if referrer exists (only if we have a referral link)
+    const { data: referrerExists, isLoading: referrerLoading } = useUserExists(
+        hasReferralLink ? BigInt(referrerId) : undefined
+    );
+
+    // Get first package ($25)
+    const { data: packageData, isLoading: pkgLoading } = usePackage(BigInt(1));
+    const { data: userId } = useUserId(address);
+    const { data: usdtBalance } = useUSDTBalance(address);
+    const { data: allowance, refetch: refetchAllowance } = useUSDTAllowance(address);
+
+    // Native balance for gas
+    const { data: nativeBalance } = useBalance({ address });
+
+    // Contract write hooks
+    const { approve, isPending: approvePending, isConfirming: approveConfirming, isSuccess: approveConfirmed, error: approveError } = useApproveUSDT();
+    const { register, isPending: regPending, isSuccess: regSuccess, error: regError } = useRegister();
+
+    // Parse package data - contract returns array
+    const arr = packageData as readonly [bigint, bigint, bigint, bigint, bigint, bigint, boolean] | undefined;
+    const pkg = arr ? {
+        price: arr[0],
+        wps: arr[1],
+        tpv: arr[2],
+        cap: arr[5],
+    } : null;
+
+    const price = pkg ? Number(formatUnits(pkg.price, 18)) : 10;
+    const tpv = pkg ? Number(formatUnits(pkg.tpv, 18)) : 11;  // TPV = price + 10%
+    const isRegistered = typeof userId === 'bigint' && userId > BigInt(0);
+    const hasEnoughBalance = typeof usdtBalance === 'bigint' && pkg ? usdtBalance >= pkg.tpv : false;
+    const hasAllowance = typeof allowance === 'bigint' && pkg ? allowance >= pkg.tpv : false;
+    const nativeBalanceValue = nativeBalance ? Number(formatEther(nativeBalance.value)) : 0;
+    const hasEnoughGas = nativeBalanceValue >= MIN_GAS_REQUIRED;
+
+    // Refs for one-time triggers
+    const approvalHandled = useRef(false);
+    const registrationHandled = useRef(false);
+
+    // Handle approval confirmed - trigger registration after confirmation
+    useEffect(() => {
+        if (approveConfirmed && !approvalHandled.current) {
+            approvalHandled.current = true;
+            toast.success('USDT approved! Registering...');
+            refetchAllowance();
+            // Auto-trigger registration after allowance is confirmed
+            setTimeout(() => {
+                if (address && referrerId) {
+                    registrationHandled.current = false;
+                    const refId = BigInt(referrerId);
+                    register(address, refId, BigInt(1));
+                }
+            }, 1000);
+        }
+        if (approveError) {
+            toast.error('Approval failed');
+            approvalHandled.current = false; // Allow retry
+        }
+    }, [approveConfirmed, approveError, refetchAllowance, address, referrerId, register]);
+
+    // Handle registration success
+    useEffect(() => {
+        if (regSuccess && !registrationHandled.current) {
+            registrationHandled.current = true;
+            toast.success('Registration successful!');
+            setTimeout(() => {
+                window.location.href = '/dashboard';
+            }, 2000);
+        }
+        if (regError) {
+            toast.error('Registration failed');
+            registrationHandled.current = false; // Allow retry
+        }
+    }, [regSuccess, regError]);
+
+    // Reset refs when allowance changes (after refetch)
+    useEffect(() => {
+        if (hasAllowance) {
+            approvalHandled.current = true; // Already approved, don't show toast again
+        }
+    }, [hasAllowance]);
+
+    const handleApproveAndRegister = async () => {
+        if (!pkg || !address) return;
+
+        if (!hasAllowance) {
+            // Need approval first - approve TPV (Total Package Value)
+            approvalHandled.current = false;
+            approve(formatUnits(pkg.tpv, 18));
+        } else {
+            // Already approved, just register
+            registrationHandled.current = false;
+            const refId = BigInt(referrerId);
+            register(address, refId, BigInt(1));
+        }
+    };
+
+    const handleRegister = () => {
+        if (!address || !pkg) return;
+        registrationHandled.current = false;
+        const refId = BigInt(referrerId || '1');
+        register(address, refId, BigInt(1)); // Package 1
+    };
+
+    // Already registered - redirect
+    if (isRegistered) {
+        return (
+            <div className="min-h-screen bg-[#0F172A] flex items-center justify-center">
+                <Card variant="glow" className="max-w-md text-center p-8">
+                    <p className="text-4xl mb-4">✅</p>
+                    <h2 className="text-xl font-bold text-[#F8FAFC] mb-2">Already Registered!</h2>
+                    <p className="text-sm text-[#64748B] mb-4">Your User ID: #{userId?.toString()}</p>
+                    <Link href="/dashboard">
+                        <Button variant="primary">Go to Dashboard</Button>
+                    </Link>
+                </Card>
+            </div>
+        );
+    }
 
     return (
-        <div className="min-h-screen bg-[#0F172A]">
-            <WarningBanner />
-            <Navbar />
+        <div className="min-h-screen bg-[#0F172A] flex items-center justify-center p-4">
+            {/* Animated Background */}
+            <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+                <div className="absolute top-20 left-10 w-64 h-64 bg-[#EC4899]/5 rounded-full blur-3xl float-slow" />
+                <div className="absolute bottom-40 right-10 w-80 h-80 bg-[#3B82F6]/5 rounded-full blur-3xl float-medium" />
+            </div>
 
-            <div className="pt-32 pb-20">
-                <div className="container-app">
-                    {/* Header */}
-                    <div className="text-center mb-12">
-                        <h1 className="text-4xl font-bold text-[#F8FAFC] mb-4">
-                            Choose Your <span className="text-[#EC4899]">Package</span>
-                        </h1>
-                        <p className="text-[#94A3B8] max-w-2xl mx-auto">
-                            Select a registration package that suits your investment goals.
-                            Higher packages require referrals and team activity.
-                        </p>
+            <Card variant="glow" className="max-w-md w-full relative z-10">
+                {/* Header */}
+                <div className="text-center mb-6">
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-[#EC4899] to-[#D946EF] flex items-center justify-center shadow-[0_0_40px_rgba(236,72,153,0.3)]">
+                        <span className="text-3xl">🐂</span>
                     </div>
+                    <h1 className="text-2xl font-bold text-[#F8FAFC]">
+                        Join <span className="text-[#EC4899]">Bull Run</span>
+                    </h1>
+                    <p className="text-sm text-[#64748B] mt-2">Start with our entry package</p>
+                </div>
 
-                    {/* Package Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
-                        {packages.map((pkg) => (
-                            <PackageCard
-                                key={pkg.id}
-                                pkg={pkg}
-                                selected={selectedPackage === pkg.id}
-                                onSelect={() => setSelectedPackage(pkg.id)}
-                            />
-                        ))}
+                {/* Package Info */}
+                <div className="bg-[#0F172A] rounded-xl p-4 mb-6">
+                    <div className="grid grid-cols-2 gap-3 text-sm mb-3">
+                        <div className="flex justify-between">
+                            <span className="text-[#64748B]">Package Price</span>
+                            <span className="text-[#F8FAFC]">${price}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-[#64748B]">Pool Share (WPS)</span>
+                            <span className="text-[#F8FAFC]">${pkg ? Number(formatUnits(pkg.wps, 18)) : 1}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-[#64748B]">Earning Cap</span>
+                            <span className="text-[#10B981]">{pkg ? Number(pkg.cap) : 10}x</span>
+                        </div>
                     </div>
-
-                    {/* Registration Form */}
-                    {selectedPackage && (
-                        <Card variant="glow" className="max-w-xl mx-auto">
-                            <h2 className="text-xl font-bold text-[#F8FAFC] mb-6">
-                                Complete Registration
-                            </h2>
-
-                            <div className="space-y-4">
-                                {/* Selected Package Summary */}
-                                <div className="bg-[#0F172A] rounded-lg p-4 flex justify-between items-center">
-                                    <div>
-                                        <p className="text-sm text-[#64748B]">Selected Package</p>
-                                        <p className="text-lg font-bold text-[#EC4899]">${selectedPkg?.registrationFee}</p>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-sm text-[#64748B]">NFT Value</p>
-                                        <p className="text-lg font-bold text-[#F8FAFC]">${selectedPkg?.nftValue.toLocaleString()}</p>
-                                    </div>
-                                </div>
-
-                                {/* Wallet Address */}
-                                <div>
-                                    <label className="block text-sm font-medium text-[#94A3B8] mb-2">
-                                        Wallet Address *
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={walletAddress}
-                                        onChange={(e) => setWalletAddress(e.target.value)}
-                                        placeholder="0x..."
-                                        className="w-full px-4 py-3 bg-[#0F172A] border border-[#334155] rounded-lg text-[#F8FAFC] placeholder-[#64748B] focus:outline-none focus:border-[#EC4899] transition-colors"
-                                    />
-                                </div>
-
-                                {/* Referral Code */}
-                                <div>
-                                    <label className="block text-sm font-medium text-[#94A3B8] mb-2">
-                                        Referral Code (Optional)
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={referralCode}
-                                        onChange={(e) => setReferralCode(e.target.value)}
-                                        placeholder="Enter referral code"
-                                        className="w-full px-4 py-3 bg-[#0F172A] border border-[#334155] rounded-lg text-[#F8FAFC] placeholder-[#64748B] focus:outline-none focus:border-[#EC4899] transition-colors"
-                                    />
-                                </div>
-
-                                {/* Terms */}
-                                <label className="flex items-start gap-3 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={agreed}
-                                        onChange={(e) => setAgreed(e.target.checked)}
-                                        className="mt-1 w-4 h-4 accent-[#EC4899]"
-                                    />
-                                    <span className="text-sm text-[#94A3B8]">
-                                        I understand this is a community-led project. I accept the{' '}
-                                        <span className="text-[#EC4899]">Trading Rules</span> and agree to complete 75% trading within 24 hours.
-                                    </span>
-                                </label>
-
-                                {/* Submit Button */}
-                                <Button
-                                    variant="primary"
-                                    size="lg"
-                                    className="w-full"
-                                    disabled={!walletAddress || !agreed}
-                                >
-                                    Complete Registration - ${selectedPkg?.registrationFee}
-                                </Button>
-                            </div>
-                        </Card>
-                    )}
-
-                    {/* Back Link */}
-                    <div className="text-center mt-8">
-                        <Link href="/" className="text-[#94A3B8] hover:text-[#F8FAFC] transition-colors">
-                            ← Back to Home
-                        </Link>
+                    <div className="border-t border-[#334155] pt-3 flex justify-between items-center">
+                        <span className="text-sm text-[#94A3B8]">Total Payment</span>
+                        <span className="text-2xl font-bold text-[#EC4899]">${tpv}</span>
                     </div>
                 </div>
-            </div>
+
+                {/* Connect Wallet or Register */}
+                {!isConnected ? (
+                    <div className="text-center">
+                        <p className="text-sm text-[#64748B] mb-4">Connect wallet to register</p>
+                        <WalletConnect />
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        {/* Balance Display */}
+                        <div className="bg-[#0F172A] rounded-lg p-3 space-y-2">
+                            <div className="flex justify-between text-sm">
+                                <span className="text-[#64748B]">USDT Balance</span>
+                                <span className={`font-mono ${hasEnoughBalance ? 'text-[#10B981]' : 'text-[#EF4444]'}`}>
+                                    ${usdtBalance ? Number(formatUnits(usdtBalance as bigint, 18)).toFixed(2) : '0'}
+                                </span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-[#64748B]">tBNB (Gas)</span>
+                                <span className={`font-mono ${hasEnoughGas ? 'text-[#10B981]' : 'text-[#EF4444]'}`}>
+                                    {nativeBalanceValue.toFixed(4)} tBNB
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Referrer ID (readonly from URL) */}
+                        <div>
+                            <label className="block text-sm text-[#94A3B8] mb-2">Referrer ID</label>
+                            <div className="flex gap-2">
+                                <div className="flex-1 px-4 py-3 bg-[#0F172A] border border-[#334155] rounded-lg text-[#F8FAFC] font-mono">
+                                    {referrerId}
+                                </div>
+                                {referrerLoading ? (
+                                    <span className="px-3 py-3 text-[#64748B] text-sm">⏳</span>
+                                ) : referrerExists ? (
+                                    <span className="px-3 py-3 text-[#10B981] text-sm" title="Valid referrer">✓</span>
+                                ) : (
+                                    <span className="px-3 py-3 text-[#EF4444] text-sm" title="Invalid referrer">✗</span>
+                                )}
+                            </div>
+                            {!referrerLoading && !referrerExists && (
+                                <p className="text-xs text-[#EF4444] mt-1">Invalid referrer ID. Check your referral link.</p>
+                            )}
+                        </div>
+
+                        {/* Switch Wallet */}
+                        <div className="flex items-center gap-2 text-sm">
+                            <span className="text-[#64748B]">Wallet:</span>
+                            <WalletConnect />
+                        </div>
+
+                        {/* Terms */}
+                        <label className="flex items-start gap-3 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={agreed}
+                                onChange={(e) => setAgreed(e.target.checked)}
+                                className="mt-1 w-4 h-4 accent-[#EC4899]"
+                            />
+                            <span className="text-xs text-[#94A3B8]">
+                                I understand this is a community-led project and agree to the trading rules.
+                            </span>
+                        </label>
+
+                        {/* Warnings and Action Buttons */}
+                        {!hasReferralLink ? (
+                            <div className="text-center p-4 bg-[#EF4444]/10 rounded-lg border border-[#EF4444]/30">
+                                <p className="text-sm text-[#EF4444]">🔗 Referral link required</p>
+                                <p className="text-xs text-[#64748B] mt-1">You need a valid referral link to register. Ask your sponsor for one.</p>
+                            </div>
+                        ) : !hasEnoughGas ? (
+                            <div className="text-center p-4 bg-[#F59E0B]/10 rounded-lg border border-[#F59E0B]/30">
+                                <p className="text-sm text-[#F59E0B]">⛽ Insufficient gas</p>
+                                <p className="text-xs text-[#64748B] mt-1">You need at least {MIN_GAS_REQUIRED} tBNB for transactions</p>
+                            </div>
+                        ) : !hasEnoughBalance ? (
+                            <div className="text-center p-4 bg-[#EF4444]/10 rounded-lg border border-[#EF4444]/30">
+                                <p className="text-sm text-[#EF4444]">💰 Insufficient USDT balance</p>
+                                <p className="text-xs text-[#64748B] mt-1">You need ${tpv} USDT to register</p>
+                            </div>
+                        ) : !referrerExists ? (
+                            <div className="text-center p-4 bg-[#EF4444]/10 rounded-lg border border-[#EF4444]/30">
+                                <p className="text-sm text-[#EF4444]">❌ Invalid referrer ID</p>
+                                <p className="text-xs text-[#64748B] mt-1">This referrer ID does not exist</p>
+                            </div>
+                        ) : !hasAllowance ? (
+                            <Button
+                                variant="secondary"
+                                size="lg"
+                                className="w-full"
+                                onClick={handleApproveAndRegister}
+                                disabled={approvePending || approveConfirming || !agreed}
+                            >
+                                {approvePending ? 'Approving...' : approveConfirming ? 'Confirming...' : `Approve $${tpv} USDT`}
+                            </Button>
+                        ) : (
+                            <Button
+                                variant="primary"
+                                size="lg"
+                                className="w-full"
+                                onClick={handleRegister}
+                                disabled={regPending || !agreed}
+                            >
+                                {regPending ? 'Registering...' : `Register Now - $${tpv}`}
+                            </Button>
+                        )}
+                    </div>
+                )}
+
+                {/* Back Link */}
+                <div className="text-center mt-6">
+                    <Link href="/" className="text-sm text-[#64748B] hover:text-[#F8FAFC]">
+                        ← Back to Home
+                    </Link>
+                </div>
+            </Card>
         </div>
     );
 }

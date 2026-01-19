@@ -2,63 +2,192 @@
 
 import { StatCard } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
+import { useAccount } from 'wagmi';
+import { formatUnits } from 'viem';
+import { useUserId, useUserInfo, useUserEarnings, useUserBalance } from '@/hooks/useContracts';
+
+// Define types for contract returns
+interface UserInfo {
+    referrerId: bigint;
+    packageLevel: bigint;
+    totalInvested: bigint;
+    earningCap: bigint;
+    isActive: boolean;
+    activationDate: bigint;
+    directReferralsCount: bigint;
+}
+
+interface UserEarnings {
+    directSponsor: bigint;
+    levelIncome: bigint;
+    rankEmi: bigint;
+    fastBonus: bigint;
+}
+
+interface UserBalance {
+    totalEarned: bigint;
+    availableBalance: bigint;
+    withdrawnBalance: bigint;
+}
 
 export function HomeTab() {
+    const { address, isConnected } = useAccount();
+
+    // Fetch user data from contract
+    const { data: userId } = useUserId(address);
+    const { data: userInfo, isLoading: infoLoading } = useUserInfo(userId as bigint);
+    const { data: earnings, isLoading: earningsLoading } = useUserEarnings(userId as bigint);
+    const { data: balanceData } = useUserBalance(userId as bigint);
+
+    // Parse user info
+    const info = userInfo as UserInfo | undefined;
+
+    // Parse earnings - contract returns array [directSponsor, levelIncome, rankEmi, fastBonus]
+    const earnArr = earnings as readonly [bigint, bigint, bigint, bigint] | undefined;
+    const earn = earnArr ? {
+        directSponsor: earnArr[0],
+        levelIncome: earnArr[1],
+        rankEmi: earnArr[2],
+        fastBonus: earnArr[3],
+    } : undefined;
+
+    // Parse balance - contract returns array [totalEarned, availableBalance, withdrawnBalance]
+    const balArr = balanceData as readonly [bigint, bigint, bigint] | undefined;
+    const balance = balArr ? {
+        totalEarned: balArr[0],
+        availableBalance: balArr[1],
+        withdrawnBalance: balArr[2],
+    } : undefined;
+
+    // Calculate total income
+    const totalIncome = earn ?
+        Number(formatUnits(earn.directSponsor + earn.levelIncome + earn.rankEmi + earn.fastBonus, 18)) : 0;
+
+    // Format values
+    const formatUSDT = (value: bigint | undefined) => {
+        if (!value) return '$0';
+        return `$${Number(formatUnits(value, 18)).toLocaleString()}`;
+    };
+
+    const isLoading = infoLoading || earningsLoading;
+    const isRegistered = typeof userId === 'bigint' && userId > BigInt(0);
+
     return (
         <div className="space-y-4 sm:space-y-6">
             {/* Welcome Banner */}
             <div className="relative overflow-hidden bg-gradient-to-r from-[#EC4899]/20 via-[#1E293B] to-[#D946EF]/20 rounded-xl sm:rounded-2xl p-4 sm:p-6 border border-[#EC4899]/30 animate-slide-up">
                 <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                    <div className="absolute top-0 right-0 text-5xl sm:text-6xl opacity-10 float-slow">💰</div>
-                    <div className="absolute bottom-0 left-10 text-3xl sm:text-4xl opacity-10 float-medium">🪙</div>
+                    <div className="absolute top-0 right-0 text-5xl sm:text-6xl opacity-10 float-slow">🐂</div>
                 </div>
                 <div className="relative z-10">
                     <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-[#F8FAFC] mb-1 sm:mb-2">
-                        Welcome back, <span className="bg-gradient-to-r from-[#EC4899] to-[#D946EF] bg-clip-text text-transparent">Trader!</span>
+                        {Boolean(isRegistered) ? (
+                            <>Welcome, <span className="bg-gradient-to-r from-[#EC4899] to-[#D946EF] bg-clip-text text-transparent">User #{userId?.toString()}</span></>
+                        ) : (
+                            <>Welcome to <span className="bg-gradient-to-r from-[#EC4899] to-[#D946EF] bg-clip-text text-transparent">Bull Run!</span></>
+                        )}
                     </h1>
-                    <p className="text-xs sm:text-sm text-[#94A3B8]">Your portfolio is up 12% today 📈</p>
+                    <p className="text-xs sm:text-sm text-[#94A3B8]">
+                        {isRegistered && info?.isActive ? '✅ Account Active' : isRegistered ? '⏳ Account Pending Activation' : '🔗 Connect wallet to get started'}
+                    </p>
                 </div>
             </div>
 
             {/* Stats Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
-                {[
-                    { icon: '💰', value: '$1,234', label: 'Total Income', color: '#EC4899', change: '+12%' },
-                    { icon: '📈', value: '$45', label: 'Today Income', color: '#10B981', change: '+8%' },
-                    { icon: '🪙', value: '28', label: 'NFTs Owned', color: '#3B82F6' },
-                    { icon: '👥', value: '15', label: 'Team Size', color: '#D946EF' },
-                ].map((stat, index) => (
-                    <div
-                        key={index}
-                        className="animate-slide-up bg-gradient-to-br rounded-xl p-3 sm:p-4 border card-hover group"
-                        style={{
-                            animationDelay: `${index * 0.1}s`,
-                            background: `linear-gradient(to bottom right, ${stat.color}15, #1E293B)`,
-                            borderColor: `${stat.color}30`
-                        }}
-                    >
-                        <div className="flex items-center justify-between mb-1 sm:mb-2">
-                            <span className="text-xl sm:text-2xl group-hover:scale-110 transition-transform duration-300">{stat.icon}</span>
-                            {stat.change && <span className="text-[10px] sm:text-xs text-[#10B981]">{stat.change}</span>}
-                        </div>
-                        <p className="text-xl sm:text-2xl md:text-3xl font-bold" style={{ color: stat.color }}>{stat.value}</p>
-                        <p className="text-[10px] sm:text-xs text-[#64748B]">{stat.label}</p>
+                <div
+                    className="animate-slide-up bg-gradient-to-br rounded-xl p-3 sm:p-4 border card-hover group"
+                    style={{
+                        animationDelay: '0s',
+                        background: 'linear-gradient(to bottom right, #EC489915, #1E293B)',
+                        borderColor: '#EC489930'
+                    }}
+                >
+                    <div className="flex items-center justify-between mb-1 sm:mb-2">
+                        <span className="text-xl sm:text-2xl group-hover:scale-110 transition-transform duration-300">💰</span>
                     </div>
-                ))}
+                    <p className="text-xl sm:text-2xl md:text-3xl font-bold text-[#EC4899]">
+                        {isLoading ? '...' : `$${totalIncome.toFixed(2)}`}
+                    </p>
+                    <p className="text-[10px] sm:text-xs text-[#64748B]">Total Income</p>
+                </div>
+
+                <div
+                    className="animate-slide-up bg-gradient-to-br rounded-xl p-3 sm:p-4 border card-hover group"
+                    style={{
+                        animationDelay: '0.1s',
+                        background: 'linear-gradient(to bottom right, #10B98115, #1E293B)',
+                        borderColor: '#10B98130'
+                    }}
+                >
+                    <div className="flex items-center justify-between mb-1 sm:mb-2">
+                        <span className="text-xl sm:text-2xl group-hover:scale-110 transition-transform duration-300">💸</span>
+                    </div>
+                    <p className="text-xl sm:text-2xl md:text-3xl font-bold text-[#10B981]">
+                        {formatUSDT(balance?.availableBalance as bigint)}
+                    </p>
+                    <p className="text-[10px] sm:text-xs text-[#64748B]">Withdrawable</p>
+                </div>
+
+                <div
+                    className="animate-slide-up bg-gradient-to-br rounded-xl p-3 sm:p-4 border card-hover group"
+                    style={{
+                        animationDelay: '0.2s',
+                        background: 'linear-gradient(to bottom right, #3B82F615, #1E293B)',
+                        borderColor: '#3B82F630'
+                    }}
+                >
+                    <div className="flex items-center justify-between mb-1 sm:mb-2">
+                        <span className="text-xl sm:text-2xl group-hover:scale-110 transition-transform duration-300">📦</span>
+                    </div>
+                    <p className="text-xl sm:text-2xl md:text-3xl font-bold text-[#3B82F6]">
+                        {info ? `$${Number(formatUnits(info.totalInvested, 18))}` : '$0'}
+                    </p>
+                    <p className="text-[10px] sm:text-xs text-[#64748B]">Package</p>
+                </div>
+
+                <div
+                    className="animate-slide-up bg-gradient-to-br rounded-xl p-3 sm:p-4 border card-hover group"
+                    style={{
+                        animationDelay: '0.3s',
+                        background: 'linear-gradient(to bottom right, #D946EF15, #1E293B)',
+                        borderColor: '#D946EF30'
+                    }}
+                >
+                    <div className="flex items-center justify-between mb-1 sm:mb-2">
+                        <span className="text-xl sm:text-2xl group-hover:scale-110 transition-transform duration-300">👥</span>
+                    </div>
+                    <p className="text-xl sm:text-2xl md:text-3xl font-bold text-[#D946EF]">
+                        {info ? String(info.directReferralsCount) : '0'}
+                    </p>
+                    <p className="text-[10px] sm:text-xs text-[#64748B]">Direct Referrals</p>
+                </div>
             </div>
 
-            {/* Trading Status */}
-            <div className="relative overflow-hidden bg-gradient-to-r from-[#1E293B] to-[#0F172A] rounded-xl p-4 sm:p-5 border border-[#334155] animate-slide-up" style={{ animationDelay: '0.4s' }}>
-                <div className="absolute top-2 right-2 text-2xl sm:text-3xl opacity-20 burn-effect">⏰</div>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-                    <h3 className="text-sm sm:text-base font-semibold text-[#F8FAFC]">⏰ Trading Status</h3>
-                    <span className="px-2 sm:px-3 py-1 bg-[#EC4899]/10 rounded-full text-[10px] sm:text-xs text-[#EC4899] font-bold w-fit">15/20 NFTs</span>
+            {/* Earnings Breakdown */}
+            {isRegistered && earn && (
+                <div className="relative overflow-hidden bg-gradient-to-r from-[#1E293B] to-[#0F172A] rounded-xl p-4 sm:p-5 border border-[#334155] animate-slide-up" style={{ animationDelay: '0.4s' }}>
+                    <h3 className="text-sm sm:text-base font-semibold text-[#F8FAFC] mb-3">💰 Earnings Breakdown</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div className="p-3 bg-[#0F172A] rounded-lg">
+                            <p className="text-[10px] text-[#64748B]">Direct Sponsor</p>
+                            <p className="text-sm font-bold text-[#EC4899]">{formatUSDT(earn.directSponsor)}</p>
+                        </div>
+                        <div className="p-3 bg-[#0F172A] rounded-lg">
+                            <p className="text-[10px] text-[#64748B]">Level Income</p>
+                            <p className="text-sm font-bold text-[#3B82F6]">{formatUSDT(earn.levelIncome)}</p>
+                        </div>
+                        <div className="p-3 bg-[#0F172A] rounded-lg">
+                            <p className="text-[10px] text-[#64748B]">Rank EMI</p>
+                            <p className="text-sm font-bold text-[#10B981]">{formatUSDT(earn.rankEmi)}</p>
+                        </div>
+                        <div className="p-3 bg-[#0F172A] rounded-lg">
+                            <p className="text-[10px] text-[#64748B]">Fast Bonus</p>
+                            <p className="text-sm font-bold text-[#D946EF]">{formatUSDT(earn.fastBonus)}</p>
+                        </div>
+                    </div>
                 </div>
-                <ProgressBar value={15} max={20} showPercentage={false} size="md" />
-                <p className="text-[10px] sm:text-xs text-[#64748B] mt-2 sm:mt-3">
-                    🔥 Complete <span className="text-[#EC4899] font-bold">75%</span> trading within 24 hours
-                </p>
-            </div>
+            )}
 
             {/* Quick Actions */}
             <div className="grid grid-cols-4 gap-2 sm:gap-3 animate-slide-up" style={{ animationDelay: '0.5s' }}>
@@ -78,36 +207,17 @@ export function HomeTab() {
                 ))}
             </div>
 
-            {/* Recent Activity */}
-            <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] rounded-xl border border-[#334155] overflow-hidden animate-slide-up" style={{ animationDelay: '0.6s' }}>
-                <div className="p-3 sm:p-4 border-b border-[#334155] flex items-center justify-between">
-                    <h3 className="text-sm sm:text-base font-semibold text-[#F8FAFC]">📋 Recent Activity</h3>
-                    <span className="text-[10px] sm:text-xs text-[#3B82F6] cursor-pointer hover:underline">View All</span>
+            {/* Not Registered Message */}
+            {!isRegistered && isConnected && (
+                <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] rounded-xl p-6 border border-[#334155] text-center animate-slide-up" style={{ animationDelay: '0.6s' }}>
+                    <p className="text-4xl mb-3">🚀</p>
+                    <h3 className="text-lg font-bold text-[#F8FAFC] mb-2">Get Started!</h3>
+                    <p className="text-sm text-[#64748B] mb-4">Register now to start earning with Bull Run</p>
+                    <button className="px-6 py-3 bg-gradient-to-r from-[#EC4899] to-[#D946EF] rounded-xl text-white font-bold hover:shadow-[0_0_30px_rgba(236,72,153,0.3)] transition-all active:scale-95">
+                        Register Now
+                    </button>
                 </div>
-                <div className="divide-y divide-[#334155]">
-                    {[
-                        { type: 'Earned', amount: '+$2.50', desc: 'Level 3 income', time: '2 min ago', color: '#10B981', icon: '💰' },
-                        { type: 'Bought', amount: '-$25', desc: 'NFT #ABC123', time: '1 hour ago', color: '#D946EF', icon: '🛒' },
-                        { type: 'Earned', amount: '+$25.75', desc: 'Burn reward', time: '3 hours ago', color: '#10B981', icon: '🔥' },
-                    ].map((activity, index) => (
-                        <div key={index} className="flex items-center justify-between p-3 sm:p-4 hover:bg-[#1E293B]/50 transition-colors">
-                            <div className="flex items-center gap-2 sm:gap-3">
-                                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[#0F172A] flex items-center justify-center text-base sm:text-xl">
-                                    {activity.icon}
-                                </div>
-                                <div>
-                                    <p className="text-xs sm:text-sm text-[#F8FAFC] font-medium">{activity.type}</p>
-                                    <p className="text-[10px] sm:text-xs text-[#64748B]">{activity.desc}</p>
-                                </div>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-xs sm:text-sm font-mono font-bold" style={{ color: activity.color }}>{activity.amount}</p>
-                                <p className="text-[8px] sm:text-[10px] text-[#64748B]">{activity.time}</p>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
+            )}
         </div>
     );
 }

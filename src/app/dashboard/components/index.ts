@@ -6,3 +6,4 @@ export { EarningsTab } from './EarningsTab';
 export { TeamTab } from './TeamTab';
 export { BurningTab } from './BurningTab';
 export { LevelsTab } from './LevelsTab';
+export { RanksTab } from './RanksTab';

@@ -5,3 +5,4 @@ export { UsersTab } from './UsersTab';
 export { TransactionsTab } from './TransactionsTab';
 export { PackagesTab } from './PackagesTab';
 export { SettingsTab } from './SettingsTab';
+export { WeeklyPoolTab } from './WeeklyPoolTab';

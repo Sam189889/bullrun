@@ -8,8 +8,8 @@ interface AdminNavProps {
 const navItems = [
     { id: 'overview', icon: '📊', label: 'Overview', color: '#EC4899' },
     { id: 'users', icon: '👥', label: 'Users', color: '#3B82F6' },
-    { id: 'transactions', icon: '💰', label: 'Txns', color: '#10B981' },
     { id: 'packages', icon: '📦', label: 'Packages', color: '#D946EF' },
+    { id: 'weekly', icon: '📅', label: 'Weekly', color: '#10B981' },
     { id: 'settings', icon: '⚙️', label: 'Settings', color: '#8B5CF6' },
 ];
 

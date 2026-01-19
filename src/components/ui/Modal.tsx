@@ -1,6 +1,7 @@
 'use client';
 
 import { ReactNode, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Button } from './Button';
 
 interface ModalProps {
@@ -38,6 +39,7 @@ export function Modal({
     }, [isOpen, onClose]);
 
     if (!isOpen) return null;
+    if (typeof document === 'undefined') return null;
 
     const sizes = {
         sm: 'max-w-sm',
@@ -46,8 +48,8 @@ export function Modal({
         xl: 'max-w-xl',
     };
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    return createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
             {/* Backdrop */}
             <div
                 className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -57,16 +59,16 @@ export function Modal({
             {/* Modal Content */}
             <div
                 className={`
-          relative w-full ${sizes[size]}
-          bg-[#1E293B] border border-[#334155]
-          rounded-2xl shadow-2xl
-          transform transition-all duration-300
-          animate-in fade-in zoom-in-95
-        `}
+                    relative w-full ${sizes[size]}
+                    bg-[#1E293B] border border-[#334155]
+                    rounded-2xl shadow-2xl
+                    transform transition-all duration-300
+                    max-h-[90vh] overflow-y-auto
+                `}
             >
                 {/* Header */}
                 {(title || showCloseButton) && (
-                    <div className="flex items-center justify-between p-5 border-b border-[#334155]">
+                    <div className="flex items-center justify-between p-5 border-b border-[#334155] sticky top-0 bg-[#1E293B] rounded-t-2xl">
                         {title && (
                             <h2 className="text-xl font-bold text-[#F8FAFC]">{title}</h2>
                         )}
@@ -84,7 +86,8 @@ export function Modal({
                 {/* Body */}
                 <div className="p-5">{children}</div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }
 

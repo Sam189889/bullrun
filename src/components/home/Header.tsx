@@ -24,15 +24,25 @@ export function Header() {
                             </div>
                         </Link>
 
-                        {/* Dashboard Button */}
-                        <Link href="/dashboard">
-                            <Button variant="primary" size="md" className="btn-hover-lift">
-                                <span className="flex items-center gap-2">
-                                    <span className="hidden sm:inline">📊</span>
-                                    Dashboard
-                                </span>
-                            </Button>
-                        </Link>
+                        {/* Action Buttons */}
+                        <div className="flex items-center gap-2 sm:gap-3">
+                            <Link href="/lookup">
+                                <Button variant="secondary" size="md" className="btn-hover-lift">
+                                    <span className="flex items-center gap-2">
+                                        <span>🔍</span>
+                                        <span className="hidden sm:inline">Lookup</span>
+                                    </span>
+                                </Button>
+                            </Link>
+                            <Link href="/dashboard">
+                                <Button variant="primary" size="md" className="btn-hover-lift">
+                                    <span className="flex items-center gap-2">
+                                        <span className="hidden sm:inline">📊</span>
+                                        Dashboard
+                                    </span>
+                                </Button>
+                            </Link>
+                        </div>
                     </div>
                 </div>
             </nav>
