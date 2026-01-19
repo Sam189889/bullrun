@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { useAccount } from 'wagmi';
-import { formatUnits } from 'viem';
-import { useUserId, useUserEarnings, useUserBalance } from '@/hooks/useContracts';
+import { useAccount, useWaitForTransactionReceipt } from 'wagmi';
+import { formatUnits, parseUnits } from 'viem';
+import { useUserId, useUserEarnings, useUserBalance, useWithdraw } from '@/hooks/useContracts';
 import { Button } from '@/components/ui/Button';
+import toast from 'react-hot-toast';
 
 // Define types for contract returns
 interface UserEarnings {
@@ -14,19 +15,44 @@ interface UserEarnings {
     fastBonus: bigint;
 }
 
+interface UserBalanceData {
+    totalEarned: bigint;
+    availableBalance: bigint;
+    withdrawnBalance: bigint;
+}
+
 const EARNING_TYPES = ['All', 'Sponsor', 'Level', 'Rank EMI', 'Fast Bonus'];
+const MIN_WITHDRAWAL = parseUnits('5', 18); // $5 minimum
 
 export function EarningsTab() {
     const [activeFilter, setActiveFilter] = useState('All');
+    const [withdrawAmount, setWithdrawAmount] = useState('');
     const { address } = useAccount();
 
     // Fetch user data
     const { data: userId } = useUserId(address);
     const { data: earnings, isLoading } = useUserEarnings(userId as bigint);
-    const { data: balance } = useUserBalance(userId as bigint);
+    const { data: balanceData, refetch: refetchBalance } = useUserBalance(userId as bigint);
+
+    // Withdraw hook
+    const { withdraw, isPending: isWithdrawing, data: withdrawHash } = useWithdraw();
+    const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash: withdrawHash });
 
     const earn = earnings as UserEarnings | undefined;
+    const balance = balanceData as readonly [bigint, bigint, bigint] | undefined;
     const isRegistered = typeof userId === 'bigint' && userId > BigInt(0);
+
+    // Parse balance struct (totalEarned, availableBalance, withdrawnBalance)
+    const totalEarned = balance ? balance[0] : BigInt(0);
+    const availableBalance = balance ? balance[1] : BigInt(0);
+    const withdrawnBalance = balance ? balance[2] : BigInt(0);
+
+    // Parse earnings - contract returns tuple (directSponsor, levelIncome, rankEmi, fastBonus)
+    const earnTuple = earnings as readonly [bigint, bigint, bigint, bigint] | undefined;
+    const directSponsor = earnTuple ? earnTuple[0] : BigInt(0);
+    const levelIncome = earnTuple ? earnTuple[1] : BigInt(0);
+    const rankEmi = earnTuple ? earnTuple[2] : BigInt(0);
+    const fastBonus = earnTuple ? earnTuple[3] : BigInt(0);
 
     // Format values
     const formatUSDT = (value: bigint | undefined) => {
@@ -34,17 +60,46 @@ export function EarningsTab() {
         return `$${Number(formatUnits(value, 18)).toLocaleString()}`;
     };
 
-    // Calculate totals
-    const totalEarnings = earn ?
-        earn.directSponsor + earn.levelIncome + earn.rankEmi + earn.fastBonus : BigInt(0);
+    // Calculate totals from earnings
+    const totalEarnings = directSponsor + levelIncome + rankEmi + fastBonus;
+
+    // Handle withdraw
+    const handleWithdraw = () => {
+        if (!withdrawAmount) return;
+        const amount = parseUnits(withdrawAmount, 18);
+        if (amount < MIN_WITHDRAWAL) {
+            toast.error('Minimum withdrawal is $5');
+            return;
+        }
+        if (amount > availableBalance) {
+            toast.error('Insufficient balance');
+            return;
+        }
+        withdraw(amount);
+        toast.success('Withdrawal submitted!');
+    };
+
+    // Handle max withdraw
+    const handleMaxWithdraw = () => {
+        if (availableBalance > BigInt(0)) {
+            setWithdrawAmount(formatUnits(availableBalance, 18));
+        }
+    };
+
+    // Success handling
+    if (isSuccess) {
+        refetchBalance();
+        setWithdrawAmount('');
+        toast.success('Withdrawal successful!');
+    }
 
     // Earnings breakdown for display
-    const earningsData = earn ? [
-        { type: 'Direct Sponsor', amount: earn.directSponsor, icon: '🤝', color: '#EC4899' },
-        { type: 'Level Income', amount: earn.levelIncome, icon: '📈', color: '#3B82F6' },
-        { type: 'Rank EMI', amount: earn.rankEmi, icon: '🏆', color: '#10B981' },
-        { type: 'Fast Bonus', amount: earn.fastBonus, icon: '⚡', color: '#D946EF' },
-    ] : [];
+    const earningsData = [
+        { type: 'Direct Sponsor', amount: directSponsor, icon: '🤝', color: '#EC4899' },
+        { type: 'Level Income', amount: levelIncome, icon: '📈', color: '#3B82F6' },
+        { type: 'Rank EMI', amount: rankEmi, icon: '🏆', color: '#10B981' },
+        { type: 'Fast Bonus', amount: fastBonus, icon: '⚡', color: '#D946EF' },
+    ];
 
     // Filter earnings
     const filteredEarnings = activeFilter === 'All'
@@ -81,7 +136,7 @@ export function EarningsTab() {
                     <div className="absolute top-1 right-1 sm:top-2 sm:right-2 text-xl sm:text-2xl opacity-20">💸</div>
                     <p className="text-[10px] sm:text-xs text-[#64748B]">Withdrawable</p>
                     <p className="text-lg sm:text-xl md:text-2xl font-bold text-[#EC4899]">
-                        {formatUSDT(balance as bigint)}
+                        {formatUSDT(availableBalance)}
                     </p>
                 </div>
 
@@ -93,11 +148,47 @@ export function EarningsTab() {
                         borderColor: '#3B82F630'
                     }}
                 >
-                    <div className="absolute top-1 right-1 sm:top-2 sm:right-2 text-xl sm:text-2xl opacity-20">📊</div>
-                    <p className="text-[10px] sm:text-xs text-[#64748B]">Income Types</p>
+                    <div className="absolute top-1 right-1 sm:top-2 sm:right-2 text-xl sm:text-2xl opacity-20">✅</div>
+                    <p className="text-[10px] sm:text-xs text-[#64748B]">Withdrawn</p>
                     <p className="text-lg sm:text-xl md:text-2xl font-bold text-[#3B82F6]">
-                        {earningsData.filter(e => e.amount > BigInt(0)).length}
+                        {formatUSDT(withdrawnBalance)}
                     </p>
+                </div>
+            </div>
+
+            {/* Withdraw Section */}
+            <div className="bg-gradient-to-r from-[#1E293B] to-[#0F172A] rounded-xl p-4 border border-[#334155] animate-slide-up" style={{ animationDelay: '0.25s' }}>
+                <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold text-[#F8FAFC]">💰 Withdraw</h3>
+                    <span className="text-xs text-[#64748B]">Min: $5</span>
+                </div>
+                <div className="flex gap-2">
+                    <div className="relative flex-1">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#64748B]">$</span>
+                        <input
+                            type="number"
+                            value={withdrawAmount}
+                            onChange={(e) => setWithdrawAmount(e.target.value)}
+                            placeholder="0.00"
+                            className="w-full bg-[#0F172A] border border-[#334155] rounded-lg pl-7 pr-14 py-2 text-[#F8FAFC] text-sm focus:border-[#EC4899] outline-none"
+                        />
+                        <button
+                            type="button"
+                            onClick={handleMaxWithdraw}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-[#EC4899] hover:text-[#D946EF]"
+                        >
+                            MAX
+                        </button>
+                    </div>
+                    <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={handleWithdraw}
+                        disabled={isWithdrawing || isConfirming || !withdrawAmount}
+                        className="px-4"
+                    >
+                        {isWithdrawing || isConfirming ? '...' : 'Withdraw'}
+                    </Button>
                 </div>
             </div>
 

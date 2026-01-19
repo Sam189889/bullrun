@@ -231,3 +231,21 @@ export function useUserRankData(userId: bigint | undefined, rank: number) {
         query: { enabled: !!userId && userId > BigInt(0) },
     })
 }
+
+/**
+ * Withdraw available balance ($5 minimum)
+ */
+export function useWithdraw() {
+    const { writeContract, ...rest } = useWriteContract()
+
+    const withdraw = (amount: bigint) => {
+        writeContract({
+            address: contracts.bullRun,
+            abi: BullRunMainLogicABI,
+            functionName: 'withdraw',
+            args: [amount],
+        })
+    }
+
+    return { withdraw, ...rest }
+}

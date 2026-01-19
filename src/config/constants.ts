@@ -1,8 +1,8 @@
-// Contract Addresses - opBNB Testnet
+// Contract Addresses - opBNB Testnet (Fresh Deployment 2026-01-19)
 export const CONTRACTS = {
     USDT: '0x9907964f13E7d6433Af61135E126326c4f6786b0' as `0x${string}`,  // Existing USDT
-    BULL_RUN: '0xe265737749b98c2f06f94413af6024dbcfa2c770' as `0x${string}`,  // New Proxy
-    IMPLEMENTATION: '0xd61a1a5e0a3d3cb66f0e9997ce1811d290d650f2' as `0x${string}`,  // New Implementation
+    BULL_RUN: '0x6e7a7ad3871c54373d641325d09285e7579f9a42' as `0x${string}`,  // New Proxy
+    IMPLEMENTATION: '0xbe8d709ac695b7ff7fb6ecd9ee556488e382adbe' as `0x${string}`,  // New Implementation
     PROXY_ADMIN: '0xAdc4587f4fDcFd732d3768906Df40f4277272F57' as `0x${string}`,  // Existing ProxyAdmin
 } as const
 

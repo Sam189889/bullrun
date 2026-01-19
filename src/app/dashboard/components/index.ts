@@ -7,3 +7,4 @@ export { TeamTab } from './TeamTab';
 export { BurningTab } from './BurningTab';
 export { LevelsTab } from './LevelsTab';
 export { RanksTab } from './RanksTab';
+export { PackagesTab } from './PackagesTab';

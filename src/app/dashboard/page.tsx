@@ -14,6 +14,7 @@ import {
     BurningTab,
     LevelsTab,
     RanksTab,
+    PackagesTab,
 } from './components';
 
 export default function DashboardPage() {
@@ -42,6 +43,8 @@ export default function DashboardPage() {
                 return <HomeTab />;
             case 'marketplace':
                 return <MarketplaceTab />;
+            case 'packages':
+                return <PackagesTab />;
             case 'earnings':
                 return <EarningsTab />;
             case 'ranks':
