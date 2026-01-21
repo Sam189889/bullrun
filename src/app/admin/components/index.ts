@@ -6,3 +6,4 @@ export { TransactionsTab } from './TransactionsTab';
 export { PackagesTab } from './PackagesTab';
 export { SettingsTab } from './SettingsTab';
 export { WeeklyPoolTab } from './WeeklyPoolTab';
+export { NFTsTab } from './NFTsTab';

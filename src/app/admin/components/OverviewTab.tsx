@@ -1,7 +1,7 @@
 'use client';
 
 import { formatUnits } from 'viem';
-import { usePoolBalance, useWeeklyPoolBalance, useTotalUsers, useCurrentWeek, useTotalWeeklyShares, usePackageIdCounter, useFirstUser, useContractVersion } from '@/hooks';
+import { usePoolBalance, useWeeklyPoolBalance, useTotalUsers, useCurrentWeek, useTotalWeeklyShares, usePackageIdCounter, useFirstUser, useContractVersion } from '@/hooks/useAdminContracts';
 import { Card, StatCard } from '@/components/ui/Card';
 
 export function OverviewTab() {

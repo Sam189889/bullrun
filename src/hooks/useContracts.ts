@@ -101,15 +101,15 @@ export function useUserExists(userId: bigint | undefined) {
 }
 
 /**
- * Get package info by ID
+ * Get package info by level (1-indexed: 1-9)
  */
-export function usePackage(packageId: bigint | undefined) {
+export function usePackage(packageLevel: bigint | undefined) {
     return useReadContract({
         address: contracts.bullRun,
         abi: BullRunMainLogicABI,
-        functionName: 'packages',
-        args: packageId ? [packageId] : undefined,
-        query: { enabled: !!packageId && packageId > BigInt(0) },
+        functionName: 'getPackageInfo',
+        args: packageLevel ? [packageLevel] : undefined,
+        query: { enabled: !!packageLevel && packageLevel > BigInt(0) },
     })
 }
 
@@ -248,4 +248,137 @@ export function useWithdraw() {
     }
 
     return { withdraw, ...rest }
+}
+
+// ============ NFT TRADING HOOKS ============
+
+/**
+ * Get total NFTs count
+ */
+export function useTotalNFTs() {
+    return useReadContract({
+        address: contracts.bullRun,
+        abi: BullRunMainLogicABI,
+        functionName: 'totalNFTs',
+    })
+}
+
+/**
+ * Get NFT by ID
+ */
+export function useNFT(nftId: bigint | undefined) {
+    return useReadContract({
+        address: contracts.bullRun,
+        abi: BullRunMainLogicABI,
+        functionName: 'nfts',
+        args: nftId ? [nftId] : undefined,
+        query: { enabled: !!nftId && nftId > BigInt(0) },
+    })
+}
+
+/**
+ * Get user's available daily trading limit
+ */
+export function useUserAvailableLimit(userId: bigint | undefined) {
+    return useReadContract({
+        address: contracts.bullRun,
+        abi: BullRunMainLogicABI,
+        functionName: 'getUserAvailableLimit',
+        args: userId ? [userId] : undefined,
+        query: { enabled: !!userId && userId > BigInt(0) },
+    })
+}
+
+/**
+ * Get user's trading volume
+ */
+export function useUserTradingVolume(userId: bigint | undefined) {
+    return useReadContract({
+        address: contracts.bullRun,
+        abi: BullRunMainLogicABI,
+        functionName: 'userTradingVolume',
+        args: userId ? [userId] : undefined,
+        query: { enabled: !!userId && userId > BigInt(0) },
+    })
+}
+
+/**
+ * Get user's trading earnings
+ */
+export function useUserTradingEarnings(userId: bigint | undefined) {
+    return useReadContract({
+        address: contracts.bullRun,
+        abi: BullRunMainLogicABI,
+        functionName: 'tradingEarnings',
+        args: userId ? [userId] : undefined,
+        query: { enabled: !!userId && userId > BigInt(0) },
+    })
+}
+
+/**
+ * Buy NFT
+ */
+export function useBuyNFT() {
+    const { writeContract, ...rest } = useWriteContract()
+
+    const buyNFT = (nftId: bigint) => {
+        writeContract({
+            address: contracts.bullRun,
+            abi: BullRunMainLogicABI,
+            functionName: 'buyNFT',
+            args: [nftId],
+        })
+    }
+
+    return { buyNFT, ...rest }
+}
+
+// ============ LUCKY DRAW HOOKS ============
+
+/**
+ * Get lucky draw pool info (balance, weekNumber, lastDrawAt)
+ */
+export function useLuckyDrawPool() {
+    return useReadContract({
+        address: contracts.bullRun,
+        abi: BullRunMainLogicABI,
+        functionName: 'luckyDrawPool',
+    })
+}
+
+/**
+ * Get user's lucky draw entries for a week
+ */
+export function useUserLuckyDrawEntries(userId: bigint | undefined, weekNumber: number) {
+    return useReadContract({
+        address: contracts.bullRun,
+        abi: BullRunMainLogicABI,
+        functionName: 'userLuckyDrawEntries',
+        args: userId ? [userId, weekNumber] : undefined,
+        query: { enabled: !!userId && userId > BigInt(0) && weekNumber > 0 },
+    })
+}
+
+/**
+ * Get total weekly lucky draw entries
+ */
+export function useTotalLuckyDrawEntries(weekNumber: number) {
+    return useReadContract({
+        address: contracts.bullRun,
+        abi: BullRunMainLogicABI,
+        functionName: 'totalWeeklyLuckyEntries',
+        args: [weekNumber],
+        query: { enabled: weekNumber > 0 },
+    })
+}
+
+/**
+ * Get lucky draw entry threshold ($100 = 1 entry by default)
+ */
+export function useLuckyDrawThreshold() {
+    return useReadContract({
+        address: contracts.bullRun,
+        abi: BullRunMainLogicABI,
+        functionName: 'luckyDrawEntryThreshold',
+    })
 }

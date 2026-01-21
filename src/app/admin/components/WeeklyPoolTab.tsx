@@ -10,7 +10,7 @@ import {
     useDistributeWeeklyPool,
     useStartNewWeek,
     useApproveUSDT
-} from '@/hooks';
+} from '@/hooks/useAdminContracts';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';

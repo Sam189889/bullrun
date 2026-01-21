@@ -106,6 +106,63 @@ export function useUSDTAddress() {
     })
 }
 
+/**
+ * Get total NFTs
+ */
+export function useTotalNFTs() {
+    return useReadContract({
+        address: CONTRACTS.BULL_RUN,
+        abi: BullRunMainLogicABI,
+        functionName: 'totalNFTs',
+    })
+}
+
+/**
+ * Get NFT by ID
+ */
+export function useNFT(nftId: bigint | undefined) {
+    return useReadContract({
+        address: CONTRACTS.BULL_RUN,
+        abi: BullRunMainLogicABI,
+        functionName: 'nfts',
+        args: nftId !== undefined ? [nftId] : undefined,
+        query: { enabled: nftId !== undefined }
+    })
+}
+
+/**
+ * Get NFT split threshold
+ */
+export function useNFTSplitThreshold() {
+    return useReadContract({
+        address: CONTRACTS.BULL_RUN,
+        abi: BullRunMainLogicABI,
+        functionName: 'nftSplitThreshold',
+    })
+}
+
+/**
+ * Get NFT split count
+ */
+export function useNFTSplitCount() {
+    return useReadContract({
+        address: CONTRACTS.BULL_RUN,
+        abi: BullRunMainLogicABI,
+        functionName: 'nftSplitCount',
+    })
+}
+
+/**
+ * Get NFT appreciation bps
+ */
+export function useNFTAppreciationBps() {
+    return useReadContract({
+        address: CONTRACTS.BULL_RUN,
+        abi: BullRunMainLogicABI,
+        functionName: 'nftAppreciationBps',
+    })
+}
+
 // ============ WRITE HOOKS ============
 
 /**
@@ -309,4 +366,99 @@ export function useApproveUSDT() {
     }
 
     return { approve, approveMax, hash, isPending, isConfirming, isSuccess, error }
+}
+
+/**
+ * Create NFT
+ */
+export function useCreateNFT() {
+    const { writeContract, data: hash, isPending, error } = useWriteContract()
+    const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
+
+    const createNFT = (basePrice: string) => {
+        writeContract({
+            address: CONTRACTS.BULL_RUN,
+            abi: BullRunMainLogicABI,
+            functionName: 'createNFT',
+            args: [parseUnits(basePrice, 18)],
+        })
+    }
+
+    return { createNFT, hash, isPending, isConfirming, isSuccess, error }
+}
+
+/**
+ * Set NFT split settings
+ */
+export function useSetSplitSettings() {
+    const { writeContract, data: hash, isPending, error } = useWriteContract()
+    const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
+
+    const setSplitSettings = (threshold: string, count: bigint) => {
+        writeContract({
+            address: CONTRACTS.BULL_RUN,
+            abi: BullRunMainLogicABI,
+            functionName: 'setSplitSettings',
+            args: [parseUnits(threshold, 18), count],
+        })
+    }
+
+    return { setSplitSettings, hash, isPending, isConfirming, isSuccess, error }
+}
+
+/**
+ * Toggle NFT featured status
+ */
+export function useToggleNFTFeatured() {
+    const { writeContract, data: hash, isPending, error } = useWriteContract()
+    const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
+
+    const toggleFeatured = (nftId: bigint) => {
+        writeContract({
+            address: CONTRACTS.BULL_RUN,
+            abi: BullRunMainLogicABI,
+            functionName: 'toggleNFTFeatured',
+            args: [nftId],
+        })
+    }
+
+    return { toggleFeatured, hash, isPending, isConfirming, isSuccess, error }
+}
+
+/**
+ * Toggle NFT hidden status
+ */
+export function useToggleNFTHidden() {
+    const { writeContract, data: hash, isPending, error } = useWriteContract()
+    const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
+
+    const toggleHidden = (nftId: bigint) => {
+        writeContract({
+            address: CONTRACTS.BULL_RUN,
+            abi: BullRunMainLogicABI,
+            functionName: 'toggleNFTHidden',
+            args: [nftId],
+        })
+    }
+
+    return { toggleHidden, hash, isPending, isConfirming, isSuccess, error }
+}
+
+/**
+ * Set NFT display order
+ */
+export function useSetNFTDisplayOrder() {
+    const { writeContract, data: hash, isPending, error } = useWriteContract()
+    const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
+
+    const setOrder = (nftId: bigint, order: bigint) => {
+        writeContract({
+            address: CONTRACTS.BULL_RUN,
+            abi: BullRunMainLogicABI,
+            functionName: 'setNFTDisplayOrder',
+            args: [nftId, order],
+        })
+    }
+
+    return { setOrder, hash, isPending, isConfirming, isSuccess, error }
 }

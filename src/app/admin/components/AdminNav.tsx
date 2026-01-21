@@ -10,6 +10,7 @@ const navItems = [
     { id: 'users', icon: '👥', label: 'Users', color: '#3B82F6' },
     { id: 'packages', icon: '📦', label: 'Packages', color: '#D946EF' },
     { id: 'weekly', icon: '📅', label: 'Weekly', color: '#10B981' },
+    { id: 'nfts', icon: '🖼️', label: 'NFTs', color: '#F59E0B' },
     { id: 'settings', icon: '⚙️', label: 'Settings', color: '#8B5CF6' },
 ];
 

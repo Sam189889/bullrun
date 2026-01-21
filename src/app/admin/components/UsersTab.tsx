@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { formatUnits } from 'viem';
-import { useTotalUsers } from '@/hooks';
+import { useTotalUsers } from '@/hooks/useAdminContracts';
 import { useReadContracts } from 'wagmi';
 import { CONTRACTS } from '@/config/constants';
 import { BullRunMainLogicABI } from '@/abi';

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { formatUnits } from 'viem';
-import { useSetWallets, useDepositToPool, useWithdrawFromPool, useApproveUSDT, usePoolBalance, useSetFirstUser, useSetPaymentToken, useFirstUser, useUSDTAddress } from '@/hooks';
+import { useSetWallets, useDepositToPool, useWithdrawFromPool, useApproveUSDT, usePoolBalance, useSetFirstUser, useSetPaymentToken, useFirstUser, useUSDTAddress } from '@/hooks/useAdminContracts';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';

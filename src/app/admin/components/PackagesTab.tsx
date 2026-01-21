@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { formatUnits } from 'viem';
-import { usePackageIdCounter, usePackage, useTogglePackageStatus } from '@/hooks';
+import { usePackage } from '@/hooks';
+import { usePackageIdCounter, useTogglePackageStatus } from '@/hooks/useAdminContracts';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';

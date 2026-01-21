@@ -13,6 +13,7 @@ import {
     PackagesTab,
     SettingsTab,
     WeeklyPoolTab,
+    NFTsTab,
 } from './components';
 
 export default function AdminPage() {
@@ -43,6 +44,8 @@ export default function AdminPage() {
                 return <SettingsTab />;
             case 'weekly':
                 return <WeeklyPoolTab />;
+            case 'nfts':
+                return <NFTsTab />;
             default:
                 return <OverviewTab />;
         }

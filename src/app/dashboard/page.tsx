@@ -11,7 +11,7 @@ import {
     MarketplaceTab,
     EarningsTab,
     TeamTab,
-    BurningTab,
+    LuckyDrawTab,
     LevelsTab,
     RanksTab,
     PackagesTab,
@@ -51,8 +51,8 @@ export default function DashboardPage() {
                 return <RanksTab />;
             case 'team':
                 return <TeamTab />;
-            case 'burning':
-                return <BurningTab />;
+            case 'luckydraw':
+                return <LuckyDrawTab />;
             case 'levels':
                 return <LevelsTab />;
             default:

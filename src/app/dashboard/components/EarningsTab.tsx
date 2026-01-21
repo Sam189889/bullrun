@@ -4,25 +4,146 @@ import { useState } from 'react';
 import { useAccount, useWaitForTransactionReceipt } from 'wagmi';
 import { formatUnits, parseUnits } from 'viem';
 import { useUserId, useUserEarnings, useUserBalance, useWithdraw } from '@/hooks/useContracts';
+import { useIncomeEvents, useRankEmiClaimedEvents, useFastBonusClaimedEvents, IncomeEvent, RankEmiClaimedEvent, FastBonusClaimedEvent } from '@/hooks/useEvents';
 import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
 
-// Define types for contract returns
-interface UserEarnings {
-    directSponsor: bigint;
-    levelIncome: bigint;
-    rankEmi: bigint;
-    fastBonus: bigint;
-}
-
-interface UserBalanceData {
-    totalEarned: bigint;
-    availableBalance: bigint;
-    withdrawnBalance: bigint;
-}
-
-const EARNING_TYPES = ['All', 'Sponsor', 'Level', 'Rank EMI', 'Fast Bonus'];
 const MIN_WITHDRAWAL = parseUnits('5', 18); // $5 minimum
+
+// Expandable income card component
+function IncomeCard({
+    type,
+    amount,
+    icon,
+    color,
+    incomeTypeFilter,
+    userId
+}: {
+    type: string;
+    amount: bigint;
+    icon: string;
+    color: string;
+    incomeTypeFilter?: string;
+    userId: bigint | undefined;
+}) {
+    const [isExpanded, setIsExpanded] = useState(false);
+
+    // Fetch events based on income type
+    const { events: incomeEvents, isLoading: incomeLoading } = useIncomeEvents(userId);
+    const { events: emiEvents, isLoading: emiLoading } = useRankEmiClaimedEvents(userId);
+    const { events: fastBonusEvents, isLoading: fastBonusLoading } = useFastBonusClaimedEvents(userId);
+
+    // Filter events based on income type
+    const getFilteredEvents = () => {
+        if (type === 'Rank EMI') {
+            return emiEvents.map(e => ({
+                amount: e.amount,
+                details: `EMI #${e.emiNumber} - Rank ${e.rank}`,
+                txHash: e.transactionHash,
+            }));
+        }
+        if (type === 'Fast Bonus') {
+            return fastBonusEvents.map(e => ({
+                amount: e.amount,
+                details: `Rank ${e.rank} Fast Bonus`,
+                txHash: e.transactionHash,
+            }));
+        }
+        // Direct Sponsor or Level Income - filter from IncomeDistributed events
+        const filterType = type === 'Direct Sponsor' ? 'DIRECT_SPONSOR' : 'LEVEL_INCOME';
+        return incomeEvents
+            .filter(e => e.incomeType === filterType)
+            .map(e => ({
+                amount: e.amount,
+                details: `From User #${e.fromUserId}`,
+                txHash: e.transactionHash,
+            }));
+    };
+
+    const filteredEvents = getFilteredEvents();
+    const isLoading = incomeLoading || emiLoading || fastBonusLoading;
+
+    const formatUSDT = (value: bigint) => `$${Number(formatUnits(value, 18)).toFixed(2)}`;
+
+    return (
+        <div className="border-b border-[#334155] last:border-b-0">
+            {/* Header - Clickable */}
+            <div
+                className="flex items-center justify-between p-3 sm:p-4 hover:bg-[#1E293B]/50 transition-colors cursor-pointer"
+                onClick={() => setIsExpanded(!isExpanded)}
+            >
+                <div className="flex items-center gap-2 sm:gap-3">
+                    <div
+                        className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm sm:text-lg"
+                        style={{ backgroundColor: `${color}20` }}
+                    >
+                        {icon}
+                    </div>
+                    <div>
+                        <p className="text-xs sm:text-sm text-[#F8FAFC]">{type}</p>
+                        <p className="text-[8px] sm:text-xs text-[#64748B]">
+                            {filteredEvents.length} transactions • Click to expand
+                        </p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <div className="text-right">
+                        <p className="text-xs sm:text-sm font-mono font-bold" style={{ color }}>
+                            {formatUSDT(amount)}
+                        </p>
+                    </div>
+                    <span className={`text-[#64748B] transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
+                        ▼
+                    </span>
+                </div>
+            </div>
+
+            {/* Expanded History */}
+            {isExpanded && (
+                <div className="bg-[#0F172A] border-t border-[#334155]">
+                    {isLoading ? (
+                        <div className="p-4 text-center text-[#64748B]">Loading history...</div>
+                    ) : filteredEvents.length === 0 ? (
+                        <div className="p-4 text-center text-[#64748B] text-sm">No history yet</div>
+                    ) : (
+                        <div className="max-h-48 overflow-y-auto">
+                            {filteredEvents.slice(0, 10).map((event, idx) => (
+                                <div
+                                    key={idx}
+                                    className="flex items-center justify-between px-4 py-2 hover:bg-[#1E293B]/30 border-b border-[#1E293B] last:border-b-0"
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[10px]" style={{ color }}>●</span>
+                                        <span className="text-[10px] sm:text-xs text-[#94A3B8]">{event.details}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[10px] sm:text-xs font-mono font-bold" style={{ color }}>
+                                            +{formatUSDT(event.amount)}
+                                        </span>
+                                        <a
+                                            href={`https://testnet.opbnbscan.com/tx/${event.txHash}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-[10px] text-[#64748B] hover:text-[#EC4899]"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            🔗
+                                        </a>
+                                    </div>
+                                </div>
+                            ))}
+                            {filteredEvents.length > 10 && (
+                                <div className="p-2 text-center text-[10px] text-[#64748B]">
+                                    Showing 10 of {filteredEvents.length} transactions
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
 
 export function EarningsTab() {
     const [activeFilter, setActiveFilter] = useState('All');
@@ -38,7 +159,6 @@ export function EarningsTab() {
     const { withdraw, isPending: isWithdrawing, data: withdrawHash } = useWithdraw();
     const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash: withdrawHash });
 
-    const earn = earnings as UserEarnings | undefined;
     const balance = balanceData as readonly [bigint, bigint, bigint] | undefined;
     const isRegistered = typeof userId === 'bigint' && userId > BigInt(0);
 
@@ -105,6 +225,8 @@ export function EarningsTab() {
     const filteredEarnings = activeFilter === 'All'
         ? earningsData
         : earningsData.filter(e => e.type.toLowerCase().includes(activeFilter.toLowerCase()));
+
+    const EARNING_TYPES = ['All', 'Sponsor', 'Level', 'Rank EMI', 'Fast Bonus'];
 
     return (
         <div className="space-y-4 sm:space-y-6">
@@ -211,38 +333,25 @@ export function EarningsTab() {
                 ))}
             </div>
 
-            {/* Earnings Breakdown */}
+            {/* Earnings Breakdown with Expandable History */}
             {isRegistered && (
                 <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] rounded-xl border border-[#334155] overflow-hidden animate-slide-up" style={{ animationDelay: '0.4s' }}>
-                    <div className="divide-y divide-[#334155]">
-                        {filteredEarnings.length > 0 ? (
-                            filteredEarnings.map((item, index) => (
-                                <div key={index} className="flex items-center justify-between p-3 sm:p-4 hover:bg-[#1E293B]/50 transition-colors">
-                                    <div className="flex items-center gap-2 sm:gap-3">
-                                        <div
-                                            className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm sm:text-lg"
-                                            style={{ backgroundColor: `${item.color}20` }}
-                                        >
-                                            {item.icon}
-                                        </div>
-                                        <div>
-                                            <p className="text-xs sm:text-sm text-[#F8FAFC]">{item.type}</p>
-                                            <p className="text-[8px] sm:text-xs text-[#64748B]">Accumulated</p>
-                                        </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-xs sm:text-sm font-mono font-bold" style={{ color: item.color }}>
-                                            {formatUSDT(item.amount)}
-                                        </p>
-                                    </div>
-                                </div>
-                            ))
-                        ) : (
-                            <div className="p-6 text-center">
-                                <p className="text-[#64748B]">No earnings yet</p>
-                            </div>
-                        )}
-                    </div>
+                    {filteredEarnings.length > 0 ? (
+                        filteredEarnings.map((item, index) => (
+                            <IncomeCard
+                                key={index}
+                                type={item.type}
+                                amount={item.amount}
+                                icon={item.icon}
+                                color={item.color}
+                                userId={userId as bigint}
+                            />
+                        ))
+                    ) : (
+                        <div className="p-6 text-center">
+                            <p className="text-[#64748B]">No earnings yet</p>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -253,16 +362,6 @@ export function EarningsTab() {
                     <h3 className="text-lg font-bold text-[#F8FAFC] mb-2">Track Your Earnings</h3>
                     <p className="text-sm text-[#64748B]">Register to start earning with Bull Run</p>
                 </div>
-            )}
-
-            {/* Withdraw Button */}
-            {isRegistered && typeof balance === 'bigint' && balance > BigInt(0) && (
-                <Button
-                    variant="primary"
-                    className="w-full py-3 sm:py-4"
-                >
-                    💸 Withdraw {formatUSDT(balance as bigint)}
-                </Button>
             )}
         </div>
     );

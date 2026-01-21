@@ -15,6 +15,7 @@ interface UserInfo {
     isActive: boolean;
     activationDate: bigint;
     directReferralsCount: bigint;
+    usernameId: bigint;
 }
 
 interface UserEarnings {
@@ -82,7 +83,7 @@ export function HomeTab() {
                 <div className="relative z-10">
                     <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-[#F8FAFC] mb-1 sm:mb-2">
                         {Boolean(isRegistered) ? (
-                            <>Welcome, <span className="bg-gradient-to-r from-[#EC4899] to-[#D946EF] bg-clip-text text-transparent">User #{userId?.toString()}</span></>
+                            <>Welcome, <span className="bg-gradient-to-r from-[#EC4899] to-[#D946EF] bg-clip-text text-transparent">BULL{info?.usernameId?.toString()}</span> 🐂</>
                         ) : (
                             <>Welcome to <span className="bg-gradient-to-r from-[#EC4899] to-[#D946EF] bg-clip-text text-transparent">Bull Run!</span></>
                         )}

@@ -7,11 +7,12 @@ interface DashboardNavProps {
 
 const navItems = [
     { id: 'home', icon: '🏠', label: 'Home', color: '#EC4899' },
-    { id: 'packages', icon: '📦', label: 'Packages', color: '#D946EF' },
-    { id: 'earnings', icon: '💰', label: 'Earnings', color: '#10B981' },
-    { id: 'ranks', icon: '🏆', label: 'Ranks', color: '#F59E0B' },
-    { id: 'team', icon: '👥', label: 'Team', color: '#3B82F6' },
-    { id: 'levels', icon: '📈', label: 'Levels', color: '#8B5CF6' },
+    { id: 'marketplace', icon: '🛒', label: 'Trade', color: '#10B981' },
+    { id: 'packages', icon: '📦', label: 'Buy', color: '#D946EF' },
+    { id: 'earnings', icon: '💰', label: 'Earn', color: '#F59E0B' },
+    { id: 'team', icon: '👥', label: 'Team', color: '#8B5CF6' },
+    { id: 'ranks', icon: '🏆', label: 'Rank', color: '#3B82F6' },
+    { id: 'luckydraw', icon: '🎰', label: 'Lucky', color: '#EF4444' },
 ];
 
 export function DashboardNav({ activeTab, onTabChange }: DashboardNavProps) {
