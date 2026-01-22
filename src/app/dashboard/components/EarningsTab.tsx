@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { useAccount, useWaitForTransactionReceipt } from 'wagmi';
 import { formatUnits, parseUnits } from 'viem';
-import { useUserId, useUserEarnings, useUserBalance, useWithdraw } from '@/hooks/useContracts';
-import { useIncomeEvents, useRankEmiClaimedEvents, useFastBonusClaimedEvents, IncomeEvent, RankEmiClaimedEvent, FastBonusClaimedEvent } from '@/hooks/useEvents';
+import { useUserId, useUserEarnings, useUserBalance, useWithdraw, useLuckyDrawPool, useUserLuckyDrawEntries, useTotalLuckyDrawEntries, useLuckyDrawThreshold } from '@/hooks/useContracts';
+import { useIncomeEvents, useRankEmiClaimedEvents, useFastBonusClaimedEvents } from '@/hooks/useEvents';
 import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
 
@@ -162,6 +162,19 @@ export function EarningsTab() {
     const balance = balanceData as readonly [bigint, bigint, bigint] | undefined;
     const isRegistered = typeof userId === 'bigint' && userId > BigInt(0);
 
+    // Lucky Draw Data
+    const { data: luckyDrawPool } = useLuckyDrawPool();
+    const poolBalance = luckyDrawPool ? (luckyDrawPool as [bigint, bigint, bigint])[0] : BigInt(0);
+    const weekNumber = luckyDrawPool ? Number((luckyDrawPool as [bigint, bigint, bigint])[1]) : 0;
+    const { data: userEntries } = useUserLuckyDrawEntries(userId as bigint, weekNumber);
+    const { data: totalEntries } = useTotalLuckyDrawEntries(weekNumber);
+    const { data: entryThreshold } = useLuckyDrawThreshold();
+
+    const myEntries = userEntries ? Number(userEntries) : 0;
+    const totalWeeklyEntries = totalEntries ? Number(totalEntries) : 0;
+    const winChance = totalWeeklyEntries > 0 ? ((myEntries / totalWeeklyEntries) * 100).toFixed(2) : '0';
+    const thresholdAmount = entryThreshold ? Number(formatUnits(entryThreshold as bigint, 18)) : 100;
+
     // Parse balance struct (totalEarned, availableBalance, withdrawnBalance)
     const totalEarned = balance ? balance[0] : BigInt(0);
     const availableBalance = balance ? balance[1] : BigInt(0);
@@ -230,6 +243,42 @@ export function EarningsTab() {
 
     return (
         <div className="space-y-4 sm:space-y-6">
+            {/* Lucky Draw Section (New Part) */}
+            <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] rounded-2xl border border-[#334155] p-1 overflow-hidden animate-slide-up">
+                <div className="bg-[#1E293B]/50 p-3 sm:p-4 rounded-xl">
+                    <div className="flex justify-between items-center mb-4">
+                        <div className="flex items-center gap-2">
+                            <span className="p-2 bg-[#F59E0B]/10 text-[#F59E0B] rounded-lg">🎰</span>
+                            <div>
+                                <h3 className="text-sm sm:text-base font-bold text-white">Lucky Draw</h3>
+                                <p className="text-[10px] text-[#64748B]">Week #{weekNumber}</p>
+                            </div>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-xs text-[#64748B] uppercase">Prize Pool</p>
+                            <p className="text-lg font-bold text-[#10B981]">{formatUSDT(poolBalance)}</p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                        <div className="bg-[#0F172A] p-2.5 rounded-lg border border-[#334155]">
+                            <p className="text-[10px] text-[#64748B] uppercase">My Entries</p>
+                            <p className="text-sm font-bold text-[#EC4899]">{myEntries} 🎫</p>
+                        </div>
+                        <div className="bg-[#0F172A] p-2.5 rounded-lg border border-[#334155]">
+                            <p className="text-[10px] text-[#64748B] uppercase">Win Chance</p>
+                            <p className="text-sm font-bold text-[#3B82F6]">{winChance}% 🔥</p>
+                        </div>
+                    </div>
+
+                    <div className="bg-[#10B981]/10 rounded-lg p-2.5 border border-[#10B981]/20">
+                        <p className="text-[10px] text-[#10B981]">
+                            <strong>Tip:</strong> Every <span className="font-bold">${thresholdAmount}</span> trading volume = 1 entry!
+                        </p>
+                    </div>
+                </div>
+            </div>
+
             {/* Summary Cards */}
             <div className="grid grid-cols-3 gap-2 sm:gap-3">
                 <div

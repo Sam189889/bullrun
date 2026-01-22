@@ -382,3 +382,16 @@ export function useLuckyDrawThreshold() {
         functionName: 'luckyDrawEntryThreshold',
     })
 }
+
+/**
+ * Get user's NFT ID at specific index
+ */
+export function useUserNFT(userId: bigint | undefined, index: number) {
+    return useReadContract({
+        address: contracts.bullRun,
+        abi: BullRunMainLogicABI,
+        functionName: 'userNFTs',
+        args: userId ? [userId, index] : undefined,
+        query: { enabled: !!userId && userId > BigInt(0) && index >= 0 },
+    })
+}

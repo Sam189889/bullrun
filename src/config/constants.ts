@@ -7,7 +7,7 @@ export const CONTRACTS = {
 } as const
 
 // Contract deployment block - used for efficient event queries
-export const DEPLOY_BLOCK = 120786917n
+export const DEPLOY_BLOCK = BigInt(120786917)
 
 // Admin Wallet Addresses
 export const ADMIN_WALLETS: `0x${string}`[] = [

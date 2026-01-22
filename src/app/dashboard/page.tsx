@@ -10,10 +10,9 @@ import {
     HomeTab,
     MarketplaceTab,
     EarningsTab,
-    TeamTab,
-    LuckyDrawTab,
+    TeamRankTab,
+    MyNFTsTab,
     LevelsTab,
-    RanksTab,
     PackagesTab,
 } from './components';
 
@@ -43,16 +42,14 @@ export default function DashboardPage() {
                 return <HomeTab />;
             case 'marketplace':
                 return <MarketplaceTab />;
+            case 'mynfts':
+                return <MyNFTsTab />;
             case 'packages':
                 return <PackagesTab />;
             case 'earnings':
                 return <EarningsTab />;
-            case 'ranks':
-                return <RanksTab />;
             case 'team':
-                return <TeamTab />;
-            case 'luckydraw':
-                return <LuckyDrawTab />;
+                return <TeamRankTab />;
             case 'levels':
                 return <LevelsTab />;
             default:

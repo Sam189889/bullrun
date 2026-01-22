@@ -31,17 +31,27 @@ function NFTCard({ nftId, userId, onBuy }: { nftId: number; userId: bigint | und
 
     if (!nftData) return null;
 
-    const nft = nftData as unknown as NFTData;
+    // Parse as array - contract returns tuple
+    const nftArr = nftData as any[];
+    if (!nftArr || nftArr[0] === BigInt(0)) return null;
 
-    // Skip if not listed, burned, hidden, or owned by current user
-    if (!nft.isListed || nft.isBurned || nft.isHidden || nft.ownerId === userId) return null;
+    // Destructure: [nftId, currentPrice, basePrice, lastPurchasePrice, ownerId, buyCount, createdAt, lastTradedAt, displayOrder, isListed, isBurned, isFeatured, isHidden]
+    const [, currentPrice, , , ownerId, buyCount, , , , isListed, isBurned, isFeatured, isHidden] = nftArr;
+
+    // Skip if burned, hidden, or not listed
+    if (isBurned || isHidden || !isListed) return null;
+
+    // Skip if owned by current user (but only if userId and ownerId are both > 0)
+    // ownerId 0 means it's available for purchase from the contract
+    const isActuallyOwnNft = userId && userId > BigInt(0) && ownerId === userId;
+    if (isActuallyOwnNft) return null;
 
     const formatUSD = (value: bigint) => `$${Number(formatUnits(value, 18)).toFixed(2)}`;
 
     return (
         <div className="relative overflow-hidden bg-gradient-to-br from-[#1E293B] to-[#0F172A] rounded-lg sm:rounded-xl border border-[#334155] hover:border-[#EC4899]/50 card-hover group animate-slide-up">
             {/* Featured Badge */}
-            {nft.isFeatured && (
+            {isFeatured && (
                 <div className="absolute top-1.5 sm:top-2 left-1.5 sm:left-2 px-1.5 sm:px-2 py-0.5 rounded-full text-[8px] sm:text-[10px] font-bold bg-[#F59E0B]/30 text-[#F59E0B] border border-[#F59E0B]/50">
                     ⭐ Hot
                 </div>
@@ -67,13 +77,13 @@ function NFTCard({ nftId, userId, onBuy }: { nftId: number; userId: bigint | und
                 <div className="flex justify-between items-start mb-1 sm:mb-2">
                     <div>
                         <p className="text-[8px] sm:text-[10px] md:text-xs text-[#64748B] font-mono">#{nftId}</p>
-                        <p className="text-[8px] text-[#475569]">{Number(nft.buyCount)} trades</p>
+                        <p className="text-[8px] text-[#475569]">{Number(buyCount)} trades</p>
                     </div>
-                    <p className="text-sm sm:text-lg md:text-xl font-bold text-[#EC4899]">{formatUSD(nft.currentPrice)}</p>
+                    <p className="text-sm sm:text-lg md:text-xl font-bold text-[#EC4899]">{formatUSD(currentPrice)}</p>
                 </div>
 
                 <button
-                    onClick={() => onBuy(BigInt(nftId), nft.currentPrice)}
+                    onClick={() => onBuy(BigInt(nftId), currentPrice)}
                     disabled={!userId}
                     className="w-full mt-2 py-1.5 sm:py-2 bg-gradient-to-r from-[#EC4899] to-[#D946EF] rounded-lg text-[#0F172A] text-[10px] sm:text-xs font-bold hover:shadow-[0_0_20px_rgba(255,215,0,0.4)] transition-all duration-300 active:scale-95 disabled:opacity-50"
                 >
@@ -182,7 +192,7 @@ export function MarketplaceTab() {
             <div className="relative overflow-hidden bg-gradient-to-r from-[#10B981]/20 to-[#1E293B] border border-[#10B981]/30 rounded-xl p-3 sm:p-4 animate-slide-up">
                 <div className="absolute top-1 right-2 sm:top-2 sm:right-4 text-2xl sm:text-3xl opacity-20">💡</div>
                 <p className="text-[10px] sm:text-sm text-[#10B981]">
-                    <strong>💡 Tip:</strong> Each NFT appreciates <span className="text-[#EC4899] font-bold">8%</span> on purchase. At <span className="text-[#3B82F6] font-bold">$200</span>, NFT splits into 20 new NFTs!
+                    <strong>💡 Tip:</strong> Each NFT appreciates <span className="text-[#EC4899] font-bold">8%</span> on purchase.
                 </p>
             </div>
         </div>
