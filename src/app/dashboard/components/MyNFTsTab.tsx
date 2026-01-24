@@ -62,10 +62,16 @@ function NFTMobileCard({ nftId, userId }: { nftId: number; userId: bigint }) {
     };
 
     const formatUSD = (value: bigint) => `$${Number(formatUnits(value, 18)).toFixed(2)}`;
-    const profit = nft.currentPrice - nft.basePrice;
-    const profitPercent = nft.basePrice > BigInt(0) 
-        ? ((Number(profit) / Number(nft.basePrice)) * 100).toFixed(1)
-        : '0';
+    const formatDateTime = (timestamp: bigint) => {
+        const date = new Date(Number(timestamp) * 1000);
+        return date.toLocaleString('en-US', { 
+            month: 'short', 
+            day: 'numeric', 
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    };
 
     return (
         <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] rounded-xl border border-[#334155] p-4">
@@ -100,27 +106,51 @@ function NFTMobileCard({ nftId, userId }: { nftId: number; userId: bigint }) {
                     <p className="text-sm font-bold text-[#10B981]">{formatUSD(nft.currentPrice)}</p>
                 </div>
                 <div className="bg-[#0F172A] rounded-lg p-2">
-                    <p className="text-[10px] text-[#64748B] mb-1">Profit</p>
-                    <p className={`text-sm font-bold ${profit >= BigInt(0) ? 'text-[#10B981]' : 'text-[#EF4444]'}`}>
-                        {profit >= BigInt(0) ? '+' : ''}{formatUSD(profit)}
-                    </p>
-                    <p className="text-[8px] text-[#64748B]">{profit >= BigInt(0) ? '+' : ''}{profitPercent}%</p>
-                </div>
-                <div className="bg-[#0F172A] rounded-lg p-2">
-                    <p className="text-[10px] text-[#64748B] mb-1">Base Price</p>
-                    <p className="text-sm text-[#94A3B8]">{formatUSD(nft.basePrice)}</p>
-                </div>
-                <div className="bg-[#0F172A] rounded-lg p-2">
                     <p className="text-[10px] text-[#64748B] mb-1">Purchase Price</p>
                     <p className="text-sm text-[#94A3B8]">{formatUSD(nft.lastPurchasePrice)}</p>
                 </div>
             </div>
 
-            {/* Footer */}
-            <div className="flex justify-between items-center mt-3 pt-3 border-t border-[#334155]">
-                <span className="text-xs text-[#64748B]">{Number(nft.buyCount)} trades</span>
+            {/* Purchase Details */}
+            <div className="mt-3 pt-3 border-t border-[#334155] space-y-2">
+                <div className="flex justify-between items-center">
+                    <span className="text-[10px] text-[#64748B]">Purchase Date</span>
+                    <span className="text-[10px] text-[#94A3B8]">{formatDateTime(nft.lastTradedAt)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                    <span className="text-[10px] text-[#64748B]">Transaction</span>
+                    <NFTTransactionLink nftId={nftId} userId={userId} />
+                </div>
             </div>
         </div>
+    );
+}
+
+// Transaction Link Component - Fetches transaction hash from events
+function NFTTransactionLink({ nftId, userId }: { nftId: number; userId: bigint }) {
+    const { useNFTBuyEvents } = require('@/hooks/useEvents');
+    const { events } = useNFTBuyEvents(userId);
+
+    // Find the purchase event for this specific NFT
+    const nftPurchaseEvent = events?.find((event: any) => event.nftId === BigInt(nftId));
+    
+    if (!nftPurchaseEvent) {
+        return <span className="text-xs text-[#64748B]">-</span>;
+    }
+
+    const txHash = nftPurchaseEvent.transactionHash;
+    const explorerUrl = `https://testnet.opbnbscan.com/tx/${txHash}`;
+
+    return (
+        <a 
+            href={explorerUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-[#3B82F6] hover:text-[#60A5FA] underline flex items-center gap-1"
+        >
+            {txHash.slice(0, 6)}...{txHash.slice(-4)}
+            <span className="text-[10px]">↗</span>
+        </a>
     );
 }
 
@@ -169,15 +199,16 @@ function NFTTableRow({ nftId, userId }: { nftId: number; userId: bigint }) {
     };
 
     const formatUSD = (value: bigint) => `$${Number(formatUnits(value, 18)).toFixed(2)}`;
-    const formatDate = (timestamp: bigint) => {
+    const formatDateTime = (timestamp: bigint) => {
         const date = new Date(Number(timestamp) * 1000);
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        return date.toLocaleString('en-US', { 
+            month: 'short', 
+            day: 'numeric', 
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
     };
-
-    const profit = nft.currentPrice - nft.basePrice;
-    const profitPercent = nft.basePrice > BigInt(0) 
-        ? ((Number(profit) / Number(nft.basePrice)) * 100).toFixed(1)
-        : '0';
 
     return (
         <tr className="border-b border-[#334155] hover:bg-[#1E293B]/50 transition-colors">
@@ -209,26 +240,13 @@ function NFTTableRow({ nftId, userId }: { nftId: number; userId: bigint }) {
                 <span className="text-sm font-bold text-[#10B981]">{formatUSD(nft.currentPrice)}</span>
             </td>
             <td className="p-3 text-right">
-                <span className="text-sm text-[#94A3B8]">{formatUSD(nft.basePrice)}</span>
-            </td>
-            <td className="p-3 text-right">
                 <span className="text-sm text-[#94A3B8]">{formatUSD(nft.lastPurchasePrice)}</span>
             </td>
-            <td className="p-3 text-right">
-                <div className="flex flex-col items-end">
-                    <span className={`text-sm font-bold ${profit >= BigInt(0) ? 'text-[#10B981]' : 'text-[#EF4444]'}`}>
-                        {profit >= BigInt(0) ? '+' : ''}{formatUSD(profit)}
-                    </span>
-                    <span className="text-[10px] text-[#64748B]">
-                        {profit >= BigInt(0) ? '+' : ''}{profitPercent}%
-                    </span>
-                </div>
+            <td className="p-3">
+                <span className="text-xs text-[#94A3B8]">{formatDateTime(nft.lastTradedAt)}</span>
             </td>
-            <td className="p-3 text-center">
-                <span className="text-sm text-[#94A3B8]">{Number(nft.buyCount)}</span>
-            </td>
-            <td className="p-3 text-center hidden md:table-cell">
-                <span className="text-xs text-[#64748B]">{formatDate(nft.createdAt)}</span>
+            <td className="p-3">
+                <NFTTransactionLink nftId={nftId} userId={userId} />
             </td>
         </tr>
     );
@@ -291,11 +309,9 @@ export function MyNFTsTab() {
                                     <th className="text-left p-3 text-xs font-bold text-[#94A3B8]">NFT ID</th>
                                     <th className="text-left p-3 text-xs font-bold text-[#94A3B8]">Status</th>
                                     <th className="text-right p-3 text-xs font-bold text-[#94A3B8]">Current Value</th>
-                                    <th className="text-right p-3 text-xs font-bold text-[#94A3B8]">Base Price</th>
                                     <th className="text-right p-3 text-xs font-bold text-[#94A3B8]">Purchase Price</th>
-                                    <th className="text-right p-3 text-xs font-bold text-[#94A3B8]">Profit</th>
-                                    <th className="text-center p-3 text-xs font-bold text-[#94A3B8]">Trades</th>
-                                    <th className="text-center p-3 text-xs font-bold text-[#94A3B8]">Created</th>
+                                    <th className="text-left p-3 text-xs font-bold text-[#94A3B8]">Purchase Date</th>
+                                    <th className="text-left p-3 text-xs font-bold text-[#94A3B8]">Transaction</th>
                                 </tr>
                             </thead>
                             <tbody>
