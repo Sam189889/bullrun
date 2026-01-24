@@ -11,7 +11,7 @@ export const DEPLOY_BLOCK = BigInt(121147280)
 
 // Admin Wallet Addresses
 export const ADMIN_WALLETS: `0x${string}`[] = [
-    '0x25b1ff722018917816D3D9982Ce638c3AcEa0090', // First User (Admin)
+    '0xcc51a2dCCa13d63462d9E356d979952217c3508a', // First User (Admin)
     '0x3ec7B0Ffd2607D2BA47d11145208E16e6491C90F', // Deployer
 ]
 
