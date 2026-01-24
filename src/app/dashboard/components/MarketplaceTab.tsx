@@ -42,8 +42,9 @@ function NFTCard({ nftId, userId, onBuy }: { nftId: number; userId: bigint | und
     // Skip if burned, hidden, or not listed
     if (isBurned || isHidden || !isListed) return null;
 
-    // Check if owned by current user (to show ownership badge and disable buy)
+    // Hide own NFTs from marketplace
     const isOwnNFT = !!(userId && userId > BigInt(0) && ownerId === userId);
+    if (isOwnNFT) return null;
 
     const formatUSD = (value: bigint) => `$${Number(formatUnits(value, 18)).toFixed(2)}`;
 
@@ -56,13 +57,9 @@ function NFTCard({ nftId, userId, onBuy }: { nftId: number; userId: bigint | und
                 </div>
             )}
 
-            {/* Status/Ownership Badge */}
-            <div className={`absolute top-1.5 sm:top-2 right-1.5 sm:right-2 px-1.5 sm:px-2 py-0.5 rounded-full text-[8px] sm:text-[10px] font-bold backdrop-blur-sm border ${
-                isOwnNFT 
-                    ? 'bg-[#3B82F6]/30 text-[#3B82F6] border-[#3B82F6]/50' 
-                    : 'bg-[#10B981]/30 text-[#10B981] border-[#10B981]/50'
-            }`}>
-                {isOwnNFT ? '👤 Yours' : '🟢'}
+            {/* Status Badge */}
+            <div className="absolute top-1.5 sm:top-2 right-1.5 sm:right-2 px-1.5 sm:px-2 py-0.5 rounded-full text-[8px] sm:text-[10px] font-bold backdrop-blur-sm bg-[#10B981]/30 text-[#10B981] border border-[#10B981]/50">
+                
             </div>
 
             {/* NFT Image */}
@@ -77,20 +74,16 @@ function NFTCard({ nftId, userId, onBuy }: { nftId: number; userId: bigint | und
 
             {/* NFT Info */}
             <div className="p-2 sm:p-3 md:p-4">
-                <div className="flex justify-between items-start mb-1 sm:mb-2">
-                    <div>
-                        <p className="text-[8px] sm:text-[10px] md:text-xs text-[#64748B] font-mono">#{nftId}</p>
-                        <p className="text-[8px] text-[#475569]">{Number(buyCount)} trades</p>
-                    </div>
+                <div className="flex justify-center items-center mb-1 sm:mb-2">
                     <p className="text-sm sm:text-lg md:text-xl font-bold text-[#EC4899]">{formatUSD(currentPrice)}</p>
                 </div>
 
                 <button
                     onClick={() => onBuy(BigInt(nftId), currentPrice)}
-                    disabled={!userId || isOwnNFT}
-                    className="w-full mt-2 py-1.5 sm:py-2 bg-gradient-to-r from-[#EC4899] to-[#D946EF] rounded-lg text-[#0F172A] text-[10px] sm:text-xs font-bold hover:shadow-[0_0_20px_rgba(255,215,0,0.4)] transition-all duration-300 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={!userId}
+                    className="w-full mt-2 py-1.5 sm:py-2 bg-gradient-to-r from-[#EC4899] to-[#D946EF] rounded-lg text-[#0F172A] text-[10px] sm:text-xs font-bold hover:shadow-[0_0_20px_rgba(255,215,0,0.4)] transition-all duration-300 active:scale-95 disabled:opacity-50"
                 >
-                    {isOwnNFT ? '✅ You Own This' : '🛒 Buy Now'}
+                    🛒 Buy Now
                 </button>
             </div>
         </div>
@@ -205,7 +198,35 @@ export function MarketplaceTab() {
     };
 
     const nftCount = Number(totalNFTs || 0);
-    const nftIds = Array.from({ length: Math.min(nftCount, 20) }, (_, i) => i + 1);
+    const allNftIds = Array.from({ length: nftCount }, (_, i) => i + 1);
+    
+    // Shuffle NFTs every 5 seconds
+    const [shuffledIds, setShuffledIds] = useState<number[]>([]);
+    
+    useEffect(() => {
+        // Fisher-Yates shuffle algorithm
+        const shuffleArray = (array: number[]) => {
+            const shuffled = [...array];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        };
+        
+        // Initial shuffle
+        setShuffledIds(shuffleArray(allNftIds));
+        
+        // Shuffle every 5 seconds
+        const interval = setInterval(() => {
+            setShuffledIds(shuffleArray(allNftIds));
+        }, 5000);
+        
+        return () => clearInterval(interval);
+    }, [nftCount]);
+    
+    // Show first 20 NFTs
+    const nftIds = shuffledIds.slice(0, 20);
 
     const formatUSD = (value: bigint | undefined) => {
         if (!value) return '$0';
