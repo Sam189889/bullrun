@@ -14,6 +14,7 @@ import {
     MyNFTsTab,
     LevelsTab,
     PackagesTab,
+    NetworkTab,
 } from './components';
 
 export default function DashboardPage() {
@@ -50,6 +51,8 @@ export default function DashboardPage() {
                 return <EarningsTab />;
             case 'team':
                 return <TeamRankTab />;
+            case 'network':
+                return <NetworkTab />;
             case 'levels':
                 return <LevelsTab />;
             default:

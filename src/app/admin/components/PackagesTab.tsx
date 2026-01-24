@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { formatUnits } from 'viem';
 import { usePackage } from '@/hooks';
-import { usePackageIdCounter, useTogglePackageStatus } from '@/hooks/useAdminContracts';
+import { useTogglePackageStatus } from '@/hooks/useAdminContracts';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
@@ -15,8 +15,7 @@ interface PackageData {
     wps: bigint;
     tpv: bigint;
     dailyBidLimit: bigint;
-    directSponsorPercent: bigint;
-    earningCapMultiplier: bigint;
+    earningCap: bigint;
     isActive: boolean;
 }
 
@@ -34,6 +33,13 @@ function PackageCard({
     const wps = Number(formatUnits(pkg.wps, 18));
     const tpv = Number(formatUnits(pkg.tpv, 18));
     const dailyBidLimit = Number(formatUnits(pkg.dailyBidLimit, 18));
+    const earningCap = Number(formatUnits(pkg.earningCap, 18));
+
+    // Format value - show "Unlimited" for very large numbers (max uint256)
+    const formatValue = (val: number) => {
+        if (val > 1e50) return 'Unlimited';
+        return `$${val.toLocaleString()}`;
+    };
 
     return (
         <Card variant={price >= 200 ? 'glow' : 'stat'} hover>
@@ -59,15 +65,11 @@ function PackageCard({
                 </div>
                 <div className="flex justify-between text-sm">
                     <span className="text-[#64748B]">Daily Limit</span>
-                    <span className="text-[#F8FAFC] font-medium">${dailyBidLimit}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                    <span className="text-[#64748B]">Sponsor %</span>
-                    <span className="text-[#10B981] font-medium">{Number(pkg.directSponsorPercent)}%</span>
+                    <span className="text-[#F8FAFC] font-medium">{formatValue(dailyBidLimit)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                     <span className="text-[#64748B]">Earning Cap</span>
-                    <span className="text-[#3B82F6] font-medium">{Number(pkg.earningCapMultiplier)}x</span>
+                    <span className="text-[#3B82F6] font-medium">{formatValue(earningCap)}</span>
                 </div>
             </div>
 
@@ -113,10 +115,13 @@ function PackageItem({
 
     if (!packageData) return null;
 
-    // Contract returns array: [price, wps, tpv, dailyBidLimit, directSponsorPercent, earningCapMultiplier, isActive]
-    const arr = packageData as readonly [bigint, bigint, bigint, bigint, bigint, bigint, boolean];
+    // Contract returns array: [price, wps, tpv, dailyBidLimit, earningCap, isActive]
+    const arr = packageData as any[];
 
-    if (!arr || arr.length < 7) return null;
+    if (!arr || arr.length < 6) return null;
+
+    // Check if price is 0 - means package doesn't exist
+    if (arr[0] === BigInt(0)) return null;
 
     const pkg: PackageData = {
         id: BigInt(packageId),
@@ -124,21 +129,20 @@ function PackageItem({
         wps: arr[1],
         tpv: arr[2],
         dailyBidLimit: arr[3],
-        directSponsorPercent: arr[4],
-        earningCapMultiplier: arr[5],
-        isActive: arr[6],
+        earningCap: arr[4],
+        isActive: arr[5],
     };
 
     return <PackageCard pkg={pkg} onToggle={onToggle} isToggling={togglingId === pkg.id} />;
 }
 
 export function PackagesTab() {
-    const { data: packageCount, refetch: refetchCount } = usePackageIdCounter();
+    // Contract has 9 fixed packages (indices 1-9, stored at 0-8)
+    const TOTAL_PACKAGES = 9;
+
     const { togglePackageStatus, isPending, isConfirming, isSuccess, error } = useTogglePackageStatus();
     const [togglingId, setTogglingId] = useState<bigint | null>(null);
     const toastShown = useRef(false);
-
-    const count = packageCount ? Number(packageCount) : 0;
 
     // Handle toggle success/error
     useEffect(() => {
@@ -146,14 +150,13 @@ export function PackagesTab() {
             toastShown.current = true;
             toast.success('Package status updated!');
             setTogglingId(null);
-            refetchCount();
         }
         if (error && !toastShown.current) {
             toastShown.current = true;
             toast.error('Failed to update package');
             setTogglingId(null);
         }
-    }, [isSuccess, error, refetchCount]);
+    }, [isSuccess, error]);
 
     const handleToggle = (pkg: PackageData) => {
         toastShown.current = false;
@@ -168,7 +171,7 @@ export function PackagesTab() {
                 <div>
                     <h2 className="text-xl font-bold text-[#F8FAFC]">📦 Packages</h2>
                     <p className="text-sm text-[#64748B]">
-                        {count} packages configured • Toggle status only
+                        {TOTAL_PACKAGES} packages configured • Toggle status only
                     </p>
                 </div>
             </div>
@@ -188,26 +191,16 @@ export function PackagesTab() {
             </Card>
 
             {/* Packages Grid */}
-            {count > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {Array.from({ length: count }, (_, i) => (
-                        <PackageItem
-                            key={i + 1}
-                            packageId={i + 1}
-                            onToggle={handleToggle}
-                            togglingId={togglingId}
-                        />
-                    ))}
-                </div>
-            ) : (
-                <Card variant="stat">
-                    <div className="text-center py-8">
-                        <p className="text-4xl mb-3">📦</p>
-                        <p className="text-[#64748B]">No packages found</p>
-                        <p className="text-xs text-[#475569] mt-2">Contract may not be initialized</p>
-                    </div>
-                </Card>
-            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {Array.from({ length: TOTAL_PACKAGES }, (_, i) => (
+                    <PackageItem
+                        key={i + 1}
+                        packageId={i + 1}
+                        onToggle={handleToggle}
+                        togglingId={togglingId}
+                    />
+                ))}
+            </div>
         </div>
     );
 }

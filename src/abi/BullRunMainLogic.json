@@ -327,6 +327,25 @@
   },
   {
     "type": "function",
+    "name": "getDirectReferrals",
+    "inputs": [
+      {
+        "name": "userId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "getPackageInfo",
     "inputs": [
       {
@@ -1848,7 +1867,7 @@
         "name": "rank",
         "type": "uint8",
         "indexed": false,
-        "internalType": "enum BullRunMainLogic.Rank"
+        "internalType": "uint8"
       },
       {
         "name": "amount",
@@ -1895,6 +1914,12 @@
         "internalType": "uint256"
       },
       {
+        "name": "fromUsernameId",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
         "name": "amount",
         "type": "uint256",
         "indexed": false,
@@ -1905,6 +1930,12 @@
         "type": "string",
         "indexed": false,
         "internalType": "string"
+      },
+      {
+        "name": "level",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
       }
     ],
     "anonymous": false
@@ -2061,6 +2092,18 @@
         "name": "buyerId",
         "type": "uint256",
         "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "sellerUsernameId",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "buyerUsernameId",
+        "type": "uint256",
+        "indexed": false,
         "internalType": "uint256"
       },
       {
@@ -2236,7 +2279,7 @@
         "name": "rank",
         "type": "uint8",
         "indexed": false,
-        "internalType": "enum BullRunMainLogic.Rank"
+        "internalType": "uint8"
       },
       {
         "name": "timestamp",
@@ -2261,7 +2304,7 @@
         "name": "rank",
         "type": "uint8",
         "indexed": false,
-        "internalType": "enum BullRunMainLogic.Rank"
+        "internalType": "uint8"
       },
       {
         "name": "emiNumber",
@@ -2361,6 +2404,12 @@
         "name": "referrerId",
         "type": "uint256",
         "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "usernameId",
+        "type": "uint256",
+        "indexed": false,
         "internalType": "uint256"
       }
     ],

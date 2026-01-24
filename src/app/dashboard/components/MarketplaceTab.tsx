@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAccount, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useWaitForTransactionReceipt, useBalance } from 'wagmi';
 import { formatUnits } from 'viem';
 import {
     useUserId,
@@ -9,9 +9,10 @@ import {
     useNFT,
     useBuyNFT,
     useUSDTAllowance,
-    useUserAvailableLimit
+    useUserAvailableLimit,
+    useUSDTBalance
 } from '@/hooks/useContracts';
-import { useApproveUSDT } from '@/hooks/useAdminContracts';
+import { useApproveUSDT, useDayStartTimestamp, useDayLength, useCurrentDay } from '@/hooks/useAdminContracts';
 
 interface NFTData {
     nftId: bigint;
@@ -41,10 +42,8 @@ function NFTCard({ nftId, userId, onBuy }: { nftId: number; userId: bigint | und
     // Skip if burned, hidden, or not listed
     if (isBurned || isHidden || !isListed) return null;
 
-    // Skip if owned by current user (but only if userId and ownerId are both > 0)
-    // ownerId 0 means it's available for purchase from the contract
-    const isActuallyOwnNft = userId && userId > BigInt(0) && ownerId === userId;
-    if (isActuallyOwnNft) return null;
+    // Check if owned by current user (to show ownership badge and disable buy)
+    const isOwnNFT = !!(userId && userId > BigInt(0) && ownerId === userId);
 
     const formatUSD = (value: bigint) => `$${Number(formatUnits(value, 18)).toFixed(2)}`;
 
@@ -57,9 +56,13 @@ function NFTCard({ nftId, userId, onBuy }: { nftId: number; userId: bigint | und
                 </div>
             )}
 
-            {/* Status Badge */}
-            <div className="absolute top-1.5 sm:top-2 right-1.5 sm:right-2 px-1.5 sm:px-2 py-0.5 rounded-full text-[8px] sm:text-[10px] font-bold backdrop-blur-sm bg-[#10B981]/30 text-[#10B981] border border-[#10B981]/50">
-                🟢
+            {/* Status/Ownership Badge */}
+            <div className={`absolute top-1.5 sm:top-2 right-1.5 sm:right-2 px-1.5 sm:px-2 py-0.5 rounded-full text-[8px] sm:text-[10px] font-bold backdrop-blur-sm border ${
+                isOwnNFT 
+                    ? 'bg-[#3B82F6]/30 text-[#3B82F6] border-[#3B82F6]/50' 
+                    : 'bg-[#10B981]/30 text-[#10B981] border-[#10B981]/50'
+            }`}>
+                {isOwnNFT ? '👤 Yours' : '🟢'}
             </div>
 
             {/* NFT Image */}
@@ -84,10 +87,10 @@ function NFTCard({ nftId, userId, onBuy }: { nftId: number; userId: bigint | und
 
                 <button
                     onClick={() => onBuy(BigInt(nftId), currentPrice)}
-                    disabled={!userId}
-                    className="w-full mt-2 py-1.5 sm:py-2 bg-gradient-to-r from-[#EC4899] to-[#D946EF] rounded-lg text-[#0F172A] text-[10px] sm:text-xs font-bold hover:shadow-[0_0_20px_rgba(255,215,0,0.4)] transition-all duration-300 active:scale-95 disabled:opacity-50"
+                    disabled={!userId || isOwnNFT}
+                    className="w-full mt-2 py-1.5 sm:py-2 bg-gradient-to-r from-[#EC4899] to-[#D946EF] rounded-lg text-[#0F172A] text-[10px] sm:text-xs font-bold hover:shadow-[0_0_20px_rgba(255,215,0,0.4)] transition-all duration-300 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    🛒 Buy Now
+                    {isOwnNFT ? '✅ You Own This' : '🛒 Buy Now'}
                 </button>
             </div>
         </div>
@@ -99,7 +102,38 @@ export function MarketplaceTab() {
     const { data: userId } = useUserId(address);
     const { data: totalNFTs } = useTotalNFTs();
     const { data: allowance, refetch: refetchAllowance } = useUSDTAllowance(address);
-    const { data: availableLimit } = useUserAvailableLimit(userId as bigint);
+    const { data: availableLimit, refetch: refetchLimit } = useUserAvailableLimit(userId as bigint);
+    
+    // Fetch day settings for debugging
+    const { data: dayStart } = useDayStartTimestamp();
+    const { data: dayLength } = useDayLength();
+    const { data: currentDay } = useCurrentDay();
+    
+    // Debug logging with timestamp
+    useEffect(() => {
+        if (availableLimit !== undefined && availableLimit !== null) {
+            const now = new Date().toLocaleTimeString();
+            console.log(`📊 [${now}] Available Limit:`, {
+                userId: userId?.toString(),
+                availableLimit: availableLimit.toString(),
+                formatted: `$${Number(formatUnits(availableLimit as bigint, 18)).toFixed(2)}`
+            });
+        }
+    }, [availableLimit, userId]);
+    
+    // Debug day settings
+    useEffect(() => {
+        console.log('🕐 Day Settings:', {
+            dayStart: dayStart?.toString() || 'Not set',
+            dayLength: dayLength?.toString() || 'Not set',
+            currentDay: currentDay?.toString() || 'Not set',
+            dayStartDate: dayStart ? new Date(Number(dayStart) * 1000).toLocaleString() : 'N/A'
+        });
+    }, [dayStart, dayLength, currentDay]);
+    
+    // Fetch balances
+    const { data: nativeBalance } = useBalance({ address });
+    const { data: usdtBalance } = useUSDTBalance(address);
 
     const { buyNFT, data: buyHash, isPending: buyPending } = useBuyNFT();
     const { approve, hash: approveHash, isPending: approvePending } = useApproveUSDT();
@@ -109,34 +143,63 @@ export function MarketplaceTab() {
 
     const [pendingNftId, setPendingNftId] = useState<bigint | null>(null);
     const [pendingPrice, setPendingPrice] = useState<bigint | null>(null);
+    const [error, setError] = useState<string>('');
+    const [isWaitingForApproval, setIsWaitingForApproval] = useState(false);
 
-    // After approve success, execute buy
+    // After approve success, execute buy automatically
     useEffect(() => {
-        if (approveSuccess && pendingNftId) {
-            buyNFT(pendingNftId);
+        if (approveSuccess && pendingNftId && isWaitingForApproval) {
+            console.log('✅ Approval confirmed! Executing buy...');
+            setIsWaitingForApproval(false);
+            // Small delay to ensure blockchain state is updated
+            setTimeout(() => {
+                buyNFT(pendingNftId);
+            }, 500);
         }
-    }, [approveSuccess, pendingNftId]);
+    }, [approveSuccess, pendingNftId, isWaitingForApproval]);
 
     // After buy success, reset and refetch
     useEffect(() => {
         if (buySuccess) {
+            console.log('✅ Purchase successful!');
             setPendingNftId(null);
             setPendingPrice(null);
+            setError('');
             refetchAllowance();
+            refetchLimit(); // Refetch daily limit after purchase
         }
-    }, [buySuccess]);
+    }, [buySuccess, refetchAllowance, refetchLimit]);
 
     const handleBuy = (nftId: bigint, price: bigint) => {
+        setError('');
+        
+        // Validate USDT balance
+        const currentUsdtBalance = usdtBalance as bigint || BigInt(0);
+        if (currentUsdtBalance < price) {
+            setError(`Insufficient USDT balance! You need $${Number(formatUnits(price, 18)).toFixed(2)} but have $${Number(formatUnits(currentUsdtBalance, 18)).toFixed(2)}`);
+            return;
+        }
+
+        // Validate native balance for gas
+        const minGasBalance = BigInt('100000000000000'); // 0.01 BNB
+        if (!nativeBalance || nativeBalance.value < minGasBalance) {
+            setError('Insufficient BNB for gas fees! You need at least 0.0001 BNB');
+            return;
+        }
+
         setPendingNftId(nftId);
         setPendingPrice(price);
 
         const currentAllowance = allowance as bigint || BigInt(0);
 
         if (currentAllowance < price) {
-            // Need approval first - convert bigint to string
+            // Need approval first - approve exact price
+            console.log(`🔐 Requesting approval for $${Number(formatUnits(price, 18)).toFixed(2)}...`);
+            setIsWaitingForApproval(true);
             approve(formatUnits(price, 18));
         } else {
             // Already approved, buy directly
+            console.log('✅ Already approved, buying directly...');
             buyNFT(nftId);
         }
     };
@@ -155,16 +218,59 @@ export function MarketplaceTab() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0 animate-slide-up">
                 <div>
                     <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#F8FAFC]">🛒 NFT Marketplace</h2>
-                    <p className="text-[10px] sm:text-xs text-[#64748B]">{nftCount} NFTs total • Daily Limit: {formatUSD(availableLimit as bigint)}</p>
+                    <p className="text-[10px] sm:text-xs text-[#64748B]">Browse and purchase NFTs • {nftCount} available</p>
                 </div>
             </div>
 
-            {/* Processing State */}
-            {(buyPending || approvePending) && (
-                <div className="bg-[#EC4899]/10 border border-[#EC4899]/30 rounded-xl p-3 animate-pulse">
-                    <p className="text-sm text-[#EC4899] flex items-center gap-2">
-                        ⏳ {approvePending ? 'Approving USDT...' : 'Processing purchase...'}
+            {/* Balance Display - Compact */}
+            <div className="grid grid-cols-3 gap-2 sm:gap-3 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+                <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] border border-[#334155] rounded-lg p-2 sm:p-3">
+                    <p className="text-[8px] sm:text-[10px] text-[#64748B] mb-1">💰 USDT</p>
+                    <p className="text-sm sm:text-base font-bold text-[#10B981]">
+                        ${Number(formatUnits(usdtBalance as bigint || BigInt(0), 18)).toFixed(2)}
                     </p>
+                </div>
+                <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] border border-[#334155] rounded-lg p-2 sm:p-3">
+                    <p className="text-[8px] sm:text-[10px] text-[#64748B] mb-1">⛽ BNB</p>
+                    <p className="text-sm sm:text-base font-bold text-[#3B82F6]">
+                        {nativeBalance ? Number(formatUnits(nativeBalance.value, 18)).toFixed(4) : '0.0000'}
+                    </p>
+                </div>
+                <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] border border-[#334155] rounded-lg p-2 sm:p-3">
+                    <p className="text-[8px] sm:text-[10px] text-[#64748B] mb-1">📊 Daily Limit</p>
+                    <p className="text-sm sm:text-base font-bold text-[#EC4899]">
+                        {formatUSD(availableLimit as bigint)}
+                    </p>
+                </div>
+            </div>
+
+            {/* Error Message */}
+            {error && (
+                <div className="bg-[#EF4444]/10 border border-[#EF4444]/30 rounded-xl p-3 sm:p-4 animate-slide-up">
+                    <p className="text-xs sm:text-sm text-[#EF4444] flex items-center gap-2">
+                        ⚠️ {error}
+                    </p>
+                </div>
+            )}
+
+            {/* Processing State */}
+            {(buyPending || approvePending || isWaitingForApproval) && (
+                <div className="bg-[#EC4899]/10 border border-[#EC4899]/30 rounded-xl p-3 sm:p-4 animate-pulse">
+                    <div className="flex items-start gap-3">
+                        <span className="text-2xl">⏳</span>
+                        <div>
+                            <p className="text-sm sm:text-base font-bold text-[#EC4899] mb-1">
+                                {approvePending ? '🔐 Approving USDT...' : 
+                                 isWaitingForApproval ? '⏳ Waiting for approval confirmation...' :
+                                 '🛒 Processing purchase...'}
+                            </p>
+                            <p className="text-[10px] sm:text-xs text-[#94A3B8]">
+                                {approvePending ? 'Please confirm the approval transaction in your wallet' :
+                                 isWaitingForApproval ? 'Approval confirmed! Purchase will start automatically...' :
+                                 'Please wait while your NFT purchase is being processed'}
+                            </p>
+                        </div>
+                    </div>
                 </div>
             )}
 

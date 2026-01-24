@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { StatCard } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { useAccount } from 'wagmi';
@@ -33,12 +34,25 @@ interface UserBalance {
 
 export function HomeTab() {
     const { address, isConnected } = useAccount();
+    const [copied, setCopied] = useState(false);
 
     // Fetch user data from contract
     const { data: userId } = useUserId(address);
     const { data: userInfo, isLoading: infoLoading } = useUserInfo(userId as bigint);
     const { data: earnings, isLoading: earningsLoading } = useUserEarnings(userId as bigint);
     const { data: balanceData } = useUserBalance(userId as bigint);
+
+    // Referral link
+    const referralLink = typeof window !== 'undefined' 
+        ? `${window.location.origin}/register?ref=${userId?.toString()}` 
+        : '';
+
+    const copyLink = () => {
+        if (!isRegistered) return;
+        navigator.clipboard.writeText(referralLink);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
 
     // Parse user info
     const info = userInfo as UserInfo | undefined;
@@ -93,6 +107,32 @@ export function HomeTab() {
                     </p>
                 </div>
             </div>
+
+            {/* Referral Link Section */}
+            {isRegistered && (
+                <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] rounded-xl border border-[#334155] p-4 sm:p-5 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+                    <div className="flex items-center gap-2 mb-3">
+                        <span className="text-2xl">🔗</span>
+                        <h3 className="text-base sm:text-lg font-bold text-white">Your Referral Link</h3>
+                    </div>
+                    <div className="flex gap-2">
+                        <div className="flex-1 bg-[#0F172A] border border-[#334155] rounded-lg px-3 sm:px-4 py-2.5 sm:py-3">
+                            <p className="text-xs sm:text-sm text-[#94A3B8] font-mono truncate">
+                                {referralLink}
+                            </p>
+                        </div>
+                        <button
+                            onClick={copyLink}
+                            className="px-4 sm:px-5 py-2.5 sm:py-3 bg-gradient-to-r from-[#EC4899] to-[#D946EF] hover:from-[#D946EF] hover:to-[#EC4899] text-white text-sm font-semibold rounded-lg transition-all duration-300 active:scale-95 shadow-lg hover:shadow-[0_0_20px_rgba(236,72,153,0.4)]"
+                        >
+                            {copied ? '✓ Copied!' : '📋 Copy'}
+                        </button>
+                    </div>
+                    <p className="text-xs text-[#64748B] mt-2">
+                        Share this link to earn 15% direct sponsor income + level bonuses!
+                    </p>
+                </div>
+            )}
 
             {/* Stats Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">

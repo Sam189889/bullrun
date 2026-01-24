@@ -36,6 +36,19 @@ export function useUserInfo(userId: bigint | undefined) {
 }
 
 /**
+ * Get user's direct referrals
+ */
+export function useDirectReferrals(userId: bigint | undefined) {
+    return useReadContract({
+        address: contracts.bullRun,
+        abi: BullRunMainLogicABI,
+        functionName: 'getDirectReferrals',
+        args: userId ? [userId] : undefined,
+        query: { enabled: !!userId && userId > BigInt(0) },
+    })
+}
+
+/**
  * Get user earnings breakdown
  */
 export function useUserEarnings(userId: bigint | undefined) {
@@ -272,7 +285,10 @@ export function useNFT(nftId: bigint | undefined) {
         abi: BullRunMainLogicABI,
         functionName: 'nfts',
         args: nftId ? [nftId] : undefined,
-        query: { enabled: !!nftId && nftId > BigInt(0) },
+        query: { 
+            enabled: !!nftId && nftId > BigInt(0),
+            refetchInterval: 5000, // Refetch every 5 seconds to update ownership
+        },
     })
 }
 
@@ -285,7 +301,10 @@ export function useUserAvailableLimit(userId: bigint | undefined) {
         abi: BullRunMainLogicABI,
         functionName: 'getUserAvailableLimit',
         args: userId ? [userId] : undefined,
-        query: { enabled: !!userId && userId > BigInt(0) },
+        query: { 
+            enabled: !!userId && userId > BigInt(0),
+            refetchInterval: 3000, // Refetch every 3 seconds
+        },
     })
 }
 

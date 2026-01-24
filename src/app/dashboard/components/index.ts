@@ -7,3 +7,4 @@ export { TeamRankTab } from './TeamRankTab';
 export { MyNFTsTab } from './MyNFTsTab';
 export { LevelsTab } from './LevelsTab';
 export { PackagesTab } from './PackagesTab';
+export { NetworkTab } from './NetworkTab';

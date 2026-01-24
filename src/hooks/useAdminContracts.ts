@@ -462,3 +462,55 @@ export function useSetNFTDisplayOrder() {
 
     return { setOrder, hash, isPending, isConfirming, isSuccess, error }
 }
+
+/**
+ * Get current day start timestamp
+ */
+export function useDayStartTimestamp() {
+    return useReadContract({
+        address: CONTRACTS.BULL_RUN,
+        abi: BullRunMainLogicABI,
+        functionName: 'dayStartTimestamp',
+    })
+}
+
+/**
+ * Get day length in seconds
+ */
+export function useDayLength() {
+    return useReadContract({
+        address: CONTRACTS.BULL_RUN,
+        abi: BullRunMainLogicABI,
+        functionName: 'dayLength',
+    })
+}
+
+/**
+ * Get current day number
+ */
+export function useCurrentDay() {
+    return useReadContract({
+        address: CONTRACTS.BULL_RUN,
+        abi: BullRunMainLogicABI,
+        functionName: 'getCurrentDay',
+    })
+}
+
+/**
+ * Set day configuration for daily limit reset
+ */
+export function useSetDaySettings() {
+    const { writeContract, data: hash, isPending, error } = useWriteContract()
+    const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
+
+    const setDaySettings = (startTimestamp: bigint, dayLength: bigint) => {
+        writeContract({
+            address: CONTRACTS.BULL_RUN,
+            abi: BullRunMainLogicABI,
+            functionName: 'setDaySettings',
+            args: [startTimestamp, dayLength],
+        })
+    }
+
+    return { setDaySettings, hash, isPending, isConfirming, isSuccess, error }
+}

@@ -2,7 +2,19 @@
 
 import { useAccount } from 'wagmi';
 import { formatUnits } from 'viem';
-import { useUserId, useTotalNFTs, useNFT } from '@/hooks/useContracts';
+import { useUserId, useTotalNFTs, useNFT, useUserInfo } from '@/hooks/useContracts';
+
+// Helper component to display owner username
+function OwnerUsername({ ownerId }: { ownerId: bigint }) {
+    const { data: userInfo } = useUserInfo(ownerId);
+    
+    if (!userInfo) return <span className="text-[#64748B]">...</span>;
+    
+    // Wagmi returns struct as object with named fields
+    const user = userInfo as { usernameId: bigint };
+    
+    return <span className="font-mono text-[#EC4899]">BULL{user.usernameId.toString()}</span>;
+}
 
 interface NFTData {
     nftId: bigint;
@@ -34,7 +46,38 @@ function OwnedNFTCard({ nftId, isOwned }: { nftId: number; isOwned: boolean }) {
 
     if (!nftData) return null;
 
-    const nft = nftData as unknown as NFTData;
+    // Parse array format from Solidity struct (ABI confirms all fields are returned)
+    const nftArray = nftData as unknown as readonly [
+        bigint, // nftId [0]
+        bigint, // currentPrice [1]
+        bigint, // basePrice [2]
+        bigint, // lastPurchasePrice [3]
+        bigint, // ownerId [4]
+        bigint, // buyCount [5]
+        bigint, // createdAt [6]
+        bigint, // lastTradedAt [7]
+        bigint, // displayOrder [8]
+        boolean, // isListed [9]
+        boolean, // isBurned [10]
+        boolean, // isFeatured [11]
+        boolean  // isHidden [12]
+    ];
+
+    const nft: NFTData = {
+        nftId: nftArray[0],
+        currentPrice: nftArray[1],
+        basePrice: nftArray[2],
+        lastPurchasePrice: nftArray[3],
+        ownerId: nftArray[4],
+        buyCount: nftArray[5],
+        createdAt: nftArray[6],
+        lastTradedAt: nftArray[7],
+        displayOrder: nftArray[8],
+        isListed: nftArray[9],
+        isBurned: nftArray[10],
+        isFeatured: nftArray[11],
+        isHidden: nftArray[12],
+    };
 
     // Skip if not owned by user
     if (!isOwned) return null;
@@ -160,10 +203,29 @@ export function MyNFTsTab() {
 function NFTOwnershipChecker({ nftId, userId }: { nftId: number; userId: bigint }) {
     const { data: nftData } = useNFT(BigInt(nftId));
 
-    if (!nftData) return null;
+    if (!nftData) {
+        return null;
+    }
 
-    const nft = nftData as unknown as NFTData;
-    const isOwned = nft.ownerId === userId;
+    // Parse array - ABI confirms all fields including nftId are returned
+    const nftArray = nftData as unknown as readonly [
+        bigint, // nftId [0]
+        bigint, // currentPrice [1]
+        bigint, // basePrice [2]
+        bigint, // lastPurchasePrice [3]
+        bigint, // ownerId [4]
+        bigint, // buyCount [5]
+        bigint, // createdAt [6]
+        bigint, // lastTradedAt [7]
+        bigint, // displayOrder [8]
+        boolean, // isListed [9]
+        boolean, // isBurned [10]
+        boolean, // isFeatured [11]
+        boolean  // isHidden [12]
+    ];
+
+    const ownerId = nftArray[4]; // Index 4 is ownerId
+    const isOwned = ownerId === userId;
 
     if (!isOwned) return null;
 

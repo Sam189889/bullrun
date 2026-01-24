@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { formatUnits } from 'viem';
-import { useSetWallets, useDepositToPool, useWithdrawFromPool, useApproveUSDT, usePoolBalance, useSetFirstUser, useSetPaymentToken, useFirstUser, useUSDTAddress } from '@/hooks/useAdminContracts';
+import { useSetWallets, useDepositToPool, useWithdrawFromPool, useApproveUSDT, usePoolBalance, useSetFirstUser, useSetPaymentToken, useFirstUser, useUSDTAddress, useSetDaySettings, useDayStartTimestamp, useDayLength, useCurrentDay } from '@/hooks/useAdminContracts';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
@@ -34,13 +34,21 @@ export function SettingsTab() {
 function ContractSettings() {
     const [firstUserAddress, setFirstUserAddress] = useState('');
     const [paymentTokenAddress, setPaymentTokenAddress] = useState('');
+    const [dayStartTimestamp, setDayStartTimestamp] = useState('');
+    const [dayLength, setDayLength] = useState('86400');
     const toastShown1 = useRef(false);
     const toastShown2 = useRef(false);
+    const toastShown3 = useRef(false);
 
     const { data: currentFirstUser } = useFirstUser();
     const { data: currentUSDT } = useUSDTAddress();
+    const { data: currentDayStart } = useDayStartTimestamp();
+    const { data: currentDayLength } = useDayLength();
+    const { data: currentDay } = useCurrentDay();
+    
     const { setFirstUser, isPending: pending1, isConfirming: confirming1, isSuccess: success1, error: error1 } = useSetFirstUser();
     const { setPaymentToken, isPending: pending2, isConfirming: confirming2, isSuccess: success2, error: error2 } = useSetPaymentToken();
+    const { setDaySettings, isPending: pending3, isConfirming: confirming3, isSuccess: success3, error: error3 } = useSetDaySettings();
 
     useEffect(() => {
         if (success1 && !toastShown1.current) {
@@ -66,6 +74,18 @@ function ContractSettings() {
         }
     }, [success2, error2]);
 
+    useEffect(() => {
+        if (success3 && !toastShown3.current) {
+            toastShown3.current = true;
+            toast.success('Day settings initialized! Daily limits are now active.');
+            setDayStartTimestamp('');
+        }
+        if (error3 && !toastShown3.current) {
+            toastShown3.current = true;
+            toast.error('Failed to set day settings');
+        }
+    }, [success3, error3]);
+
     const handleSetFirstUser = () => {
         if (!firstUserAddress) return;
         toastShown1.current = false;
@@ -76,6 +96,17 @@ function ContractSettings() {
         if (!paymentTokenAddress) return;
         toastShown2.current = false;
         setPaymentToken(paymentTokenAddress as `0x${string}`);
+    };
+
+    const handleInitializeDaySettings = () => {
+        if (!dayStartTimestamp || !dayLength) return;
+        toastShown3.current = false;
+        setDaySettings(BigInt(dayStartTimestamp), BigInt(dayLength));
+    };
+
+    const handleUseCurrentTime = () => {
+        const now = Math.floor(Date.now() / 1000);
+        setDayStartTimestamp(now.toString());
     };
 
     return (
@@ -97,6 +128,36 @@ function ContractSettings() {
                     </div>
                 )}
             </div>
+
+            {/* Current Day Settings */}
+            {Boolean(currentDayStart) && currentDayStart !== BigInt(0) && (
+                <div className="p-3 bg-[#EC4899]/10 border border-[#EC4899]/30 rounded-lg mb-4">
+                    <p className="text-xs text-[#EC4899] font-bold mb-2">📅 Current Day Settings (Active)</p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                            <p className="text-[10px] text-[#64748B] mb-1">Day Start Time</p>
+                            <p className="text-xs text-[#F8FAFC] font-mono">
+                                {new Date(Number(currentDayStart) * 1000).toLocaleString('en-US', {
+                                    dateStyle: 'medium',
+                                    timeStyle: 'short'
+                                })}
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-[10px] text-[#64748B] mb-1">Day Length</p>
+                            <p className="text-xs text-[#F8FAFC]">
+                                {currentDayLength ? `${Number(currentDayLength) / 3600} hours` : 'N/A'}
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-[10px] text-[#64748B] mb-1">Current Day #</p>
+                            <p className="text-xs text-[#10B981] font-bold">
+                                Day {currentDay?.toString() || '0'}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="space-y-4">
                 {/* Set First User */}
@@ -141,6 +202,151 @@ function ContractSettings() {
                             disabled={pending2 || confirming2 || !paymentTokenAddress}
                         >
                             {pending2 || confirming2 ? '...' : 'Set'}
+                        </Button>
+                    </div>
+                </div>
+
+                {/* Initialize Day Settings */}
+                <div className="p-3 bg-[#0F172A] rounded-lg border-2 border-[#EC4899]/30">
+                    <label className="text-sm text-[#F8FAFC] block mb-1">🕐 Initialize Day Settings</label>
+                    <p className="text-xs text-[#64748B] mb-3">
+                        Required for daily trading limits. Day 0 start timestamp and day length in seconds.
+                        <span className="block mt-1 text-[#EC4899]">⚠️ Run this once after deployment!</span>
+                    </p>
+                    
+                    <div className="space-y-2">
+                        <div>
+                            <label className="text-xs text-[#94A3B8] block mb-1">Quick Select Timezone</label>
+                            <select
+                                onChange={(e) => {
+                                    if (e.target.value) {
+                                        const offset = parseInt(e.target.value);
+                                        const now = Math.floor(Date.now() / 1000);
+                                        setDayStartTimestamp((now + offset).toString());
+                                    }
+                                }}
+                                className="w-full px-3 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-white text-sm focus:border-[#EC4899] outline-none"
+                            >
+                                <option value="">Select Country/Timezone</option>
+                                <option value="19800">🇮🇳 India (IST, UTC+5:30)</option>
+                                <option value="14400">🇦🇪 Dubai (GST, UTC+4:00)</option>
+                                <option value="0">🇬🇧 London (GMT, UTC+0:00)</option>
+                                <option value="-18000">🇺🇸 New York (EST, UTC-5:00)</option>
+                                <option value="-28800">🇺🇸 Los Angeles (PST, UTC-8:00)</option>
+                                <option value="32400">🇯🇵 Tokyo (JST, UTC+9:00)</option>
+                                <option value="28800">🇨🇳 China (CST, UTC+8:00)</option>
+                                <option value="28800">🇸🇬 Singapore (SGT, UTC+8:00)</option>
+                                <option value="36000">🇦🇺 Sydney (AEST, UTC+10:00)</option>
+                                <option value="10800">🇷🇺 Moscow (MSK, UTC+3:00)</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label className="text-xs text-[#94A3B8] block mb-1">Adjust Time (Optional)</label>
+                            <div className="grid grid-cols-2 gap-2 mb-2">
+                                <button
+                                    onClick={() => {
+                                        if (!dayStartTimestamp) return;
+                                        const ts = parseInt(dayStartTimestamp);
+                                        const date = new Date(ts * 1000);
+                                        date.setHours(0, 0, 0, 0);
+                                        setDayStartTimestamp(Math.floor(date.getTime() / 1000).toString());
+                                    }}
+                                    disabled={!dayStartTimestamp}
+                                    className="px-3 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-white text-xs hover:border-[#EC4899] disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    🌙 Set to Midnight (12:00 AM)
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        if (!dayStartTimestamp) return;
+                                        const ts = parseInt(dayStartTimestamp);
+                                        const date = new Date(ts * 1000);
+                                        date.setHours(12, 0, 0, 0);
+                                        setDayStartTimestamp(Math.floor(date.getTime() / 1000).toString());
+                                    }}
+                                    disabled={!dayStartTimestamp}
+                                    className="px-3 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-white text-xs hover:border-[#EC4899] disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    ☀️ Set to Noon (12:00 PM)
+                                </button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                <button
+                                    onClick={() => {
+                                        if (!dayStartTimestamp) return;
+                                        const ts = parseInt(dayStartTimestamp);
+                                        const newTs = ts - 86400; // Subtract 1 day
+                                        setDayStartTimestamp(newTs.toString());
+                                    }}
+                                    disabled={!dayStartTimestamp}
+                                    className="px-3 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-white text-xs hover:border-[#3B82F6] disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    ⬅️ Previous Day (-24h)
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        if (!dayStartTimestamp) return;
+                                        const ts = parseInt(dayStartTimestamp);
+                                        const newTs = ts + 86400; // Add 1 day
+                                        setDayStartTimestamp(newTs.toString());
+                                    }}
+                                    disabled={!dayStartTimestamp}
+                                    className="px-3 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-white text-xs hover:border-[#3B82F6] disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Next Day (+24h) ➡️
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label className="text-xs text-[#94A3B8] block mb-1">Start Timestamp (Unix)</label>
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={dayStartTimestamp}
+                                    onChange={(e) => setDayStartTimestamp(e.target.value)}
+                                    placeholder="1737565800"
+                                    className="flex-1 px-3 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-white font-mono text-sm focus:border-[#EC4899] outline-none"
+                                />
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={handleUseCurrentTime}
+                                >
+                                    Now
+                                </Button>
+                            </div>
+                            {dayStartTimestamp && (
+                                <p className="text-[10px] text-[#10B981] mt-1">
+                                    📅 {new Date(parseInt(dayStartTimestamp) * 1000).toLocaleString('en-US', { 
+                                        dateStyle: 'full', 
+                                        timeStyle: 'long'
+                                    })}
+                                </p>
+                            )}
+                        </div>
+                        
+                        <div>
+                            <label className="text-xs text-[#94A3B8] block mb-1">Day Length (seconds)</label>
+                            <input
+                                type="text"
+                                value={dayLength}
+                                onChange={(e) => setDayLength(e.target.value)}
+                                placeholder="86400"
+                                className="w-full px-3 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-white font-mono text-sm focus:border-[#EC4899] outline-none"
+                            />
+                            <p className="text-[10px] text-[#64748B] mt-1">Default: 86400 (24 hours)</p>
+                        </div>
+                        
+                        <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={handleInitializeDaySettings}
+                            disabled={pending3 || confirming3 || !dayStartTimestamp || !dayLength}
+                            className="w-full"
+                        >
+                            {pending3 || confirming3 ? 'Initializing...' : '🚀 Initialize Day Settings'}
                         </Button>
                     </div>
                 </div>

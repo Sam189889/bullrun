@@ -12,6 +12,7 @@ const navItems = [
     { id: 'packages', icon: '📦', label: 'Buy', color: '#D946EF' },
     { id: 'earnings', icon: '💰', label: 'Earn', color: '#8B5CF6' },
     { id: 'team', icon: '👥', label: 'Team', color: '#3B82F6' },
+    { id: 'network', icon: '🌳', label: 'Network', color: '#06B6D4' },
 ];
 
 export function DashboardNav({ activeTab, onTabChange }: DashboardNavProps) {

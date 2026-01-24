@@ -1,76 +1,39 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAccount, useWaitForTransactionReceipt } from 'wagmi';
 import { formatUnits, parseUnits } from 'viem';
-import { useUserId, useUserEarnings, useUserBalance, useWithdraw, useLuckyDrawPool, useUserLuckyDrawEntries, useTotalLuckyDrawEntries, useLuckyDrawThreshold } from '@/hooks/useContracts';
-import { useIncomeEvents, useRankEmiClaimedEvents, useFastBonusClaimedEvents } from '@/hooks/useEvents';
+import { useUserId, useUserEarnings, useUserTradingEarnings, useUserBalance, useWithdraw, useLuckyDrawPool, useUserLuckyDrawEntries, useTotalLuckyDrawEntries, useLuckyDrawThreshold } from '@/hooks/useContracts';
 import { Button } from '@/components/ui/Button';
+import { IncomeHistoryModal } from './IncomeHistoryModal';
 import toast from 'react-hot-toast';
 
 const MIN_WITHDRAWAL = parseUnits('5', 18); // $5 minimum
 
-// Expandable income card component
+// Simple income card component (click to open modal)
 function IncomeCard({
     type,
     amount,
     icon,
     color,
-    incomeTypeFilter,
-    userId
+    userId,
+    onOpenModal
 }: {
     type: string;
     amount: bigint;
     icon: string;
     color: string;
-    incomeTypeFilter?: string;
     userId: bigint | undefined;
+    onOpenModal: () => void;
 }) {
-    const [isExpanded, setIsExpanded] = useState(false);
-
-    // Fetch events based on income type
-    const { events: incomeEvents, isLoading: incomeLoading } = useIncomeEvents(userId);
-    const { events: emiEvents, isLoading: emiLoading } = useRankEmiClaimedEvents(userId);
-    const { events: fastBonusEvents, isLoading: fastBonusLoading } = useFastBonusClaimedEvents(userId);
-
-    // Filter events based on income type
-    const getFilteredEvents = () => {
-        if (type === 'Rank EMI') {
-            return emiEvents.map(e => ({
-                amount: e.amount,
-                details: `EMI #${e.emiNumber} - Rank ${e.rank}`,
-                txHash: e.transactionHash,
-            }));
-        }
-        if (type === 'Fast Bonus') {
-            return fastBonusEvents.map(e => ({
-                amount: e.amount,
-                details: `Rank ${e.rank} Fast Bonus`,
-                txHash: e.transactionHash,
-            }));
-        }
-        // Direct Sponsor or Level Income - filter from IncomeDistributed events
-        const filterType = type === 'Direct Sponsor' ? 'DIRECT_SPONSOR' : 'LEVEL_INCOME';
-        return incomeEvents
-            .filter(e => e.incomeType === filterType)
-            .map(e => ({
-                amount: e.amount,
-                details: `From User #${e.fromUserId}`,
-                txHash: e.transactionHash,
-            }));
-    };
-
-    const filteredEvents = getFilteredEvents();
-    const isLoading = incomeLoading || emiLoading || fastBonusLoading;
-
     const formatUSDT = (value: bigint) => `$${Number(formatUnits(value, 18)).toFixed(2)}`;
 
     return (
         <div className="border-b border-[#334155] last:border-b-0">
-            {/* Header - Clickable */}
+            {/* Header - Clickable to open modal */}
             <div
-                className="flex items-center justify-between p-3 sm:p-4 hover:bg-[#1E293B]/50 transition-colors cursor-pointer"
-                onClick={() => setIsExpanded(!isExpanded)}
+                className="flex items-center justify-between p-3 sm:p-4 hover:bg-[#1E293B]/50 transition-colors cursor-pointer active:scale-[0.99]"
+                onClick={onOpenModal}
             >
                 <div className="flex items-center gap-2 sm:gap-3">
                     <div
@@ -80,67 +43,21 @@ function IncomeCard({
                         {icon}
                     </div>
                     <div>
-                        <p className="text-xs sm:text-sm text-[#F8FAFC]">{type}</p>
+                        <p className="text-xs sm:text-sm font-semibold text-[#F8FAFC]">{type}</p>
                         <p className="text-[8px] sm:text-xs text-[#64748B]">
-                            {filteredEvents.length} transactions • Click to expand
+                            Click to view history
                         </p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
                     <div className="text-right">
-                        <p className="text-xs sm:text-sm font-mono font-bold" style={{ color }}>
+                        <p className="text-sm sm:text-base font-mono font-bold" style={{ color }}>
                             {formatUSDT(amount)}
                         </p>
                     </div>
-                    <span className={`text-[#64748B] transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
-                        ▼
-                    </span>
+                    <span className="text-[#64748B]">→</span>
                 </div>
             </div>
-
-            {/* Expanded History */}
-            {isExpanded && (
-                <div className="bg-[#0F172A] border-t border-[#334155]">
-                    {isLoading ? (
-                        <div className="p-4 text-center text-[#64748B]">Loading history...</div>
-                    ) : filteredEvents.length === 0 ? (
-                        <div className="p-4 text-center text-[#64748B] text-sm">No history yet</div>
-                    ) : (
-                        <div className="max-h-48 overflow-y-auto">
-                            {filteredEvents.slice(0, 10).map((event, idx) => (
-                                <div
-                                    key={idx}
-                                    className="flex items-center justify-between px-4 py-2 hover:bg-[#1E293B]/30 border-b border-[#1E293B] last:border-b-0"
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[10px]" style={{ color }}>●</span>
-                                        <span className="text-[10px] sm:text-xs text-[#94A3B8]">{event.details}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[10px] sm:text-xs font-mono font-bold" style={{ color }}>
-                                            +{formatUSDT(event.amount)}
-                                        </span>
-                                        <a
-                                            href={`https://testnet.opbnbscan.com/tx/${event.txHash}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-[10px] text-[#64748B] hover:text-[#EC4899]"
-                                            onClick={(e) => e.stopPropagation()}
-                                        >
-                                            🔗
-                                        </a>
-                                    </div>
-                                </div>
-                            ))}
-                            {filteredEvents.length > 10 && (
-                                <div className="p-2 text-center text-[10px] text-[#64748B]">
-                                    Showing 10 of {filteredEvents.length} transactions
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
-            )}
         </div>
     );
 }
@@ -148,11 +65,24 @@ function IncomeCard({
 export function EarningsTab() {
     const [activeFilter, setActiveFilter] = useState('All');
     const [withdrawAmount, setWithdrawAmount] = useState('');
+    const [modalOpen, setModalOpen] = useState(false);
+    const [selectedIncome, setSelectedIncome] = useState<{type: string; icon: string; color: string} | null>(null);
     const { address } = useAccount();
+
+    const openModal = (type: string, icon: string, color: string) => {
+        setSelectedIncome({ type, icon, color });
+        setModalOpen(true);
+    };
+
+    const closeModal = () => {
+        setModalOpen(false);
+        setSelectedIncome(null);
+    };
 
     // Fetch user data
     const { data: userId } = useUserId(address);
     const { data: earnings, isLoading } = useUserEarnings(userId as bigint);
+    const { data: tradingEarnings, isLoading: isTradingLoading } = useUserTradingEarnings(userId as bigint);
     const { data: balanceData, refetch: refetchBalance } = useUserBalance(userId as bigint);
 
     // Withdraw hook
@@ -187,14 +117,23 @@ export function EarningsTab() {
     const rankEmi = earnTuple ? earnTuple[2] : BigInt(0);
     const fastBonus = earnTuple ? earnTuple[3] : BigInt(0);
 
+    // Parse trading earnings - contract returns tuple (tradingLevelBonus, nftProfit, luckyDraw, tripReward)
+    const tradingTuple = tradingEarnings as readonly [bigint, bigint, bigint, bigint] | undefined;
+    const tradingLevelBonus = tradingTuple ? tradingTuple[0] : BigInt(0);
+    const nftProfit = tradingTuple ? tradingTuple[1] : BigInt(0);
+    const luckyDrawWinnings = tradingTuple ? tradingTuple[2] : BigInt(0);
+    const tripReward = tradingTuple ? tradingTuple[3] : BigInt(0);
+
     // Format values
     const formatUSDT = (value: bigint | undefined) => {
         if (!value) return '$0';
         return `$${Number(formatUnits(value, 18)).toLocaleString()}`;
     };
 
-    // Calculate totals from earnings
-    const totalEarnings = directSponsor + levelIncome + rankEmi + fastBonus;
+    // Calculate totals from both package and trading earnings
+    const packageTotal = directSponsor + levelIncome + rankEmi + fastBonus;
+    const tradingTotal = tradingLevelBonus + nftProfit + luckyDrawWinnings + tripReward;
+    const totalEarnings = packageTotal + tradingTotal;
 
     // Handle withdraw
     const handleWithdraw = () => {
@@ -219,27 +158,45 @@ export function EarningsTab() {
         }
     };
 
-    // Success handling
-    if (isSuccess) {
-        refetchBalance();
-        setWithdrawAmount('');
-        toast.success('Withdrawal successful!');
-    }
+    // Success handling in useEffect
+    const toastShown = useRef(false);
+    
+    useEffect(() => {
+        if (isSuccess && !toastShown.current) {
+            toastShown.current = true;
+            refetchBalance();
+            setWithdrawAmount('');
+            toast.success('Withdrawal successful!');
+        }
+    }, [isSuccess, refetchBalance]);
 
     // Earnings breakdown for display
-    const earningsData = [
-        { type: 'Direct Sponsor', amount: directSponsor, icon: '🤝', color: '#EC4899' },
-        { type: 'Level Income', amount: levelIncome, icon: '📈', color: '#3B82F6' },
-        { type: 'Rank EMI', amount: rankEmi, icon: '🏆', color: '#10B981' },
-        { type: 'Fast Bonus', amount: fastBonus, icon: '⚡', color: '#D946EF' },
+    const packageEarningsData = [
+        { type: 'Direct Sponsor', amount: directSponsor, icon: '🤝', color: '#EC4899', category: 'package' },
+        { type: 'Level Income', amount: levelIncome, icon: '📈', color: '#3B82F6', category: 'package' },
+        { type: 'Rank EMI', amount: rankEmi, icon: '🏆', color: '#10B981', category: 'package' },
+        { type: 'Fast Bonus', amount: fastBonus, icon: '⚡', color: '#D946EF', category: 'package' },
     ];
+
+    const tradingEarningsData = [
+        { type: 'Trading Level Bonus', amount: tradingLevelBonus, icon: '💹', color: '#F59E0B', category: 'trading' },
+        { type: 'NFT Profit', amount: nftProfit, icon: '🎨', color: '#8B5CF6', category: 'trading' },
+        { type: 'Lucky Draw', amount: luckyDrawWinnings, icon: '🎰', color: '#06B6D4', category: 'trading' },
+        { type: 'Trip Reward', amount: tripReward, icon: '✈️', color: '#14B8A6', category: 'trading' },
+    ];
+
+    const allEarningsData = [...packageEarningsData, ...tradingEarningsData];
 
     // Filter earnings
     const filteredEarnings = activeFilter === 'All'
-        ? earningsData
-        : earningsData.filter(e => e.type.toLowerCase().includes(activeFilter.toLowerCase()));
+        ? allEarningsData
+        : activeFilter === 'Package'
+            ? packageEarningsData
+            : activeFilter === 'Trading'
+                ? tradingEarningsData
+                : allEarningsData.filter(e => e.type.toLowerCase().includes(activeFilter.toLowerCase()));
 
-    const EARNING_TYPES = ['All', 'Sponsor', 'Level', 'Rank EMI', 'Fast Bonus'];
+    const EARNING_TYPES = ['All', 'Package', 'Trading'];
 
     return (
         <div className="space-y-4 sm:space-y-6">
@@ -280,7 +237,7 @@ export function EarningsTab() {
             </div>
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3">
                 <div
                     className="relative overflow-hidden rounded-xl p-3 sm:p-4 border animate-slide-up"
                     style={{
@@ -291,8 +248,23 @@ export function EarningsTab() {
                 >
                     <div className="absolute top-1 right-1 sm:top-2 sm:right-2 text-xl sm:text-2xl opacity-20">💰</div>
                     <p className="text-[10px] sm:text-xs text-[#64748B]">Total Earnings</p>
-                    <p className="text-lg sm:text-xl md:text-2xl font-bold text-[#10B981]">
-                        {isLoading ? '...' : formatUSDT(totalEarnings)}
+                    <p className="text-base sm:text-lg md:text-xl font-bold text-[#10B981]">
+                        {isLoading || isTradingLoading ? '...' : formatUSDT(totalEarnings)}
+                    </p>
+                </div>
+
+                <div
+                    className="relative overflow-hidden rounded-xl p-3 sm:p-4 border animate-slide-up"
+                    style={{
+                        animationDelay: '0.05s',
+                        background: 'linear-gradient(to bottom right, #EC489920, #1E293B)',
+                        borderColor: '#EC489930'
+                    }}
+                >
+                    <div className="absolute top-1 right-1 sm:top-2 sm:right-2 text-xl sm:text-2xl opacity-20">�</div>
+                    <p className="text-[10px] sm:text-xs text-[#64748B]">Package</p>
+                    <p className="text-base sm:text-lg md:text-xl font-bold text-[#EC4899]">
+                        {isLoading ? '...' : formatUSDT(packageTotal)}
                     </p>
                 </div>
 
@@ -300,13 +272,28 @@ export function EarningsTab() {
                     className="relative overflow-hidden rounded-xl p-3 sm:p-4 border animate-slide-up"
                     style={{
                         animationDelay: '0.1s',
-                        background: 'linear-gradient(to bottom right, #EC489920, #1E293B)',
-                        borderColor: '#EC489930'
+                        background: 'linear-gradient(to bottom right, #F59E0B20, #1E293B)',
+                        borderColor: '#F59E0B30'
                     }}
                 >
-                    <div className="absolute top-1 right-1 sm:top-2 sm:right-2 text-xl sm:text-2xl opacity-20">💸</div>
+                    <div className="absolute top-1 right-1 sm:top-2 sm:right-2 text-xl sm:text-2xl opacity-20">💹</div>
+                    <p className="text-[10px] sm:text-xs text-[#64748B]">Trading</p>
+                    <p className="text-base sm:text-lg md:text-xl font-bold text-[#F59E0B]">
+                        {isTradingLoading ? '...' : formatUSDT(tradingTotal)}
+                    </p>
+                </div>
+
+                <div
+                    className="relative overflow-hidden rounded-xl p-3 sm:p-4 border animate-slide-up"
+                    style={{
+                        animationDelay: '0.15s',
+                        background: 'linear-gradient(to bottom right, #8B5CF620, #1E293B)',
+                        borderColor: '#8B5CF630'
+                    }}
+                >
+                    <div className="absolute top-1 right-1 sm:top-2 sm:right-2 text-xl sm:text-2xl opacity-20">�💸</div>
                     <p className="text-[10px] sm:text-xs text-[#64748B]">Withdrawable</p>
-                    <p className="text-lg sm:text-xl md:text-2xl font-bold text-[#EC4899]">
+                    <p className="text-base sm:text-lg md:text-xl font-bold text-[#8B5CF6]">
                         {formatUSDT(availableBalance)}
                     </p>
                 </div>
@@ -321,7 +308,7 @@ export function EarningsTab() {
                 >
                     <div className="absolute top-1 right-1 sm:top-2 sm:right-2 text-xl sm:text-2xl opacity-20">✅</div>
                     <p className="text-[10px] sm:text-xs text-[#64748B]">Withdrawn</p>
-                    <p className="text-lg sm:text-xl md:text-2xl font-bold text-[#3B82F6]">
+                    <p className="text-base sm:text-lg md:text-xl font-bold text-[#3B82F6]">
                         {formatUSDT(withdrawnBalance)}
                     </p>
                 </div>
@@ -382,7 +369,7 @@ export function EarningsTab() {
                 ))}
             </div>
 
-            {/* Earnings Breakdown with Expandable History */}
+            {/* Earnings Breakdown - Click to open modal */}
             {isRegistered && (
                 <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] rounded-xl border border-[#334155] overflow-hidden animate-slide-up" style={{ animationDelay: '0.4s' }}>
                     {filteredEarnings.length > 0 ? (
@@ -394,6 +381,7 @@ export function EarningsTab() {
                                 icon={item.icon}
                                 color={item.color}
                                 userId={userId as bigint}
+                                onOpenModal={() => openModal(item.type, item.icon, item.color)}
                             />
                         ))
                     ) : (
@@ -411,6 +399,18 @@ export function EarningsTab() {
                     <h3 className="text-lg font-bold text-[#F8FAFC] mb-2">Track Your Earnings</h3>
                     <p className="text-sm text-[#64748B]">Register to start earning with Bull Run</p>
                 </div>
+            )}
+
+            {/* Income History Modal */}
+            {selectedIncome && (
+                <IncomeHistoryModal
+                    isOpen={modalOpen}
+                    onClose={closeModal}
+                    type={selectedIncome.type}
+                    userId={userId as bigint}
+                    color={selectedIncome.color}
+                    icon={selectedIncome.icon}
+                />
             )}
         </div>
     );

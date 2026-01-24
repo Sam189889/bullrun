@@ -1,17 +1,17 @@
 // Contract Addresses - opBNB Testnet
 export const CONTRACTS = {
     USDT: '0x9907964f13E7d6433Af61135E126326c4f6786b0' as `0x${string}`,  // Existing USDT
-    // Latest Proxy (2026-01-21) - WITH EVENTS UPDATE
-    BULL_RUN: '0xb044f0284f9982c62118a920a4b8702ef48a828c' as `0x${string}`,
+    // Latest Proxy (2026-01-22) - WITH ENHANCED EVENTS (usernameId, level info)
+    BULL_RUN: '0x4FA131BD5c4410d9cD783FCA7d8CeCB75B2bAF48' as `0x${string}`,
     PROXY_ADMIN: '0xAdc4587f4fDcFd732d3768906Df40f4277272F57' as `0x${string}`,
 } as const
 
 // Contract deployment block - used for efficient event queries
-export const DEPLOY_BLOCK = BigInt(120786917)
+export const DEPLOY_BLOCK = BigInt(121147280)
 
 // Admin Wallet Addresses
 export const ADMIN_WALLETS: `0x${string}`[] = [
-    '0xcc51a2dCCa13d63462d9E356d979952217c3508a', // First User (Admin)
+    '0x25b1ff722018917816D3D9982Ce638c3AcEa0090', // First User (Admin)
     '0x3ec7B0Ffd2607D2BA47d11145208E16e6491C90F', // Deployer
 ]
 

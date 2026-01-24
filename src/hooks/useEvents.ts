@@ -10,8 +10,10 @@ import { BullRunMainLogicABI } from '@/abi'
 export interface IncomeEvent {
     toUserId: bigint
     fromUserId: bigint
+    fromUsernameId: bigint  // NEW: Username ID for display
     amount: bigint
     incomeType: string
+    level: bigint  // NEW: Level number for LEVEL_INCOME
     blockNumber: bigint
     transactionHash: `0x${string}`
 }
@@ -20,8 +22,17 @@ export interface NFTSoldEvent {
     nftId: bigint
     sellerId: bigint
     buyerId: bigint
+    sellerUsernameId: bigint  // NEW: Seller username
+    buyerUsernameId: bigint   // NEW: Buyer username
     price: bigint
     appreciation: bigint
+    blockNumber: bigint
+    transactionHash: `0x${string}`
+}
+
+export interface TripRewardEvent {
+    userId: bigint
+    amount: bigint
     blockNumber: bigint
     transactionHash: `0x${string}`
 }
@@ -108,8 +119,10 @@ export function useIncomeEvents(userId: bigint | undefined) {
                 return {
                     toUserId: args.toUserId as bigint,
                     fromUserId: args.fromUserId as bigint,
+                    fromUsernameId: args.fromUsernameId as bigint,
                     amount: args.amount as bigint,
                     incomeType: args.incomeType as string,
+                    level: args.level as bigint,
                     blockNumber: log.blockNumber,
                     transactionHash: log.transactionHash,
                 }
@@ -164,6 +177,8 @@ export function useNFTBuyEvents(buyerId: bigint | undefined) {
                     nftId: args.nftId as bigint,
                     sellerId: args.sellerId as bigint,
                     buyerId: args.buyerId as bigint,
+                    sellerUsernameId: args.sellerUsernameId as bigint,
+                    buyerUsernameId: args.buyerUsernameId as bigint,
                     price: args.price as bigint,
                     appreciation: args.appreciation as bigint,
                     blockNumber: log.blockNumber,
@@ -216,6 +231,8 @@ export function useNFTSellEvents(sellerId: bigint | undefined) {
                     nftId: args.nftId as bigint,
                     sellerId: args.sellerId as bigint,
                     buyerId: args.buyerId as bigint,
+                    sellerUsernameId: args.sellerUsernameId as bigint,
+                    buyerUsernameId: args.buyerUsernameId as bigint,
                     price: args.price as bigint,
                     appreciation: args.appreciation as bigint,
                     blockNumber: log.blockNumber,
@@ -568,6 +585,55 @@ export interface HistoryEvent {
     details: string
     blockNumber: bigint
     transactionHash: `0x${string}`
+}
+
+/**
+ * Get trip reward events for a user
+ */
+export function useTripRewardEvents(userId: bigint | undefined) {
+    const publicClient = usePublicClient()
+    const [events, setEvents] = useState<TripRewardEvent[]>([])
+    const [isLoading, setIsLoading] = useState(false)
+    const [error, setError] = useState<Error | null>(null)
+
+    const fetchEvents = useCallback(async () => {
+        if (!userId || !publicClient) return
+
+        setIsLoading(true)
+        setError(null)
+        try {
+            const logs = await getContractEvents(publicClient, {
+                address: CONTRACTS.BULL_RUN,
+                abi: BullRunMainLogicABI,
+                eventName: 'TripRewardDistributed',
+                args: { userId },
+                fromBlock: DEPLOY_BLOCK,
+                toBlock: 'latest',
+            })
+
+            const parsed: TripRewardEvent[] = logs.map(log => {
+                const args = (log as any).args
+                return {
+                    userId: args.userId as bigint,
+                    amount: args.amount as bigint,
+                    blockNumber: log.blockNumber,
+                    transactionHash: log.transactionHash,
+                }
+            })
+
+            setEvents(parsed.reverse())
+        } catch (err) {
+            setError(err as Error)
+        } finally {
+            setIsLoading(false)
+        }
+    }, [userId, publicClient])
+
+    useEffect(() => {
+        fetchEvents()
+    }, [fetchEvents])
+
+    return { events, isLoading, error, refetch: fetchEvents }
 }
 
 /**

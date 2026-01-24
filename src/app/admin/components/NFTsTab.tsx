@@ -14,8 +14,21 @@ import {
     useToggleNFTHidden,
     useSetNFTDisplayOrder
 } from '@/hooks/useAdminContracts';
+import { useUserInfo } from '@/hooks/useContracts';
 import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
+
+// Helper component to display owner username
+function OwnerUsername({ ownerId }: { ownerId: bigint }) {
+    const { data: userInfo } = useUserInfo(ownerId);
+    
+    if (!userInfo) return <span className="text-slate-500">Loading...</span>;
+    
+    // Wagmi returns struct as object with named fields
+    const user = userInfo as { usernameId: bigint };
+    
+    return <span className="font-mono">BULL{user.usernameId.toString()}</span>;
+}
 
 export function NFTsTab() {
     const [basePrice, setBasePrice] = useState('10');
@@ -207,7 +220,8 @@ function NFTCompactCard({ nftId }: { nftId: bigint }) {
     const nftData = nft as any[] | undefined;
     if (!nftData || nftData[0] === BigInt(0)) return null;
 
-    const [id, currentPrice, basePrice, ownerId, , , , , , isListed, isBurned, isFeatured, isHidden] = nftData;
+    // Correct array: [nftId, currentPrice, basePrice, lastPurchasePrice, ownerId, buyCount, createdAt, lastTradedAt, displayOrder, isListed, isBurned, isFeatured, isHidden]
+    const [id, currentPrice, basePrice, lastPurchasePrice, ownerId, , , , , isListed, isBurned, isFeatured, isHidden] = nftData;
 
     return (
         <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl hover:border-slate-700 transition-all group">
@@ -229,8 +243,14 @@ function NFTCompactCard({ nftId }: { nftId: bigint }) {
 
             <div className="grid grid-cols-2 gap-2 text-[10px] mb-4">
                 <div className="bg-slate-900/50 p-2 rounded-lg">
-                    <p className="text-slate-500">Owner ID</p>
-                    <p className="text-white font-mono">#{ownerId.toString()}</p>
+                    <p className="text-slate-500">Owner</p>
+                    <p className="text-white">
+                        {ownerId === BigInt(0) ? (
+                            <span className="text-slate-500">Contract</span>
+                        ) : (
+                            <OwnerUsername ownerId={ownerId} />
+                        )}
+                    </p>
                 </div>
                 <div className="bg-slate-900/50 p-2 rounded-lg">
                     <p className="text-slate-500">Base Price</p>
@@ -289,8 +309,14 @@ function NFTDetailsCard({ nftId }: { nftId: bigint }) {
 
             <div className="space-y-6">
                 <div className="grid grid-cols-2 gap-y-4 text-sm">
-                    <p className="text-slate-500">Owner ID</p>
-                    <p className="text-white font-mono">#{ownerId.toString()}</p>
+                    <p className="text-slate-500">Owner</p>
+                    <p className="text-white">
+                        {ownerId === BigInt(0) ? (
+                            <span className="text-slate-500">Contract</span>
+                        ) : (
+                            <OwnerUsername ownerId={ownerId} />
+                        )}
+                    </p>
                     <p className="text-slate-500">Current Price</p>
                     <p className="text-white font-bold">${formatUnits(currentPrice, 18)}</p>
                     <p className="text-slate-500">Base Price</p>
