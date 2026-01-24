@@ -1,8 +1,7 @@
-@import "tailwindcss";
-
 /* Google Fonts */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Poppins:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
+@import "tailwindcss";
 /* ============================================
    BULL RUN NFT TRADING PLATFORM - DESIGN SYSTEM
    ============================================ */
@@ -12,7 +11,6 @@
   --color-primary: #EC4899;
   --color-primary-hover: #DB2777;
   --color-primary-light: #F472B6;
-
   /* Secondary Colors */
   --color-secondary: #1E3A8A;
   --color-secondary-hover: #1E40AF;

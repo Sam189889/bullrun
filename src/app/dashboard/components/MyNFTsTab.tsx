@@ -32,36 +32,18 @@ interface NFTData {
     isHidden: boolean;
 }
 
-function OwnedNFTCard({ nftId, isOwned }: { nftId: number; isOwned: boolean }) {
-    const { data: nftData, isLoading } = useNFT(BigInt(nftId));
-
-    if (isLoading) {
-        return (
-            <div className="bg-[#1E293B] border border-[#334155] rounded-xl p-4 animate-pulse">
-                <div className="h-20 bg-[#0F172A] rounded-lg mb-3"></div>
-                <div className="h-4 bg-[#0F172A] rounded w-1/2"></div>
-            </div>
-        );
-    }
+// Mobile Card Component
+function NFTMobileCard({ nftId, userId }: { nftId: number; userId: bigint }) {
+    const { data: nftData } = useNFT(BigInt(nftId));
 
     if (!nftData) return null;
 
-    // Parse array format from Solidity struct (ABI confirms all fields are returned)
     const nftArray = nftData as unknown as readonly [
-        bigint, // nftId [0]
-        bigint, // currentPrice [1]
-        bigint, // basePrice [2]
-        bigint, // lastPurchasePrice [3]
-        bigint, // ownerId [4]
-        bigint, // buyCount [5]
-        bigint, // createdAt [6]
-        bigint, // lastTradedAt [7]
-        bigint, // displayOrder [8]
-        boolean, // isListed [9]
-        boolean, // isBurned [10]
-        boolean, // isFeatured [11]
-        boolean  // isHidden [12]
+        bigint, bigint, bigint, bigint, bigint, bigint, bigint, bigint, bigint, boolean, boolean, boolean, boolean
     ];
+
+    const ownerId = nftArray[4];
+    if (ownerId !== userId) return null;
 
     const nft: NFTData = {
         nftId: nftArray[0],
@@ -79,64 +61,176 @@ function OwnedNFTCard({ nftId, isOwned }: { nftId: number; isOwned: boolean }) {
         isHidden: nftArray[12],
     };
 
-    // Skip if not owned by user
-    if (!isOwned) return null;
-
     const formatUSD = (value: bigint) => `$${Number(formatUnits(value, 18)).toFixed(2)}`;
+    const profit = nft.currentPrice - nft.basePrice;
+    const profitPercent = nft.basePrice > BigInt(0) 
+        ? ((Number(profit) / Number(nft.basePrice)) * 100).toFixed(1)
+        : '0';
 
     return (
-        <div className="relative overflow-hidden bg-gradient-to-br from-[#1E293B] to-[#0F172A] rounded-xl border border-[#334155] hover:border-[#EC4899]/50 transition-all group">
-            {/* Featured/Status Badges */}
-            <div className="absolute top-2 right-2 flex gap-1">
-                {nft.isFeatured && (
-                    <span className="px-2 py-0.5 rounded-full text-[8px] font-bold bg-[#F59E0B]/30 text-[#F59E0B] border border-[#F59E0B]/50">
-                        ⭐ HOT
-                    </span>
-                )}
-                {nft.isListed && (
-                    <span className="px-2 py-0.5 rounded-full text-[8px] font-bold bg-[#10B981]/30 text-[#10B981] border border-[#10B981]/50">
-                        Listed
-                    </span>
-                )}
+        <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] rounded-xl border border-[#334155] p-4">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                    <span className="text-3xl">🪙</span>
+                    <span className="font-mono text-lg text-[#EC4899] font-bold">#{nftId}</span>
+                </div>
+                <div className="flex flex-col gap-1 items-end">
+                    {nft.isListed ? (
+                        <span className="px-2 py-0.5 rounded-full text-[8px] font-bold bg-[#10B981]/20 text-[#10B981] border border-[#10B981]/50">
+                            🟢 Listed
+                        </span>
+                    ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[8px] font-bold bg-[#3B82F6]/20 text-[#3B82F6] border border-[#3B82F6]/50">
+                            📦 Queue
+                        </span>
+                    )}
+                    {nft.isFeatured && (
+                        <span className="px-2 py-0.5 rounded-full text-[8px] font-bold bg-[#F59E0B]/20 text-[#F59E0B] border border-[#F59E0B]/50">
+                            ⭐ Featured
+                        </span>
+                    )}
+                </div>
             </div>
 
-            {/* NFT Visual */}
-            <div className="h-24 sm:h-32 bg-gradient-to-br from-[#EC4899]/10 via-[#0F172A] to-[#D946EF]/10 flex items-center justify-center relative">
-                <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-16 h-16 rounded-full bg-gradient-to-r from-[#EC4899]/20 to-[#D946EF]/20 blur-xl" />
+            {/* Stats Grid */}
+            <div className="grid grid-cols-2 gap-3">
+                <div className="bg-[#0F172A] rounded-lg p-2">
+                    <p className="text-[10px] text-[#64748B] mb-1">Current Value</p>
+                    <p className="text-sm font-bold text-[#10B981]">{formatUSD(nft.currentPrice)}</p>
                 </div>
-                <span className="relative text-4xl sm:text-5xl group-hover:scale-110 transition-transform duration-300">
-                    🪙
-                </span>
+                <div className="bg-[#0F172A] rounded-lg p-2">
+                    <p className="text-[10px] text-[#64748B] mb-1">Profit</p>
+                    <p className={`text-sm font-bold ${profit >= BigInt(0) ? 'text-[#10B981]' : 'text-[#EF4444]'}`}>
+                        {profit >= BigInt(0) ? '+' : ''}{formatUSD(profit)}
+                    </p>
+                    <p className="text-[8px] text-[#64748B]">{profit >= BigInt(0) ? '+' : ''}{profitPercent}%</p>
+                </div>
+                <div className="bg-[#0F172A] rounded-lg p-2">
+                    <p className="text-[10px] text-[#64748B] mb-1">Base Price</p>
+                    <p className="text-sm text-[#94A3B8]">{formatUSD(nft.basePrice)}</p>
+                </div>
+                <div className="bg-[#0F172A] rounded-lg p-2">
+                    <p className="text-[10px] text-[#64748B] mb-1">Purchase Price</p>
+                    <p className="text-sm text-[#94A3B8]">{formatUSD(nft.lastPurchasePrice)}</p>
+                </div>
             </div>
 
-            {/* NFT Info */}
-            <div className="p-3 sm:p-4">
-                <div className="flex justify-between items-start mb-2">
-                    <div>
-                        <p className="text-[10px] text-[#64748B] font-mono">NFT #{nftId}</p>
-                        <p className="text-[10px] text-[#475569]">{Number(nft.buyCount)} trades</p>
-                    </div>
-                    <div className="text-right">
-                        <p className="text-xs text-[#64748B]">Value</p>
-                        <p className="text-sm sm:text-base font-bold text-[#10B981]">{formatUSD(nft.currentPrice)}</p>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 mt-3 text-[10px]">
-                    <div className="bg-[#0F172A] rounded-lg p-2">
-                        <p className="text-[#64748B]">Base Price</p>
-                        <p className="text-white font-bold">{formatUSD(nft.basePrice)}</p>
-                    </div>
-                    <div className="bg-[#0F172A] rounded-lg p-2">
-                        <p className="text-[#64748B]">Profit</p>
-                        <p className="text-[#10B981] font-bold">
-                            +{formatUSD(nft.currentPrice - nft.basePrice)}
-                        </p>
-                    </div>
-                </div>
+            {/* Footer */}
+            <div className="flex justify-between items-center mt-3 pt-3 border-t border-[#334155]">
+                <span className="text-xs text-[#64748B]">{Number(nft.buyCount)} trades</span>
             </div>
         </div>
+    );
+}
+
+// Desktop Table Row Component
+function NFTTableRow({ nftId, userId }: { nftId: number; userId: bigint }) {
+    const { data: nftData } = useNFT(BigInt(nftId));
+
+    if (!nftData) return null;
+
+    // Parse array format from Solidity struct
+    const nftArray = nftData as unknown as readonly [
+        bigint, // nftId [0]
+        bigint, // currentPrice [1]
+        bigint, // basePrice [2]
+        bigint, // lastPurchasePrice [3]
+        bigint, // ownerId [4]
+        bigint, // buyCount [5]
+        bigint, // createdAt [6]
+        bigint, // lastTradedAt [7]
+        bigint, // displayOrder [8]
+        boolean, // isListed [9]
+        boolean, // isBurned [10]
+        boolean, // isFeatured [11]
+        boolean  // isHidden [12]
+    ];
+
+    const ownerId = nftArray[4];
+    
+    // Skip if not owned by user
+    if (ownerId !== userId) return null;
+
+    const nft: NFTData = {
+        nftId: nftArray[0],
+        currentPrice: nftArray[1],
+        basePrice: nftArray[2],
+        lastPurchasePrice: nftArray[3],
+        ownerId: nftArray[4],
+        buyCount: nftArray[5],
+        createdAt: nftArray[6],
+        lastTradedAt: nftArray[7],
+        displayOrder: nftArray[8],
+        isListed: nftArray[9],
+        isBurned: nftArray[10],
+        isFeatured: nftArray[11],
+        isHidden: nftArray[12],
+    };
+
+    const formatUSD = (value: bigint) => `$${Number(formatUnits(value, 18)).toFixed(2)}`;
+    const formatDate = (timestamp: bigint) => {
+        const date = new Date(Number(timestamp) * 1000);
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    };
+
+    const profit = nft.currentPrice - nft.basePrice;
+    const profitPercent = nft.basePrice > BigInt(0) 
+        ? ((Number(profit) / Number(nft.basePrice)) * 100).toFixed(1)
+        : '0';
+
+    return (
+        <tr className="border-b border-[#334155] hover:bg-[#1E293B]/50 transition-colors">
+            <td className="p-3">
+                <div className="flex items-center gap-2">
+                    <span className="text-2xl">🪙</span>
+                    <span className="font-mono text-sm text-[#EC4899] font-bold">#{nftId}</span>
+                </div>
+            </td>
+            <td className="p-3">
+                <div className="flex flex-col gap-1">
+                    {nft.isListed ? (
+                        <span className="px-2 py-0.5 rounded-full text-[8px] font-bold bg-[#10B981]/20 text-[#10B981] border border-[#10B981]/50 w-fit">
+                            🟢 Listed
+                        </span>
+                    ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[8px] font-bold bg-[#3B82F6]/20 text-[#3B82F6] border border-[#3B82F6]/50 w-fit">
+                            📦 Queue
+                        </span>
+                    )}
+                    {nft.isFeatured && (
+                        <span className="px-2 py-0.5 rounded-full text-[8px] font-bold bg-[#F59E0B]/20 text-[#F59E0B] border border-[#F59E0B]/50 w-fit">
+                            ⭐ Featured
+                        </span>
+                    )}
+                </div>
+            </td>
+            <td className="p-3 text-right">
+                <span className="text-sm font-bold text-[#10B981]">{formatUSD(nft.currentPrice)}</span>
+            </td>
+            <td className="p-3 text-right">
+                <span className="text-sm text-[#94A3B8]">{formatUSD(nft.basePrice)}</span>
+            </td>
+            <td className="p-3 text-right">
+                <span className="text-sm text-[#94A3B8]">{formatUSD(nft.lastPurchasePrice)}</span>
+            </td>
+            <td className="p-3 text-right">
+                <div className="flex flex-col items-end">
+                    <span className={`text-sm font-bold ${profit >= BigInt(0) ? 'text-[#10B981]' : 'text-[#EF4444]'}`}>
+                        {profit >= BigInt(0) ? '+' : ''}{formatUSD(profit)}
+                    </span>
+                    <span className="text-[10px] text-[#64748B]">
+                        {profit >= BigInt(0) ? '+' : ''}{profitPercent}%
+                    </span>
+                </div>
+            </td>
+            <td className="p-3 text-center">
+                <span className="text-sm text-[#94A3B8]">{Number(nft.buyCount)}</span>
+            </td>
+            <td className="p-3 text-center hidden md:table-cell">
+                <span className="text-xs text-[#64748B]">{formatDate(nft.createdAt)}</span>
+            </td>
+        </tr>
     );
 }
 
@@ -173,7 +267,7 @@ export function MyNFTsTab() {
                 </div>
             </div>
 
-            {/* NFT Grid - Filter by ownership */}
+            {/* NFT Display - Cards on mobile, Table on desktop */}
             {nftCount === 0 ? (
                 <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] rounded-xl border border-[#334155] p-12 text-center">
                     <p className="text-5xl mb-4">📭</p>
@@ -181,11 +275,37 @@ export function MyNFTsTab() {
                     <p className="text-sm text-[#64748B]">Buy your first NFT from the Trade tab!</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-                    {nftIds.map((id) => (
-                        <NFTOwnershipChecker key={id} nftId={id} userId={userId as bigint} />
-                    ))}
-                </div>
+                <>
+                    {/* Mobile Card View */}
+                    <div className="grid grid-cols-1 gap-3 md:hidden">
+                        {nftIds.map((id) => (
+                            <NFTMobileCard key={id} nftId={id} userId={userId as bigint} />
+                        ))}
+                    </div>
+
+                    {/* Desktop Table View */}
+                    <div className="hidden md:block overflow-x-auto">
+                        <table className="w-full border-collapse">
+                            <thead>
+                                <tr className="bg-[#1E293B] border-b border-[#334155]">
+                                    <th className="text-left p-3 text-xs font-bold text-[#94A3B8]">NFT ID</th>
+                                    <th className="text-left p-3 text-xs font-bold text-[#94A3B8]">Status</th>
+                                    <th className="text-right p-3 text-xs font-bold text-[#94A3B8]">Current Value</th>
+                                    <th className="text-right p-3 text-xs font-bold text-[#94A3B8]">Base Price</th>
+                                    <th className="text-right p-3 text-xs font-bold text-[#94A3B8]">Purchase Price</th>
+                                    <th className="text-right p-3 text-xs font-bold text-[#94A3B8]">Profit</th>
+                                    <th className="text-center p-3 text-xs font-bold text-[#94A3B8]">Trades</th>
+                                    <th className="text-center p-3 text-xs font-bold text-[#94A3B8]">Created</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {nftIds.map((id) => (
+                                    <NFTTableRow key={id} nftId={id} userId={userId as bigint} />
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </>
             )}
 
             {/* Info */}
@@ -199,35 +319,3 @@ export function MyNFTsTab() {
     );
 }
 
-// Helper component to check ownership and render if owned
-function NFTOwnershipChecker({ nftId, userId }: { nftId: number; userId: bigint }) {
-    const { data: nftData } = useNFT(BigInt(nftId));
-
-    if (!nftData) {
-        return null;
-    }
-
-    // Parse array - ABI confirms all fields including nftId are returned
-    const nftArray = nftData as unknown as readonly [
-        bigint, // nftId [0]
-        bigint, // currentPrice [1]
-        bigint, // basePrice [2]
-        bigint, // lastPurchasePrice [3]
-        bigint, // ownerId [4]
-        bigint, // buyCount [5]
-        bigint, // createdAt [6]
-        bigint, // lastTradedAt [7]
-        bigint, // displayOrder [8]
-        boolean, // isListed [9]
-        boolean, // isBurned [10]
-        boolean, // isFeatured [11]
-        boolean  // isHidden [12]
-    ];
-
-    const ownerId = nftArray[4]; // Index 4 is ownerId
-    const isOwned = ownerId === userId;
-
-    if (!isOwned) return null;
-
-    return <OwnedNFTCard nftId={nftId} isOwned={true} />;
-}
