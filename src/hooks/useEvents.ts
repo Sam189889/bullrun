@@ -725,3 +725,132 @@ export function useUserHistory(userId: bigint | undefined) {
 
     return { events: allEvents, isLoading }
 }
+
+// ============ USER REGISTRATION EVENTS ============
+
+export interface UserRegisteredEvent {
+    userId: bigint
+    wallet: `0x${string}`
+    referrerId: bigint
+    usernameId: bigint
+    blockNumber: bigint
+    transactionHash: `0x${string}`
+}
+
+/**
+ * Get all user registration events (for building referral tree)
+ */
+export function useAllUserRegisteredEvents() {
+    const publicClient = usePublicClient()
+    const [events, setEvents] = useState<UserRegisteredEvent[]>([])
+    const [isLoading, setIsLoading] = useState(false)
+    const [error, setError] = useState<Error | null>(null)
+
+    const fetchEvents = useCallback(async () => {
+        if (!publicClient) return
+
+        setIsLoading(true)
+        setError(null)
+        try {
+            console.log('[useAllUserRegisteredEvents] Fetching all registration events...')
+            const logs = await getContractEvents(publicClient, {
+                address: CONTRACTS.BULL_RUN,
+                abi: BullRunMainLogicABI,
+                eventName: 'UserRegistered',
+                fromBlock: DEPLOY_BLOCK,
+                toBlock: 'latest',
+            })
+            console.log('[useAllUserRegisteredEvents] Found', logs.length, 'events')
+
+            const parsed: UserRegisteredEvent[] = logs.map(log => {
+                const args = (log as any).args
+                return {
+                    userId: args.userId as bigint,
+                    wallet: args.wallet as `0x${string}`,
+                    referrerId: args.referrerId as bigint,
+                    usernameId: args.usernameId as bigint,
+                    blockNumber: log.blockNumber,
+                    transactionHash: log.transactionHash,
+                }
+            })
+
+            setEvents(parsed)
+        } catch (err) {
+            console.error('[useAllUserRegisteredEvents] Error:', err)
+            setError(err as Error)
+        } finally {
+            setIsLoading(false)
+        }
+    }, [publicClient])
+
+    useEffect(() => {
+        fetchEvents()
+    }, [fetchEvents])
+
+    return { events, isLoading, error, refetch: fetchEvents }
+}
+
+/**
+ * Calculate level-wise team counts for a user using registration events
+ * Returns a Map where key = level (1-30) and value = count of users at that level
+ */
+export function useLevelCounts(targetUserId: bigint | undefined) {
+    const { events: registrationEvents, isLoading: eventsLoading } = useAllUserRegisteredEvents()
+    const [levelCounts, setLevelCounts] = useState<Map<number, number>>(new Map())
+    const [totalTeam, setTotalTeam] = useState(0)
+    const [isCalculating, setIsCalculating] = useState(false)
+
+    useEffect(() => {
+        if (!targetUserId || registrationEvents.length === 0) {
+            setLevelCounts(new Map())
+            setTotalTeam(0)
+            return
+        }
+
+        setIsCalculating(true)
+
+        // Build referrer map: userId -> referrerId
+        const referrerMap = new Map<bigint, bigint>()
+        registrationEvents.forEach(event => {
+            referrerMap.set(event.userId, event.referrerId)
+        })
+
+        // For each registered user, walk up their referrer chain
+        // If we find targetUserId in their upline, increment the level count
+        const counts = new Map<number, number>()
+        let total = 0
+
+        registrationEvents.forEach(event => {
+            const userId = event.userId
+            if (userId === targetUserId) return // Skip self
+
+            let currentId = event.referrerId
+            let level = 1
+
+            // Walk up to 30 levels
+            while (currentId !== BigInt(0) && level <= 30) {
+                if (currentId === targetUserId) {
+                    // Found target user in upline at this level
+                    counts.set(level, (counts.get(level) || 0) + 1)
+                    total++
+                    break
+                }
+                currentId = referrerMap.get(currentId) || BigInt(0)
+                level++
+            }
+        })
+
+        setLevelCounts(counts)
+        setTotalTeam(total)
+        setIsCalculating(false)
+
+    }, [targetUserId, registrationEvents])
+
+    return {
+        levelCounts,
+        totalTeam,
+        isLoading: eventsLoading || isCalculating,
+        getLevelCount: (level: number) => levelCounts.get(level) || 0
+    }
+}
+

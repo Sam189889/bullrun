@@ -9,10 +9,9 @@ const navItems = [
     { id: 'home', icon: '🏠', label: 'Home', color: '#EC4899' },
     { id: 'marketplace', icon: '🛒', label: 'Trade', color: '#10B981' },
     { id: 'mynfts', icon: '🪙', label: 'NFTs', color: '#F59E0B' },
-    { id: 'packages', icon: '📦', label: 'Buy', color: '#D946EF' },
     { id: 'earnings', icon: '💰', label: 'Earn', color: '#8B5CF6' },
     { id: 'team', icon: '👥', label: 'Team', color: '#3B82F6' },
-    { id: 'network', icon: '🌳', label: 'Network', color: '#06B6D4' },
+    { id: 'history', icon: '📜', label: 'History', color: '#EF4444' },
 ];
 
 export function DashboardNav({ activeTab, onTabChange }: DashboardNavProps) {

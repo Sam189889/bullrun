@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { IncomeHistoryModal } from './IncomeHistoryModal';
 import toast from 'react-hot-toast';
 
-const MIN_WITHDRAWAL = parseUnits('5', 18); // $5 minimum
+const MIN_CLAIM = parseUnits('5', 18); // $5 minimum
 
 // Simple income card component (click to open modal)
 function IncomeCard({
@@ -64,7 +64,7 @@ function IncomeCard({
 
 export function EarningsTab() {
     const [activeFilter, setActiveFilter] = useState('All');
-    const [withdrawAmount, setWithdrawAmount] = useState('');
+    const [claimAmount, setClaimAmount] = useState('');
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedIncome, setSelectedIncome] = useState<{type: string; icon: string; color: string} | null>(null);
     const { address } = useAccount();
@@ -85,9 +85,9 @@ export function EarningsTab() {
     const { data: tradingEarnings, isLoading: isTradingLoading } = useUserTradingEarnings(userId as bigint);
     const { data: balanceData, refetch: refetchBalance } = useUserBalance(userId as bigint);
 
-    // Withdraw hook
-    const { withdraw, isPending: isWithdrawing, data: withdrawHash } = useWithdraw();
-    const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash: withdrawHash });
+    // Claim hook
+    const { withdraw, isPending: isClaiming, data: claimHash } = useWithdraw();
+    const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash: claimHash });
 
     const balance = balanceData as readonly [bigint, bigint, bigint] | undefined;
     const isRegistered = typeof userId === 'bigint' && userId > BigInt(0);
@@ -105,10 +105,10 @@ export function EarningsTab() {
     const winChance = totalWeeklyEntries > 0 ? ((myEntries / totalWeeklyEntries) * 100).toFixed(2) : '0';
     const thresholdAmount = entryThreshold ? Number(formatUnits(entryThreshold as bigint, 18)) : 100;
 
-    // Parse balance struct (totalEarned, availableBalance, withdrawnBalance)
+    // Parse balance struct (totalEarned, availableBalance, claimedBalance)
     const totalEarned = balance ? balance[0] : BigInt(0);
     const availableBalance = balance ? balance[1] : BigInt(0);
-    const withdrawnBalance = balance ? balance[2] : BigInt(0);
+    const claimedBalance = balance ? balance[2] : BigInt(0);
 
     // Parse earnings - contract returns tuple (directSponsor, levelIncome, rankEmi, fastBonus)
     const earnTuple = earnings as readonly [bigint, bigint, bigint, bigint] | undefined;
@@ -135,12 +135,12 @@ export function EarningsTab() {
     const tradingTotal = tradingLevelBonus + nftProfit + luckyDrawWinnings + tripReward;
     const totalEarnings = packageTotal + tradingTotal;
 
-    // Handle withdraw
-    const handleWithdraw = () => {
-        if (!withdrawAmount) return;
-        const amount = parseUnits(withdrawAmount, 18);
-        if (amount < MIN_WITHDRAWAL) {
-            toast.error('Minimum withdrawal is $5');
+    // Handle claim
+    const handleClaim = () => {
+        if (!claimAmount) return;
+        const amount = parseUnits(claimAmount, 18);
+        if (amount < MIN_CLAIM) {
+            toast.error('Minimum claim is $5');
             return;
         }
         if (amount > availableBalance) {
@@ -148,13 +148,13 @@ export function EarningsTab() {
             return;
         }
         withdraw(amount);
-        toast.success('Withdrawal submitted!');
+        toast.success('Claim submitted!');
     };
 
-    // Handle max withdraw
-    const handleMaxWithdraw = () => {
+    // Handle max claim
+    const handleMaxClaim = () => {
         if (availableBalance > BigInt(0)) {
-            setWithdrawAmount(formatUnits(availableBalance, 18));
+            setClaimAmount(formatUnits(availableBalance, 18));
         }
     };
 
@@ -165,8 +165,8 @@ export function EarningsTab() {
         if (isSuccess && !toastShown.current) {
             toastShown.current = true;
             refetchBalance();
-            setWithdrawAmount('');
-            toast.success('Withdrawal successful!');
+            setClaimAmount('');
+            toast.success('Claim successful!');
         }
     }, [isSuccess, refetchBalance]);
 
@@ -292,7 +292,7 @@ export function EarningsTab() {
                     }}
                 >
                     <div className="absolute top-1 right-1 sm:top-2 sm:right-2 text-xl sm:text-2xl opacity-20">�💸</div>
-                    <p className="text-[10px] sm:text-xs text-[#64748B]">Withdrawable</p>
+                    <p className="text-[10px] sm:text-xs text-[#64748B]">Claimable</p>
                     <p className="text-base sm:text-lg md:text-xl font-bold text-[#8B5CF6]">
                         {formatUSDT(availableBalance)}
                     </p>
@@ -307,17 +307,17 @@ export function EarningsTab() {
                     }}
                 >
                     <div className="absolute top-1 right-1 sm:top-2 sm:right-2 text-xl sm:text-2xl opacity-20">✅</div>
-                    <p className="text-[10px] sm:text-xs text-[#64748B]">Withdrawn</p>
+                    <p className="text-[10px] sm:text-xs text-[#64748B]">Claimed</p>
                     <p className="text-base sm:text-lg md:text-xl font-bold text-[#3B82F6]">
-                        {formatUSDT(withdrawnBalance)}
+                        {formatUSDT(claimedBalance)}
                     </p>
                 </div>
             </div>
 
-            {/* Withdraw Section */}
+            {/* Claim Section */}
             <div className="bg-gradient-to-r from-[#1E293B] to-[#0F172A] rounded-xl p-4 border border-[#334155] animate-slide-up" style={{ animationDelay: '0.25s' }}>
                 <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-semibold text-[#F8FAFC]">💰 Withdraw</h3>
+                    <h3 className="text-sm font-semibold text-[#F8FAFC]">💰 Claim</h3>
                     <span className="text-xs text-[#64748B]">Min: $5</span>
                 </div>
                 <div className="flex gap-2">
@@ -325,14 +325,14 @@ export function EarningsTab() {
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#64748B]">$</span>
                         <input
                             type="number"
-                            value={withdrawAmount}
-                            onChange={(e) => setWithdrawAmount(e.target.value)}
+                            value={claimAmount}
+                            onChange={(e) => setClaimAmount(e.target.value)}
                             placeholder="0.00"
                             className="w-full bg-[#0F172A] border border-[#334155] rounded-lg pl-7 pr-14 py-2 text-[#F8FAFC] text-sm focus:border-[#EC4899] outline-none"
                         />
                         <button
                             type="button"
-                            onClick={handleMaxWithdraw}
+                            onClick={handleMaxClaim}
                             className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-[#EC4899] hover:text-[#D946EF]"
                         >
                             MAX
@@ -341,11 +341,11 @@ export function EarningsTab() {
                     <Button
                         variant="primary"
                         size="sm"
-                        onClick={handleWithdraw}
-                        disabled={isWithdrawing || isConfirming || !withdrawAmount}
+                        onClick={handleClaim}
+                        disabled={isClaiming || isConfirming || !claimAmount}
                         className="px-4"
                     >
-                        {isWithdrawing || isConfirming ? '...' : 'Withdraw'}
+                        {isClaiming || isConfirming ? '...' : 'Claim'}
                     </Button>
                 </div>
             </div>

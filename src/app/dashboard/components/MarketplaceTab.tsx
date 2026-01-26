@@ -27,6 +27,59 @@ interface NFTData {
     isHidden: boolean;
 }
 
+// Reset Timer Component - Shows countdown to next daily limit reset
+function ResetTimer({ dayStart, dayLengthSeconds }: { dayStart: bigint | undefined; dayLengthSeconds: bigint | undefined }) {
+    const [timeLeft, setTimeLeft] = useState<string>('--:--:--');
+
+    useEffect(() => {
+        if (!dayStart || !dayLengthSeconds) {
+            setTimeLeft('--:--:--');
+            return;
+        }
+
+        const calcTimeLeft = () => {
+            const now = Math.floor(Date.now() / 1000);
+            const start = Number(dayStart);
+            const length = Number(dayLengthSeconds);
+
+            // Calculate current day number
+            const elapsed = now - start;
+            const currentDayNum = Math.floor(elapsed / length);
+
+            // Next reset timestamp
+            const nextReset = start + ((currentDayNum + 1) * length);
+            const secondsLeft = nextReset - now;
+
+            if (secondsLeft <= 0) {
+                return '00:00:00';
+            }
+
+            const hours = Math.floor(secondsLeft / 3600);
+            const minutes = Math.floor((secondsLeft % 3600) / 60);
+            const seconds = secondsLeft % 60;
+
+            return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        };
+
+        setTimeLeft(calcTimeLeft());
+        const interval = setInterval(() => setTimeLeft(calcTimeLeft()), 1000);
+
+        return () => clearInterval(interval);
+    }, [dayStart, dayLengthSeconds]);
+
+    return (
+        <div className="bg-gradient-to-r from-[#F59E0B]/10 to-[#EF4444]/10 border border-[#F59E0B]/30 rounded-lg p-3 animate-slide-up" style={{ animationDelay: '0.15s' }}>
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <span className="text-lg">⏰</span>
+                    <span className="text-xs text-[#64748B]">Daily Limit Resets In</span>
+                </div>
+                <span className="text-lg font-bold text-[#F59E0B] font-mono">{timeLeft}</span>
+            </div>
+        </div>
+    );
+}
+
 function NFTCard({ nftId, userId, onBuy }: { nftId: number; userId: bigint | undefined; onBuy: (nftId: bigint, price: bigint) => void }) {
     const { data: nftData } = useNFT(BigInt(nftId));
 
@@ -47,43 +100,63 @@ function NFTCard({ nftId, userId, onBuy }: { nftId: number; userId: bigint | und
     if (isOwnNFT) return null;
 
     const formatUSD = (value: bigint) => `$${Number(formatUnits(value, 18)).toFixed(2)}`;
+    const priceNum = Number(formatUnits(currentPrice, 18));
+    const buyCountNum = Number(buyCount);
+
+    // Hot NFT if traded more than 5 times or near $200
+    const isHot = priceNum >= 150 || buyCountNum >= 5;
+
+    // Select bull image (1-11) based on NFT ID, cycling
+    const bullImageNum = ((nftId - 1) % 11) + 1;
+    const bullImage = `/bulls/bull${bullImageNum}.png`;
 
     return (
-        <div className="relative overflow-hidden bg-gradient-to-br from-[#1E293B] to-[#0F172A] rounded-lg sm:rounded-xl border border-[#334155] hover:border-[#EC4899]/50 card-hover group animate-slide-up">
-            {/* Featured Badge */}
-            {isFeatured && (
-                <div className="absolute top-1.5 sm:top-2 left-1.5 sm:left-2 px-1.5 sm:px-2 py-0.5 rounded-full text-[8px] sm:text-[10px] font-bold bg-[#F59E0B]/30 text-[#F59E0B] border border-[#F59E0B]/50">
-                    ⭐ Hot
-                </div>
-            )}
+        <div className={`
+            relative overflow-hidden rounded-xl border-2 border-[#334155]
+            bg-gradient-to-br from-[#1E293B] via-[#0F172A] to-[#1E293B] 
+            hover:border-[#EC4899] hover:shadow-[0_0_30px_rgba(236,72,153,0.4)]
+            transition-all duration-300 group animate-slide-up
+        `}>
+            {/* Animated glow effect */}
+            <div className="absolute inset-0 bg-gradient-to-r from-[#EC4899]/0 via-[#EC4899]/10 to-[#EC4899]/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-            {/* Status Badge */}
-            <div className="absolute top-1.5 sm:top-2 right-1.5 sm:right-2 px-1.5 sm:px-2 py-0.5 rounded-full text-[8px] sm:text-[10px] font-bold backdrop-blur-sm bg-[#10B981]/30 text-[#10B981] border border-[#10B981]/50">
-                
-            </div>
-
-            {/* NFT Image */}
-            <div className="h-20 sm:h-28 md:h-36 bg-gradient-to-br from-[#EC4899]/10 via-[#0F172A] to-[#D946EF]/10 flex items-center justify-center relative">
+            {/* NFT Visual - Bull Image */}
+            <div className="h-28 bg-gradient-to-br from-[#EC4899]/10 via-[#0F172A] to-[#EF4444]/10 flex items-center justify-center relative overflow-hidden">
+                {/* Animated background */}
                 <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-full bg-gradient-to-r from-[#EC4899]/20 to-[#D946EF]/20 blur-xl" />
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-r from-[#EC4899]/20 to-[#EF4444]/20 blur-2xl animate-pulse" />
                 </div>
-                <span className="relative text-4xl sm:text-5xl md:text-6xl float-slow group-hover:scale-110 transition-transform duration-300">
-                    🪙
-                </span>
+
+                {/* Bull Image - Zoomed */}
+                <img
+                    src={bullImage}
+                    alt={`Bull NFT #${nftId}`}
+                    className="relative w-24 h-24 sm:w-28 sm:h-28 object-contain group-hover:scale-110 transition-transform duration-500 drop-shadow-[0_0_15px_rgba(236,72,153,0.4)]"
+                />
             </div>
 
-            {/* NFT Info */}
-            <div className="p-2 sm:p-3 md:p-4">
-                <div className="flex justify-center items-center mb-1 sm:mb-2">
-                    <p className="text-sm sm:text-lg md:text-xl font-bold text-[#EC4899]">{formatUSD(currentPrice)}</p>
+            {/* Price & Action Section */}
+            <div className="p-2 sm:p-3 bg-gradient-to-t from-[#0F172A] to-transparent">
+                {/* Price display */}
+                <div className="text-center mb-2">
+                    <p className="text-lg sm:text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#EC4899] to-[#F59E0B]">
+                        {formatUSD(currentPrice)}
+                    </p>
                 </div>
 
                 <button
                     onClick={() => onBuy(BigInt(nftId), currentPrice)}
                     disabled={!userId}
-                    className="w-full mt-2 py-1.5 sm:py-2 bg-gradient-to-r from-[#EC4899] to-[#D946EF] rounded-lg text-[#0F172A] text-[10px] sm:text-xs font-bold hover:shadow-[0_0_20px_rgba(255,215,0,0.4)] transition-all duration-300 active:scale-95 disabled:opacity-50"
+                    className={`
+                        w-full py-2 rounded-lg font-bold text-xs uppercase tracking-wide
+                        bg-gradient-to-r from-[#EC4899] via-[#D946EF] to-[#EC4899] background-animate
+                        text-white shadow-[0_4px_15px_rgba(236,72,153,0.4)]
+                        hover:shadow-[0_6px_20px_rgba(236,72,153,0.6)] hover:scale-[1.02]
+                        active:scale-95 transition-all duration-300
+                        disabled:opacity-50 disabled:cursor-not-allowed
+                    `}
                 >
-                    🛒 Buy Now
+                    ⚡ Buy Now
                 </button>
             </div>
         </div>
@@ -96,12 +169,12 @@ export function MarketplaceTab() {
     const { data: totalNFTs } = useTotalNFTs();
     const { data: allowance, refetch: refetchAllowance } = useUSDTAllowance(address);
     const { data: availableLimit, refetch: refetchLimit } = useUserAvailableLimit(userId as bigint);
-    
+
     // Fetch day settings for debugging
     const { data: dayStart } = useDayStartTimestamp();
     const { data: dayLength } = useDayLength();
     const { data: currentDay } = useCurrentDay();
-    
+
     // Debug logging with timestamp
     useEffect(() => {
         if (availableLimit !== undefined && availableLimit !== null) {
@@ -113,7 +186,7 @@ export function MarketplaceTab() {
             });
         }
     }, [availableLimit, userId]);
-    
+
     // Debug day settings
     useEffect(() => {
         console.log('🕐 Day Settings:', {
@@ -123,7 +196,7 @@ export function MarketplaceTab() {
             dayStartDate: dayStart ? new Date(Number(dayStart) * 1000).toLocaleString() : 'N/A'
         });
     }, [dayStart, dayLength, currentDay]);
-    
+
     // Fetch balances
     const { data: nativeBalance } = useBalance({ address });
     const { data: usdtBalance } = useUSDTBalance(address);
@@ -165,7 +238,7 @@ export function MarketplaceTab() {
 
     const handleBuy = (nftId: bigint, price: bigint) => {
         setError('');
-        
+
         // Validate USDT balance
         const currentUsdtBalance = usdtBalance as bigint || BigInt(0);
         if (currentUsdtBalance < price) {
@@ -199,10 +272,10 @@ export function MarketplaceTab() {
 
     const nftCount = Number(totalNFTs || 0);
     const allNftIds = Array.from({ length: nftCount }, (_, i) => i + 1);
-    
+
     // Shuffle NFTs every 5 seconds
     const [shuffledIds, setShuffledIds] = useState<number[]>([]);
-    
+
     useEffect(() => {
         // Fisher-Yates shuffle algorithm
         const shuffleArray = (array: number[]) => {
@@ -213,20 +286,20 @@ export function MarketplaceTab() {
             }
             return shuffled;
         };
-        
+
         // Initial shuffle
         setShuffledIds(shuffleArray(allNftIds));
-        
+
         // Shuffle every 5 seconds
         const interval = setInterval(() => {
             setShuffledIds(shuffleArray(allNftIds));
         }, 5000);
-        
+
         return () => clearInterval(interval);
     }, [nftCount]);
-    
-    // Show first 20 NFTs
-    const nftIds = shuffledIds.slice(0, 20);
+
+    // Show first 12 NFTs
+    const nftIds = shuffledIds.slice(0, 12);
 
     const formatUSD = (value: bigint | undefined) => {
         if (!value) return '$0';
@@ -265,6 +338,9 @@ export function MarketplaceTab() {
                 </div>
             </div>
 
+            {/* Reset Timer */}
+            <ResetTimer dayStart={dayStart as bigint} dayLengthSeconds={dayLength as bigint} />
+
             {/* Error Message */}
             {error && (
                 <div className="bg-[#EF4444]/10 border border-[#EF4444]/30 rounded-xl p-3 sm:p-4 animate-slide-up">
@@ -281,14 +357,14 @@ export function MarketplaceTab() {
                         <span className="text-2xl">⏳</span>
                         <div>
                             <p className="text-sm sm:text-base font-bold text-[#EC4899] mb-1">
-                                {approvePending ? '🔐 Approving USDT...' : 
-                                 isWaitingForApproval ? '⏳ Waiting for approval confirmation...' :
-                                 '🛒 Processing purchase...'}
+                                {approvePending ? '🔐 Approving USDT...' :
+                                    isWaitingForApproval ? '⏳ Waiting for approval confirmation...' :
+                                        '🛒 Processing purchase...'}
                             </p>
                             <p className="text-[10px] sm:text-xs text-[#94A3B8]">
                                 {approvePending ? 'Please confirm the approval transaction in your wallet' :
-                                 isWaitingForApproval ? 'Approval confirmed! Purchase will start automatically...' :
-                                 'Please wait while your NFT purchase is being processed'}
+                                    isWaitingForApproval ? 'Approval confirmed! Purchase will start automatically...' :
+                                        'Please wait while your NFT purchase is being processed'}
                             </p>
                         </div>
                     </div>
@@ -303,7 +379,7 @@ export function MarketplaceTab() {
                     <p className="text-xs text-[#475569] mt-1">Admin needs to create NFTs first</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3">
                     {nftIds.map((id) => (
                         <NFTCard
                             key={id}

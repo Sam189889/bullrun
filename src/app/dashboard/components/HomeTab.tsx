@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { StatCard } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { useAccount } from 'wagmi';
 import { formatUnits } from 'viem';
 import { useUserId, useUserInfo, useUserEarnings, useUserBalance } from '@/hooks/useContracts';
+import { useDayStartTimestamp, useDayLength } from '@/hooks/useAdminContracts';
+import { SmartPackageCard } from './SmartPackageCard';
 
 // Define types for contract returns
 interface UserInfo {
@@ -29,7 +31,53 @@ interface UserEarnings {
 interface UserBalance {
     totalEarned: bigint;
     availableBalance: bigint;
-    withdrawnBalance: bigint;
+    claimedBalance: bigint;
+}
+
+// Reset Timer Component - Shows countdown to next daily limit reset
+function ResetTimer({ dayStart, dayLengthSeconds }: { dayStart: bigint | undefined; dayLengthSeconds: bigint | undefined }) {
+    const [timeLeft, setTimeLeft] = useState<string>('--:--:--');
+
+    useEffect(() => {
+        if (!dayStart || !dayLengthSeconds) {
+            setTimeLeft('--:--:--');
+            return;
+        }
+
+        const calcTimeLeft = () => {
+            const now = Math.floor(Date.now() / 1000);
+            const start = Number(dayStart);
+            const length = Number(dayLengthSeconds);
+            const elapsed = now - start;
+            const currentDayNum = Math.floor(elapsed / length);
+            const nextReset = start + ((currentDayNum + 1) * length);
+            const secondsLeft = nextReset - now;
+
+            if (secondsLeft <= 0) return '00:00:00';
+
+            const hours = Math.floor(secondsLeft / 3600);
+            const minutes = Math.floor((secondsLeft % 3600) / 60);
+            const seconds = secondsLeft % 60;
+
+            return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        };
+
+        setTimeLeft(calcTimeLeft());
+        const interval = setInterval(() => setTimeLeft(calcTimeLeft()), 1000);
+        return () => clearInterval(interval);
+    }, [dayStart, dayLengthSeconds]);
+
+    return (
+        <div className="bg-gradient-to-r from-[#F59E0B]/10 to-[#EF4444]/10 border border-[#F59E0B]/30 rounded-lg p-3">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <span className="text-lg">⏰</span>
+                    <span className="text-xs text-[#64748B]">Daily Limit Resets In</span>
+                </div>
+                <span className="text-lg font-bold text-[#F59E0B] font-mono">{timeLeft}</span>
+            </div>
+        </div>
+    );
 }
 
 export function HomeTab() {
@@ -42,9 +90,18 @@ export function HomeTab() {
     const { data: earnings, isLoading: earningsLoading } = useUserEarnings(userId as bigint);
     const { data: balanceData } = useUserBalance(userId as bigint);
 
-    // Referral link
-    const referralLink = typeof window !== 'undefined' 
-        ? `${window.location.origin}/register?ref=${userId?.toString()}` 
+    // Day settings for timer
+    const { data: dayStart } = useDayStartTimestamp();
+    const { data: dayLength } = useDayLength();
+
+    // Referral link - using wallet address
+    const referralLink = typeof window !== 'undefined' && address
+        ? `${window.location.origin}/register?ref=${address}`
+        : '';
+
+    // Truncated display version (show first 20 + last 8 chars of wallet)
+    const displayLink = typeof window !== 'undefined' && address
+        ? `${window.location.origin.slice(0, 4)}...?ref=${address.slice(0, 4)}...${address.slice(-4)}`
         : '';
 
     const copyLink = () => {
@@ -66,12 +123,12 @@ export function HomeTab() {
         fastBonus: earnArr[3],
     } : undefined;
 
-    // Parse balance - contract returns array [totalEarned, availableBalance, withdrawnBalance]
+    // Parse balance - contract returns array [totalEarned, availableBalance, claimedBalance]
     const balArr = balanceData as readonly [bigint, bigint, bigint] | undefined;
     const balance = balArr ? {
         totalEarned: balArr[0],
         availableBalance: balArr[1],
-        withdrawnBalance: balArr[2],
+        claimedBalance: balArr[2],
     } : undefined;
 
     // Calculate total income
@@ -112,26 +169,86 @@ export function HomeTab() {
             {isRegistered && (
                 <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] rounded-xl border border-[#334155] p-4 sm:p-5 animate-slide-up" style={{ animationDelay: '0.1s' }}>
                     <div className="flex items-center gap-2 mb-3">
-                        <span className="text-2xl">🔗</span>
-                        <h3 className="text-base sm:text-lg font-bold text-white">Your Referral Link</h3>
+                        <span className="text-xl sm:text-2xl">🔗</span>
+                        <h3 className="text-sm sm:text-lg font-bold text-white">Your Referral Link</h3>
                     </div>
-                    <div className="flex gap-2">
-                        <div className="flex-1 bg-[#0F172A] border border-[#334155] rounded-lg px-3 sm:px-4 py-2.5 sm:py-3">
-                            <p className="text-xs sm:text-sm text-[#94A3B8] font-mono truncate">
-                                {referralLink}
+                    {/* Always side-by-side */}
+                    <div className="flex flex-row gap-2 sm:gap-3">
+                        <div className="flex-1 bg-[#0F172A] border border-[#334155] rounded-lg px-4 py-3 sm:py-3.5">
+                            <p className="text-xs sm:text-sm text-[#94A3B8] font-mono">
+                                {displayLink}
                             </p>
                         </div>
                         <button
                             onClick={copyLink}
-                            className="px-4 sm:px-5 py-2.5 sm:py-3 bg-gradient-to-r from-[#EC4899] to-[#D946EF] hover:from-[#D946EF] hover:to-[#EC4899] text-white text-sm font-semibold rounded-lg transition-all duration-300 active:scale-95 shadow-lg hover:shadow-[0_0_20px_rgba(236,72,153,0.4)]"
+                            className="px-3 sm:px-5 py-2 sm:py-3 bg-gradient-to-r from-[#EC4899] to-[#D946EF] hover:from-[#D946EF] hover:to-[#EC4899] text-white text-xs sm:text-sm font-semibold rounded-lg transition-all duration-300 active:scale-95 shadow-lg hover:shadow-[0_0_20px_rgba(236,72,153,0.4)] whitespace-nowrap"
                         >
-                            {copied ? '✓ Copied!' : '📋 Copy'}
+                            {copied ? '✓' : '📋'}
                         </button>
                     </div>
-                    <p className="text-xs text-[#64748B] mt-2">
+                    <p className="text-xs text-[#64748B] mt-3">
                         Share this link to earn 15% direct sponsor income + level bonuses!
                     </p>
                 </div>
+            )}
+
+            {/* Reset Timer */}
+            {isRegistered && (
+                <ResetTimer dayStart={dayStart as bigint} dayLengthSeconds={dayLength as bigint} />
+            )}
+
+            {/* 10x Earning Cap Meter */}
+            {isRegistered && info && balance && (
+                <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] border border-[#334155] rounded-xl p-4 sm:p-5 animate-slide-up" style={{ animationDelay: '0.15s' }}>
+                    <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                            <span className="text-lg sm:text-xl">📊</span>
+                            <h3 className="text-xs sm:text-sm font-semibold text-[#F8FAFC]">Subscription Earning Limit (10x Cap)</h3>
+                        </div>
+                        <span className="text-xs sm:text-sm font-bold text-[#EC4899]">
+                            {info.earningCap > BigInt(0) 
+                                ? `${((Number(formatUnits(balance.totalEarned, 18)) / Number(formatUnits(info.earningCap, 18))) * 100).toFixed(1)}%`
+                                : '0%'
+                            }
+                        </span>
+                    </div>
+                    
+                    {/* Progress Bar */}
+                    <div className="relative h-3 sm:h-4 bg-[#0F172A] rounded-full overflow-hidden mb-2">
+                        <div
+                            className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#EC4899] to-[#D946EF] rounded-full transition-all duration-500"
+                            style={{
+                                width: info.earningCap > BigInt(0)
+                                    ? `${Math.min((Number(formatUnits(balance.totalEarned, 18)) / Number(formatUnits(info.earningCap, 18))) * 100, 100)}%`
+                                    : '0%'
+                            }}
+                        />
+                    </div>
+                    
+                    {/* Stats */}
+                    <div className="flex items-center justify-between text-[10px] sm:text-xs">
+                        <span className="text-[#64748B]">
+                            Earned: <span className="text-[#10B981] font-bold">{formatUSDT(balance.totalEarned)}</span>
+                        </span>
+                        <span className="text-[#64748B]">
+                            Cap: <span className="text-[#EC4899] font-bold">{formatUSDT(info.earningCap)}</span>
+                        </span>
+                    </div>
+                    
+                    {/* Warning if near cap */}
+                    {info.earningCap > BigInt(0) && (Number(formatUnits(balance.totalEarned, 18)) / Number(formatUnits(info.earningCap, 18))) >= 0.9 && (
+                        <div className="mt-3 p-2 bg-[#F59E0B]/10 border border-[#F59E0B]/30 rounded-lg">
+                            <p className="text-[10px] sm:text-xs text-[#F59E0B] flex items-center gap-1">
+                                ⚠️ <span>You're near your earning cap! Top up your package to increase the limit.</span>
+                            </p>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Smart Package Card */}
+            {isRegistered && (
+                <SmartPackageCard />
             )}
 
             {/* Stats Cards */}
@@ -167,7 +284,7 @@ export function HomeTab() {
                     <p className="text-xl sm:text-2xl md:text-3xl font-bold text-[#10B981]">
                         {formatUSDT(balance?.availableBalance as bigint)}
                     </p>
-                    <p className="text-[10px] sm:text-xs text-[#64748B]">Withdrawable</p>
+                    <p className="text-[10px] sm:text-xs text-[#64748B]">Claimable</p>
                 </div>
 
                 <div
@@ -234,7 +351,7 @@ export function HomeTab() {
             <div className="grid grid-cols-4 gap-2 sm:gap-3 animate-slide-up" style={{ animationDelay: '0.5s' }}>
                 {[
                     { icon: '🛒', label: 'Buy', color: '#EC4899' },
-                    { icon: '💸', label: 'Withdraw', color: '#10B981' },
+                    { icon: '💸', label: 'Claim', color: '#10B981' },
                     { icon: '👥', label: 'Invite', color: '#3B82F6' },
                     { icon: '📊', label: 'Reports', color: '#D946EF' },
                 ].map((action, index) => (

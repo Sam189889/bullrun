@@ -16,35 +16,57 @@ import { WALLETCONNECT_PROJECT_ID, RPC_URL } from './env'
 
 const projectId = WALLETCONNECT_PROJECT_ID
 
-// Wagmi Config with specific wallets
-const config = getDefaultConfig({
-    appName: 'Bull Run NFT',
-    projectId,
-    chains: [opBnbTestnet],
-    wallets: [
-        {
-            groupName: 'Popular',
+// Wagmi Config with specific wallets - SINGLETON (created once)
+let wagmiConfig: ReturnType<typeof getDefaultConfig> | null = null;
+const getWagmiConfig = () => {
+    if (!wagmiConfig) {
+        wagmiConfig = getDefaultConfig({
+            appName: 'Bull Run NFT',
+            projectId,
+            chains: [opBnbTestnet],
             wallets: [
-                metaMaskWallet,
-                rainbowWallet,
-                tokenPocketWallet,
-                trustWallet,
-                walletConnectWallet,
+                {
+                    groupName: 'Popular',
+                    wallets: [
+                        metaMaskWallet,
+                        rainbowWallet,
+                        tokenPocketWallet,
+                        trustWallet,
+                        walletConnectWallet,
+                    ],
+                },
             ],
-        },
-    ],
-    ssr: true,
-    storage: createStorage({
-        storage: cookieStorage,
-    }),
-    transports: {
-        [opBnbTestnet.id]: http(RPC_URL),
-    },
-})
+            ssr: true,
+            storage: createStorage({
+                storage: cookieStorage,
+            }),
+            transports: {
+                [opBnbTestnet.id]: http(RPC_URL),
+            },
+        });
+    }
+    return wagmiConfig;
+};
 
-const queryClient = new QueryClient()
+// QueryClient - SINGLETON (created once)
+let queryClientInstance: QueryClient | null = null;
+const getQueryClient = () => {
+    if (!queryClientInstance) {
+        queryClientInstance = new QueryClient({
+            defaultOptions: {
+                queries: {
+                    refetchOnWindowFocus: false,
+                    retry: 1,
+                },
+            },
+        });
+    }
+    return queryClientInstance;
+};
 
 export function Web3Provider({ children }: { children: React.ReactNode }) {
+    const config = getWagmiConfig();
+    const queryClient = getQueryClient();
     return (
         <WagmiProvider config={config}>
             <QueryClientProvider client={queryClient}>

@@ -88,6 +88,19 @@ export function useUserTeamVolume(userId: bigint | undefined) {
 }
 
 /**
+ * Get user wallet address by ID from allUsers array
+ */
+export function useUserWallet(userId: bigint | undefined) {
+    return useReadContract({
+        address: contracts.bullRun,
+        abi: BullRunMainLogicABI,
+        functionName: 'allUsers',
+        args: userId ? [userId] : undefined,
+        query: { enabled: !!userId && userId > BigInt(0) },
+    })
+}
+
+/**
  * Get user current rank
  */
 export function useUserRank(userId: bigint | undefined) {
@@ -285,7 +298,7 @@ export function useNFT(nftId: bigint | undefined) {
         abi: BullRunMainLogicABI,
         functionName: 'nfts',
         args: nftId ? [nftId] : undefined,
-        query: { 
+        query: {
             enabled: !!nftId && nftId > BigInt(0),
             refetchInterval: 5000, // Refetch every 5 seconds to update ownership
         },
@@ -301,7 +314,7 @@ export function useUserAvailableLimit(userId: bigint | undefined) {
         abi: BullRunMainLogicABI,
         functionName: 'getUserAvailableLimit',
         args: userId ? [userId] : undefined,
-        query: { 
+        query: {
             enabled: !!userId && userId > BigInt(0),
             refetchInterval: 3000, // Refetch every 3 seconds
         },
@@ -412,5 +425,18 @@ export function useUserNFT(userId: bigint | undefined, index: number) {
         functionName: 'userNFTs',
         args: userId ? [userId, index] : undefined,
         query: { enabled: !!userId && userId > BigInt(0) && index >= 0 },
+    })
+}
+
+/**
+ * Get package top-up count for user
+ */
+export function usePackageTopUpCount(userId: bigint | undefined, packageId: bigint | undefined) {
+    return useReadContract({
+        address: contracts.bullRun,
+        abi: BullRunMainLogicABI,
+        functionName: 'packageTopUpCount',
+        args: userId && packageId ? [userId, packageId] : undefined,
+        query: { enabled: !!userId && userId > BigInt(0) && !!packageId && packageId > BigInt(0) },
     })
 }
