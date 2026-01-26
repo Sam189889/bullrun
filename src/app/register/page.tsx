@@ -29,14 +29,26 @@ function RegisterContent() {
     const refParam = searchParams.get('ref');
 
     const { address, isConnected } = useAccount();
-    const referrerId = refParam || '';  // No default - must have referral link
-    const hasReferralLink = !!refParam && refParam.trim() !== '';
     const [agreed, setAgreed] = useState(false);
     const toastShown = useRef(false);
 
-    // Check if referrer exists (only if we have a referral link)
+    // Check if refParam is an address (starts with 0x) or a userId
+    const isRefAddress = refParam?.startsWith('0x');
+    const hasReferralLink = !!refParam && refParam.trim() !== '';
+
+    // Get referrer's userId from their address (if ref is an address)
+    const { data: referrerUserIdFromAddress } = useUserId(
+        isRefAddress && hasReferralLink ? (refParam as `0x${string}`) : undefined
+    );
+
+    // Determine the actual referrer ID to use
+    const referrerId = isRefAddress 
+        ? (referrerUserIdFromAddress ? String(referrerUserIdFromAddress) : '')
+        : (refParam || '');
+
+    // Check if referrer exists (only if we have a valid referrer ID)
     const { data: referrerExists, isLoading: referrerLoading } = useUserExists(
-        hasReferralLink ? BigInt(referrerId) : undefined
+        referrerId && referrerId !== '0' ? BigInt(referrerId) : undefined
     );
 
     // Get first package ($25)
@@ -220,24 +232,25 @@ function RegisterContent() {
                             </div>
                         </div>
 
-                        {/* Referrer ID (readonly from URL) */}
+                        {/* Referrer Display (readonly) */}
                         <div>
-                            <label className="block text-sm text-[#94A3B8] mb-2">Referrer ID</label>
+                            <label className="block text-sm text-[#94A3B8] mb-2">Sponsor</label>
                             <div className="flex gap-2">
-                                <div className="flex-1 px-4 py-3 bg-[#0F172A] border border-[#334155] rounded-lg text-[#F8FAFC] font-mono">
-                                    {referrerId}
+                                <div className="flex-1 px-4 py-3 bg-[#0F172A] border border-[#334155] rounded-lg text-[#F8FAFC] font-mono text-xs overflow-hidden">
+                                    {isRefAddress ? (
+                                        <div className="break-all">{refParam}</div>
+                                    ) : (
+                                        <div>User ID: {refParam}</div>
+                                    )}
                                 </div>
-                                {referrerLoading ? (
+                                {referrerLoading || (isRefAddress && !referrerId) ? (
                                     <span className="px-3 py-3 text-[#64748B] text-sm">⏳</span>
                                 ) : referrerExists ? (
-                                    <span className="px-3 py-3 text-[#10B981] text-sm" title="Valid referrer">✓</span>
+                                    <span className="px-3 py-3 text-[#10B981] text-sm" title="Valid sponsor">✓</span>
                                 ) : (
-                                    <span className="px-3 py-3 text-[#EF4444] text-sm" title="Invalid referrer">✗</span>
+                                    <span className="px-3 py-3 text-[#EF4444] text-sm" title="Invalid sponsor">✗</span>
                                 )}
                             </div>
-                            {!referrerLoading && !referrerExists && (
-                                <p className="text-xs text-[#EF4444] mt-1">Invalid referrer ID. Check your referral link.</p>
-                            )}
                         </div>
 
                         {/* Switch Wallet */}
@@ -275,10 +288,15 @@ function RegisterContent() {
                                 <p className="text-sm text-[#EF4444]">💰 Insufficient USDT balance</p>
                                 <p className="text-xs text-[#64748B] mt-1">You need ${tpv} USDT to register</p>
                             </div>
+                        ) : (referrerLoading || (isRefAddress && !referrerId)) ? (
+                            <div className="text-center p-4 bg-[#F59E0B]/10 rounded-lg border border-[#F59E0B]/30">
+                                <p className="text-sm text-[#F59E0B]">⏳ Verifying referral link...</p>
+                                <p className="text-xs text-[#64748B] mt-1">Please wait while we verify your sponsor</p>
+                            </div>
                         ) : !referrerExists ? (
                             <div className="text-center p-4 bg-[#EF4444]/10 rounded-lg border border-[#EF4444]/30">
-                                <p className="text-sm text-[#EF4444]">❌ Invalid referrer ID</p>
-                                <p className="text-xs text-[#64748B] mt-1">This referrer ID does not exist</p>
+                                <p className="text-sm text-[#EF4444]">❌ Invalid Referral Link</p>
+                                <p className="text-xs text-[#64748B] mt-1">This referral link is invalid. Please contact your sponsor for a valid link.</p>
                             </div>
                         ) : !hasAllowance ? (
                             <Button
