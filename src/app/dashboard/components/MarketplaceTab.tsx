@@ -118,7 +118,7 @@ function NFTCard({ nftId, userId, onBuy }: { nftId: number; userId: bigint | und
             transition-all duration-300 group animate-slide-up
         `}>
             {/* Animated glow effect */}
-            <div className="absolute inset-0 bg-gradient-to-r from-[#EC4899]/0 via-[#EC4899]/10 to-[#EC4899]/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <div className="absolute inset-0 bg-gradient-to-r from-[#EC4899]/0 via-[#EC4899]/10 to-[#EC4899]/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
             {/* NFT Visual - Bull Image */}
             <div className="h-28 bg-gradient-to-br from-[#EC4899]/10 via-[#0F172A] to-[#EF4444]/10 flex items-center justify-center relative overflow-hidden">
