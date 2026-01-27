@@ -27,6 +27,12 @@ interface NFTData {
     isHidden: boolean;
 }
 
+interface SelectedNFT {
+    nftId: number;
+    currentPrice: bigint;
+    buyCount: number;
+}
+
 // Reset Timer Component - Shows countdown to next daily limit reset
 function ResetTimer({ dayStart, dayLengthSeconds }: { dayStart: bigint | undefined; dayLengthSeconds: bigint | undefined }) {
     const [timeLeft, setTimeLeft] = useState<string>('--:--:--');
@@ -80,7 +86,7 @@ function ResetTimer({ dayStart, dayLengthSeconds }: { dayStart: bigint | undefin
     );
 }
 
-function NFTCard({ nftId, userId, onBuy }: { nftId: number; userId: bigint | undefined; onBuy: (nftId: bigint, price: bigint) => void }) {
+function NFTCard({ nftId, userId, onSelect }: { nftId: number; userId: bigint | undefined; onSelect: (nft: SelectedNFT) => void }) {
     const { data: nftData } = useNFT(BigInt(nftId));
 
     if (!nftData) return null;
@@ -145,7 +151,7 @@ function NFTCard({ nftId, userId, onBuy }: { nftId: number; userId: bigint | und
                 </div>
 
                 <button
-                    onClick={() => onBuy(BigInt(nftId), currentPrice)}
+                    onClick={() => onSelect({ nftId, currentPrice, buyCount: buyCountNum })}
                     disabled={!userId}
                     className={`
                         w-full py-2 rounded-lg font-bold text-xs uppercase tracking-wide
@@ -156,7 +162,7 @@ function NFTCard({ nftId, userId, onBuy }: { nftId: number; userId: bigint | und
                         disabled:opacity-50 disabled:cursor-not-allowed
                     `}
                 >
-                    ⚡ Buy Now
+                    👁️ View Details
                 </button>
             </div>
         </div>
@@ -211,6 +217,8 @@ export function MarketplaceTab() {
     const [pendingPrice, setPendingPrice] = useState<bigint | null>(null);
     const [error, setError] = useState<string>('');
     const [isWaitingForApproval, setIsWaitingForApproval] = useState(false);
+    const [selectedNFT, setSelectedNFT] = useState<SelectedNFT | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
     // After approve success, execute buy automatically
     useEffect(() => {
@@ -231,10 +239,24 @@ export function MarketplaceTab() {
             setPendingNftId(null);
             setPendingPrice(null);
             setError('');
+            setIsModalOpen(false); // Close modal on success
+            setSelectedNFT(null);
             refetchAllowance();
             refetchLimit(); // Refetch daily limit after purchase
         }
     }, [buySuccess, refetchAllowance, refetchLimit]);
+
+    const handleSelectNFT = (nft: SelectedNFT) => {
+        setSelectedNFT(nft);
+        setIsModalOpen(true);
+        setError('');
+    };
+
+    const handleCloseModal = () => {
+        setIsModalOpen(false);
+        setSelectedNFT(null);
+        setError('');
+    };
 
     const handleBuy = (nftId: bigint, price: bigint) => {
         setError('');
@@ -385,7 +407,7 @@ export function MarketplaceTab() {
                             key={id}
                             nftId={id}
                             userId={userId as bigint}
-                            onBuy={handleBuy}
+                            onSelect={handleSelectNFT}
                         />
                     ))}
                 </div>
@@ -398,6 +420,71 @@ export function MarketplaceTab() {
                     <strong>💡 Tip:</strong> Each NFT appreciates <span className="text-[#EC4899] font-bold">8%</span> on purchase.
                 </p>
             </div>
+
+            {/* NFT Details Modal */}
+            {isModalOpen && selectedNFT && (
+                <div 
+                    className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-start justify-center z-50 p-4 pt-8 overflow-y-auto" 
+                    onClick={handleCloseModal}
+                >
+                    <div className="relative bg-gradient-to-br from-[#1E293B] to-[#0F172A] border-2 border-[#EC4899] rounded-2xl p-6 max-w-sm w-full shadow-[0_0_50px_rgba(236,72,153,0.5)] animate-slide-up" onClick={(e) => e.stopPropagation()}>
+                        {/* Close Button */}
+                        <button
+                            onClick={handleCloseModal}
+                            className="absolute top-4 right-4 text-[#64748B] hover:text-[#F8FAFC] text-2xl transition-colors z-10"
+                        >
+                            ✕
+                        </button>
+
+                        {/* NFT Image */}
+                        <div className="mb-6 flex justify-center">
+                            <div className="relative">
+                                <div className="absolute inset-0 bg-gradient-to-r from-[#EC4899]/30 to-[#EF4444]/30 blur-3xl" />
+                                <img
+                                    src={`/bulls/bull${((selectedNFT.nftId - 1) % 11) + 1}.png`}
+                                    alt={`Bull NFT #${selectedNFT.nftId}`}
+                                    className="relative w-48 h-48 object-contain drop-shadow-[0_0_30px_rgba(236,72,153,0.6)]"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Price Only */}
+                        <div className="text-center mb-6">
+                            <p className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#EC4899] to-[#F59E0B]">
+                                ${Number(formatUnits(selectedNFT.currentPrice, 18)).toFixed(2)}
+                            </p>
+                        </div>
+
+                        {/* Error Display */}
+                        {error && (
+                            <div className="mb-4 bg-[#EF4444]/10 border border-[#EF4444]/30 rounded-lg p-3">
+                                <p className="text-xs text-[#EF4444] flex items-center gap-2">
+                                    ⚠️ {error}
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Action Buttons */}
+                        <div className="flex gap-3">
+                            <button
+                                onClick={handleCloseModal}
+                                className="flex-1 py-3 rounded-lg font-bold text-sm bg-[#334155] text-[#F8FAFC] hover:bg-[#475569] transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => {
+                                    handleBuy(BigInt(selectedNFT.nftId), selectedNFT.currentPrice);
+                                }}
+                                disabled={buyPending || approvePending || isWaitingForApproval}
+                                className="flex-1 py-3 rounded-lg font-bold text-sm bg-gradient-to-r from-[#EC4899] to-[#D946EF] text-white hover:shadow-[0_0_30px_rgba(236,72,153,0.6)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {buyPending || approvePending || isWaitingForApproval ? '⏳ Processing...' : '⚡ Buy Now'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
