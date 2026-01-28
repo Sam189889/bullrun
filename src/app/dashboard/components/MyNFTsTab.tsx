@@ -2,7 +2,7 @@
 
 import { useAccount } from 'wagmi';
 import { formatUnits } from 'viem';
-import { useUserId, useTotalNFTs, useNFT, useUserInfo } from '@/hooks/useContracts';
+import { useUserId, useUserNFTCount, useUserNFT, useNFT, useUserInfo } from '@/hooks/useContracts';
 
 // Helper component to display owner username
 function OwnerUsername({ ownerId }: { ownerId: bigint }) {
@@ -33,17 +33,19 @@ interface NFTData {
 }
 
 // Mobile Card Component
-function NFTMobileCard({ nftId, userId }: { nftId: number; userId: bigint }) {
+function NFTMobileCard({ nftIndex, userId }: { nftIndex: number; userId: bigint }) {
+    // First get the NFT ID from userNFTs array
+    const { data: nftIdData } = useUserNFT(userId, nftIndex);
+    const nftId = nftIdData ? Number(nftIdData) : 0;
+
+    // Then fetch the NFT data
     const { data: nftData } = useNFT(BigInt(nftId));
 
-    if (!nftData) return null;
+    if (!nftData || nftId === 0) return null;
 
     const nftArray = nftData as unknown as readonly [
         bigint, bigint, bigint, bigint, bigint, bigint, bigint, bigint, bigint, boolean, boolean, boolean, boolean
     ];
-
-    const ownerId = nftArray[4];
-    if (ownerId !== userId) return null;
 
     const nft: NFTData = {
         nftId: nftArray[0],
@@ -155,10 +157,15 @@ function NFTTransactionLink({ nftId, userId }: { nftId: number; userId: bigint }
 }
 
 // Desktop Table Row Component
-function NFTTableRow({ nftId, userId }: { nftId: number; userId: bigint }) {
+function NFTTableRow({ nftIndex, userId }: { nftIndex: number; userId: bigint }) {
+    // First get the NFT ID from userNFTs array
+    const { data: nftIdData } = useUserNFT(userId, nftIndex);
+    const nftId = nftIdData ? Number(nftIdData) : 0;
+
+    // Then fetch the NFT data
     const { data: nftData } = useNFT(BigInt(nftId));
 
-    if (!nftData) return null;
+    if (!nftData || nftId === 0) return null;
 
     // Parse array format from Solidity struct
     const nftArray = nftData as unknown as readonly [
@@ -176,11 +183,6 @@ function NFTTableRow({ nftId, userId }: { nftId: number; userId: bigint }) {
         boolean, // isFeatured [11]
         boolean  // isHidden [12]
     ];
-
-    const ownerId = nftArray[4];
-    
-    // Skip if not owned by user
-    if (ownerId !== userId) return null;
 
     const nft: NFTData = {
         nftId: nftArray[0],
@@ -255,13 +257,13 @@ function NFTTableRow({ nftId, userId }: { nftId: number; userId: bigint }) {
 export function MyNFTsTab() {
     const { address } = useAccount();
     const { data: userId } = useUserId(address);
-    const { data: totalNFTs } = useTotalNFTs();
+    const { data: userNFTCount } = useUserNFTCount(userId as bigint);
 
     const isRegistered = typeof userId === 'bigint' && userId > BigInt(0);
-    const nftCount = Number(totalNFTs || 0);
+    const nftCount = Number(userNFTCount || 0);
 
-    // We'll iterate through all NFTs and filter by ownerId === userId
-    const nftIds = Array.from({ length: nftCount }, (_, i) => i + 1);
+    // Fetch user's NFT IDs from userNFTs array (indices 0 to nftCount-1)
+    const nftIndices = Array.from({ length: nftCount }, (_, i) => i);
 
     if (!isRegistered) {
         return (
@@ -296,8 +298,8 @@ export function MyNFTsTab() {
                 <>
                     {/* Mobile Card View */}
                     <div className="grid grid-cols-1 gap-3 md:hidden">
-                        {nftIds.map((id) => (
-                            <NFTMobileCard key={id} nftId={id} userId={userId as bigint} />
+                        {nftIndices.map((index) => (
+                            <NFTMobileCard key={index} nftIndex={index} userId={userId as bigint} />
                         ))}
                     </div>
 
@@ -315,8 +317,8 @@ export function MyNFTsTab() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {nftIds.map((id) => (
-                                    <NFTTableRow key={id} nftId={id} userId={userId as bigint} />
+                                {nftIndices.map((index) => (
+                                    <NFTTableRow key={index} nftIndex={index} userId={userId as bigint} />
                                 ))}
                             </tbody>
                         </table>

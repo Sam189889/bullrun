@@ -86,6 +86,27 @@ function ResetTimer({ dayStart, dayLengthSeconds }: { dayStart: bigint | undefin
     );
 }
 
+// Hook to check if NFT is valid for display
+function useIsValidNFT(nftId: number, userId: bigint | undefined): { isValid: boolean; nftData: any } {
+    const { data: nftData } = useNFT(BigInt(nftId));
+
+    if (!nftData) return { isValid: false, nftData: null };
+
+    const nftArr = nftData as any[];
+    if (!nftArr || nftArr[0] === BigInt(0)) return { isValid: false, nftData: null };
+
+    const [, , , , ownerId, , , , , isListed, isBurned, , isHidden] = nftArr;
+
+    // Skip if burned, hidden, or not listed
+    if (isBurned || isHidden || !isListed) return { isValid: false, nftData: null };
+
+    // Hide own NFTs from marketplace
+    const isOwnNFT = !!(userId && userId > BigInt(0) && ownerId === userId);
+    if (isOwnNFT) return { isValid: false, nftData: null };
+
+    return { isValid: true, nftData };
+}
+
 function NFTCard({ nftId, userId, onSelect }: { nftId: number; userId: bigint | undefined; onSelect: (nft: SelectedNFT) => void }) {
     const { data: nftData } = useNFT(BigInt(nftId));
 
@@ -297,6 +318,7 @@ export function MarketplaceTab() {
 
     // Shuffle NFTs every 5 seconds
     const [shuffledIds, setShuffledIds] = useState<number[]>([]);
+    const [displayCount, setDisplayCount] = useState(0);
 
     useEffect(() => {
         // Fisher-Yates shuffle algorithm
@@ -315,13 +337,14 @@ export function MarketplaceTab() {
         // Shuffle every 5 seconds
         const interval = setInterval(() => {
             setShuffledIds(shuffleArray(allNftIds));
+            setDisplayCount(0); // Reset display count on shuffle
         }, 5000);
 
         return () => clearInterval(interval);
     }, [nftCount]);
 
-    // Show first 12 NFTs
-    const nftIds = shuffledIds.slice(0, 12);
+    // Show first 20 NFTs from shuffle (NFTCard will filter, we limit display to ~12 valid ones)
+    const nftIds = shuffledIds.slice(0, 20);
 
     const formatUSD = (value: bigint | undefined) => {
         if (!value) return '$0';

@@ -429,6 +429,19 @@ export function useUserNFT(userId: bigint | undefined, index: number) {
 }
 
 /**
+ * Get count of NFTs owned by user
+ */
+export function useUserNFTCount(userId: bigint | undefined) {
+    return useReadContract({
+        address: contracts.bullRun,
+        abi: BullRunMainLogicABI,
+        functionName: 'userNFTCount',
+        args: userId ? [userId] : undefined,
+        query: { enabled: !!userId && userId > BigInt(0) },
+    })
+}
+
+/**
  * Get package top-up count for user
  */
 export function usePackageTopUpCount(userId: bigint | undefined, packageId: bigint | undefined) {
