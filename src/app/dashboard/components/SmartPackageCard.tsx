@@ -44,231 +44,21 @@ export function SmartPackageCard() {
     } : undefined;
 
     const currentPackageLevel = info?.packageLevel ? Number(info.packageLevel) : 0;
-    const { data: topUpCountData } = usePackageTopUpCount(
-        userId as bigint, 
-        currentPackageLevel > 0 ? BigInt(currentPackageLevel) : undefined
-    );
-    const topUpCount = topUpCountData ? Number(topUpCountData) : 0;
-
-    const [selectedAction, setSelectedAction] = useState<'topup' | 'upgrade' | null>(null);
-    const [isWaitingForApproval, setIsWaitingForApproval] = useState(false);
-
-    const { writeContract: approveUSDT, isPending: isApproving, data: approveHash } = useWriteContract();
-    const { isSuccess: approveSuccess } = useWaitForTransactionReceipt({ hash: approveHash });
     
-    const { purchase, isPending: isPurchasing, data: purchaseHash } = usePurchasePackage();
-    const { isSuccess: purchaseSuccess } = useWaitForTransactionReceipt({ hash: purchaseHash });
-
-    // Calculate states
-    const earningCap = info?.earningCap || BigInt(0);
-    const totalEarned = balance?.totalEarned || BigInt(0);
-    const capPercentage = earningCap > BigInt(0) 
-        ? Number((totalEarned * BigInt(100)) / earningCap) 
-        : 0;
-
-    const canTopUp = topUpCount < 10 && currentPackageLevel > 0; // Allow anytime, not just when cap exhausted
-    const canUpgrade = currentPackageLevel > 0 && currentPackageLevel < 9;
-    const mustUpgrade = capPercentage >= 100 && topUpCount >= 10;
-
-    const currentPrice = currentPackageLevel > 0 ? PACKAGE_PRICES[currentPackageLevel - 1] : 0;
-    const nextPackageLevel = currentPackageLevel < 9 ? currentPackageLevel + 1 : currentPackageLevel;
-    const nextPrice = PACKAGE_PRICES[nextPackageLevel - 1];
-
-    // Handle approval success
-    useEffect(() => {
-        if (approveSuccess && isWaitingForApproval && selectedAction) {
-            setIsWaitingForApproval(false);
-            const packageId = selectedAction === 'topup' ? currentPackageLevel : nextPackageLevel;
-            purchase(address!, BigInt(packageId));
-        }
-    }, [approveSuccess, isWaitingForApproval, selectedAction]);
-
-    // Reset on purchase success
-    useEffect(() => {
-        if (purchaseSuccess) {
-            setSelectedAction(null);
-            setIsWaitingForApproval(false);
-            refetchAllowance();
-            
-            // Reload page after 3 seconds to ensure blockchain state is updated
-            setTimeout(() => {
-                window.location.reload();
-            }, 3000);
-        }
-    }, [purchaseSuccess]);
-
-    const handleAction = async (action: 'topup' | 'upgrade') => {
-        if (!address || !userId) return;
-        
-        setSelectedAction(action);
-        const packageId = action === 'topup' ? currentPackageLevel : nextPackageLevel;
-        const price = PACKAGE_PRICES[packageId - 1];
-        const priceWithWPS = price * 1.1; // 10% WPS
-        const requiredAmount = parseUnits(priceWithWPS.toString(), 18);
-
-        // Check allowance
-        const currentAllowance = (allowance as bigint) || BigInt(0);
-        if (currentAllowance < requiredAmount) {
-            setIsWaitingForApproval(true);
-            approveUSDT({
-                address: contracts.usdt,
-                abi: USDTbABI,
-                functionName: 'approve',
-                args: [contracts.bullRun, requiredAmount],
-            });
-        } else {
-            purchase(address, BigInt(packageId));
-        }
-    };
-
-    const formatUSD = (value: number) => `$${value.toLocaleString()}`;
-
-    // Render stars for top-up count
-    const renderStars = () => {
-        const stars = [];
-        for (let i = 0; i < 10; i++) {
-            stars.push(
-                <span key={i} className={i < topUpCount ? 'text-[#F59E0B]' : 'text-[#334155]'}>
-                    ⭐
-                </span>
-            );
-        }
-        return stars;
-    };
-
-    // No package yet
-    if (currentPackageLevel === 0) {
-        return (
-            <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] rounded-xl border border-[#334155] p-4 sm:p-6 animate-slide-up">
-                <div className="text-center">
-                    <div className="text-5xl mb-3">📦</div>
-                    <h3 className="text-lg font-bold text-[#F8FAFC] mb-2">No Active Package</h3>
-                    <p className="text-sm text-[#64748B] mb-4">Activate a package to start earning</p>
-                    <p className="text-xs text-[#94A3B8]">Visit the registration page to get started</p>
-                </div>
-            </div>
-        );
-    }
+    const { writeContract: approveUSDT, isPending: isApproving } = useWriteContract();
+    const { purchase, isPending: isPurchasing } = usePurchasePackage();
 
     return (
-        <div className="space-y-4">
-            {/* Current Package Card */}
-            <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] rounded-xl border border-[#334155] p-4 sm:p-6 animate-slide-up">
-                {/* Header */}
-                <div className="flex items-center justify-between mb-4">
-                    <div>
-                        <p className="text-xs text-[#64748B] mb-1">Current Package</p>
-                        <h3 className="text-xl sm:text-2xl font-bold text-[#EC4899]">
-                            {formatUSD(currentPrice)} {PACKAGE_NAMES[currentPackageLevel - 1]}
-                        </h3>
-                    </div>
-                    <div className="text-4xl">📦</div>
-                </div>
-
-            {/* Top-up Counter */}
-            <div className="mb-4">
-                <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs text-[#64748B]">Top-ups Used</p>
-                    <p className="text-xs font-bold text-[#F8FAFC]">{topUpCount}/10</p>
-                </div>
-                <div className="flex gap-1">
-                    {renderStars()}
-                </div>
-                {topUpCount >= 10 && (
-                    <p className="text-[10px] text-[#EF4444] mt-1">🚫 Top-up limit reached!</p>
-                )}
-            </div>
-
-            {/* Status Message */}
-            <div className={`mb-4 p-3 rounded-lg border ${
-                mustUpgrade 
-                    ? 'bg-[#EF4444]/10 border-[#EF4444]/30'
-                    : capPercentage >= 100
-                        ? 'bg-[#F59E0B]/10 border-[#F59E0B]/30'
-                        : 'bg-[#10B981]/10 border-[#10B981]/30'
-            }`}>
-                <p className={`text-xs font-medium ${
-                    mustUpgrade 
-                        ? 'text-[#EF4444]'
-                        : capPercentage >= 100
-                            ? 'text-[#F59E0B]'
-                            : 'text-[#10B981]'
-                }`}>
-                    {mustUpgrade 
-                        ? '🚫 Must upgrade to continue earning'
-                        : capPercentage >= 100
-                            ? '⚠️ Cap reached! Top-up or upgrade to continue'
-                            : '✅ Earning active'}
-                </p>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="grid grid-cols-2 gap-3">
-                {/* Top-Up Button */}
-                <button
-                    onClick={() => handleAction('topup')}
-                    disabled={!canTopUp || isApproving || isPurchasing}
-                    className={`
-                        py-3 rounded-lg text-xs sm:text-sm font-bold transition-all duration-300 active:scale-95
-                        ${canTopUp && !isApproving && !isPurchasing
-                            ? 'bg-gradient-to-r from-[#3B82F6] to-[#06B6D4] text-white hover:shadow-[0_0_20px_rgba(59,130,246,0.4)]'
-                            : 'bg-[#334155] text-[#64748B] cursor-not-allowed'
-                        }
-                    `}
-                >
-                    {isApproving && selectedAction === 'topup' ? (
-                        '⏳ Approving...'
-                    ) : isPurchasing && selectedAction === 'topup' ? (
-                        '⏳ Processing...'
-                    ) : (
-                        <>🔄 Top-Up {formatUSD(currentPrice)}</>
-                    )}
-                </button>
-
-                {/* Upgrade Button */}
-                <button
-                    onClick={() => handleAction('upgrade')}
-                    disabled={!canUpgrade || isApproving || isPurchasing}
-                    className={`
-                        py-3 rounded-lg text-xs sm:text-sm font-bold transition-all duration-300 active:scale-95
-                        ${canUpgrade && !isApproving && !isPurchasing
-                            ? 'bg-gradient-to-r from-[#EC4899] to-[#D946EF] text-white hover:shadow-[0_0_20px_rgba(236,72,153,0.4)]'
-                            : 'bg-[#334155] text-[#64748B] cursor-not-allowed'
-                        }
-                    `}
-                >
-                    {isApproving && selectedAction === 'upgrade' ? (
-                        '⏳ Approving...'
-                    ) : isPurchasing && selectedAction === 'upgrade' ? (
-                        '⏳ Processing...'
-                    ) : (
-                        <>⬆️ Upgrade {formatUSD(nextPrice)}</>
-                    )}
-                </button>
-            </div>
-
-            {/* Helper Text */}
-            <div className="mt-3 text-center">
-                <p className="text-[10px] text-[#64748B]">
-                    {canTopUp && !mustUpgrade && 'Top-up adds to your earning cap • '}
-                    {canUpgrade && `Next: ${PACKAGE_NAMES[nextPackageLevel - 1]}`}
-                    {mustUpgrade && 'Upgrade required to continue earning'}
-                </p>
-            </div>
-            </div>
-
-            {/* All Packages Grid */}
-            <AllPackagesGrid 
-                currentPackageLevel={currentPackageLevel}
-                userId={userId as bigint}
-                address={address}
-                allowance={allowance}
-                isApproving={isApproving}
-                isPurchasing={isPurchasing}
-                approveUSDT={approveUSDT}
-                purchase={purchase}
-            />
-        </div>
+        <AllPackagesGrid 
+            currentPackageLevel={currentPackageLevel}
+            userId={userId as bigint}
+            address={address}
+            allowance={allowance}
+            isApproving={isApproving}
+            isPurchasing={isPurchasing}
+            approveUSDT={approveUSDT}
+            purchase={purchase}
+        />
     );
 }
 
@@ -296,11 +86,11 @@ function AllPackagesGrid({
         id: index + 1,
         name: PACKAGE_NAMES[index],
         price: price
-    }));
+    })).reverse(); // Highest to lowest (9 → 1)
 
     return (
         <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] rounded-xl border border-[#334155] p-4 sm:p-6">
-            <h3 className="text-sm sm:text-base font-bold text-[#F8FAFC] mb-4">📦 All Packages</h3>
+            <h3 className="text-sm sm:text-base font-bold text-[#F8FAFC] mb-4">📦 Packages (Highest to Lowest)</h3>
             
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                 {packages.map((pkg) => (
@@ -348,8 +138,12 @@ function PackageMiniCard({
     const topUpCount = topUpCountData ? Number(topUpCountData) : 0;
 
     const isCurrent = currentPackageLevel === pkg.id;
-    const isHigher = pkg.id > currentPackageLevel;
-    const canTopUp = topUpCount < 10 && topUpCount > 0;
+    const isNextPackage = pkg.id === currentPackageLevel + 1; // Only next package for upgrade
+    const isLower = pkg.id < currentPackageLevel;
+    const isFirstPurchase = currentPackageLevel === 0 && pkg.id === 1; // First must be Package 1
+    
+    // Can topup if: (1) current package OR (2) lower package that was purchased before
+    const canTopUp = (isCurrent || (isLower && topUpCount > 0)) && topUpCount < 10;
     const isMaxed = topUpCount >= 10;
 
     const formatUSD = (value: number) => `$${value.toLocaleString()}`;
@@ -406,7 +200,7 @@ function PackageMiniCard({
             <button
                 onClick={async () => {
                     if (!address || !userId) return;
-                    if (isMaxed || (!isCurrent && !isHigher)) return;
+                    if (isMaxed || (!canTopUp && !isNextPackage && !isFirstPurchase)) return;
                     
                     const priceWithWPS = pkg.price * 1.1; // 10% WPS
                     const requiredAmount = parseUnits(priceWithWPS.toString(), 18);
@@ -423,19 +217,20 @@ function PackageMiniCard({
                         purchase(address, BigInt(pkg.id));
                     }
                 }}
-                disabled={!userId || isMaxed || (!isCurrent && !isHigher) || (isApproving || isPurchasing)}
+                disabled={!userId || isMaxed || (!canTopUp && !isNextPackage && !isFirstPurchase) || (isApproving || isPurchasing)}
                 className={`
                     w-full py-1.5 rounded text-[9px] font-bold uppercase
                     transition-all duration-200
-                    ${(isCurrent && canTopUp) || isHigher
+                    ${canTopUp || isNextPackage || isFirstPurchase
                         ? 'bg-gradient-to-r from-[#EC4899] to-[#D946EF] text-white hover:scale-105'
                         : 'bg-[#334155] text-[#64748B] cursor-not-allowed'
                     }
                 `}
             >
                 {isMaxed ? '🚫 Max' :
-                    isCurrent && canTopUp ? '🔄 Top-Up' :
-                    isHigher ? '⬆️ Upgrade' :
+                    isFirstPurchase ? '✅ Start' :
+                    canTopUp ? '🔄 Top-Up' :
+                    isNextPackage ? '⬆️ Upgrade' :
                     topUpCount === 0 ? '🔒 Locked' :
                     '✓ Done'
                 }
