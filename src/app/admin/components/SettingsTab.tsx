@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { formatUnits } from 'viem';
-import { useSetWallets, useDepositToPool, useWithdrawFromPool, useApproveUSDT, usePoolBalance, useSetFirstUser, useSetPaymentToken, useFirstUser, useUSDTAddress, useSetDaySettings, useDayStartTimestamp, useDayLength, useCurrentDay } from '@/hooks/useAdminContracts';
+import { useSetWallets, useDepositToPool, useWithdrawFromPool, useApproveUSDT, useWeeklyPoolBalance, useSetFirstUser, useSetPaymentToken, useFirstUser, useUSDTAddress, useSetDaySettings, useDayStartTimestamp, useDayLength, useCurrentDay } from '@/hooks/useAdminContracts';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
@@ -434,7 +434,7 @@ function WalletSettings() {
 // Pool Management Component
 function PoolManagement() {
     const { address } = useAccount();
-    const { data: poolBalance } = usePoolBalance();
+    const { data: poolBalance } = useWeeklyPoolBalance();
     const [showDepositModal, setShowDepositModal] = useState(false);
     const [showWithdrawModal, setShowWithdrawModal] = useState(false);
 
