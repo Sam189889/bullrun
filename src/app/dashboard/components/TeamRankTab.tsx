@@ -269,7 +269,6 @@ function NetworkNode({
 }
 
 export function TeamRankTab() {
-    const [copied, setCopied] = useState(false);
     const [activeSubTab, setActiveSubTab] = useState('overview');
     const [selectedLevel, setSelectedLevel] = useState(1);
     const { address } = useAccount();
@@ -319,17 +318,6 @@ export function TeamRankTab() {
     ];
 
     // Helpers
-    const referralLink = isRegistered
-        ? `${typeof window !== 'undefined' ? window.location.origin : ''}/register?ref=${userId}`
-        : 'Connect wallet to get referral link';
-
-    const copyLink = () => {
-        if (!isRegistered) return;
-        navigator.clipboard.writeText(referralLink);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    };
-
     const formatVolume = (value: bigint | undefined) => {
         if (!value) return '$0';
         const num = Number(formatUnits(value, 18));
@@ -376,27 +364,6 @@ export function TeamRankTab() {
 
     return (
         <div className="space-y-6">
-            {/* Referral Section */}
-            <div className="relative overflow-hidden bg-gradient-to-r from-[#EC4899]/20 via-[#1E293B] to-[#D946EF]/20 rounded-xl p-4 sm:p-5 border border-[#EC4899]/30 animate-slide-up">
-                <div className="absolute top-2 right-4 text-3xl sm:text-4xl opacity-10">👥</div>
-                <p className="text-[10px] sm:text-xs text-[#EC4899] font-medium mb-2 uppercase tracking-wider">Your Referral Link</p>
-                <div className="flex flex-col sm:flex-row gap-2">
-                    <input
-                        type="text"
-                        value={referralLink}
-                        readOnly
-                        className="flex-1 bg-[#0F172A] border border-[#334155] rounded-lg px-3 py-2 text-xs sm:text-sm text-[#F8FAFC] font-mono focus:border-[#EC4899] outline-none"
-                    />
-                    <button
-                        onClick={copyLink}
-                        className={`px-6 py-2 rounded-lg text-sm font-bold transition-all active:scale-95 ${copied ? 'bg-green-500 text-white' : 'bg-gradient-to-r from-[#EC4899] to-[#D946EF] text-[#0F172A]'
-                            }`}
-                    >
-                        {copied ? '✓ Copied' : '📋 Copy'}
-                    </button>
-                </div>
-            </div>
-
             {/* Sub-Navigation Tabs */}
             <div className="flex gap-2 overflow-x-auto pb-2">
                 {subTabs.map(tab => (
