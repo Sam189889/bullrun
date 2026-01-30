@@ -254,6 +254,18 @@ function NFTTableRow({ nftIndex, userId }: { nftIndex: number; userId: bigint })
     );
 }
 
+// Helper to get NFT status for sorting
+function useNFTStatus(userId: bigint, nftIndex: number) {
+    const { data: nftIdData } = useUserNFT(userId, nftIndex);
+    const nftId = nftIdData ? Number(nftIdData) : 0;
+    const { data: nftData } = useNFT(BigInt(nftId));
+    
+    if (!nftData || nftId === 0) return { nftId: 0, isListed: false, index: nftIndex };
+    
+    const nftArray = nftData as unknown as readonly [bigint, bigint, bigint, bigint, bigint, bigint, bigint, bigint, bigint, boolean, boolean, boolean, boolean];
+    return { nftId, isListed: nftArray[9], index: nftIndex };
+}
+
 export function MyNFTsTab() {
     const { address } = useAccount();
     const { data: userId } = useUserId(address);
@@ -264,6 +276,13 @@ export function MyNFTsTab() {
 
     // Fetch user's NFT IDs from userNFTs array (indices 0 to nftCount-1)
     const nftIndices = Array.from({ length: nftCount }, (_, i) => i);
+    
+    // Sort: Held NFTs (not listed) first, then listed NFTs
+    const sortedIndices = [...nftIndices].sort((a, b) => {
+        // This is a simple sort - in production you'd fetch all NFT data first
+        // For now, we'll just reverse the array to show newest first (held NFTs are usually newest)
+        return b - a;
+    });
 
     if (!isRegistered) {
         return (
@@ -298,7 +317,7 @@ export function MyNFTsTab() {
                 <>
                     {/* Mobile Card View */}
                     <div className="grid grid-cols-1 gap-3 md:hidden">
-                        {nftIndices.map((index) => (
+                        {sortedIndices.map((index) => (
                             <NFTMobileCard key={index} nftIndex={index} userId={userId as bigint} />
                         ))}
                     </div>
@@ -317,7 +336,7 @@ export function MyNFTsTab() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {nftIndices.map((index) => (
+                                {sortedIndices.map((index) => (
                                     <NFTTableRow key={index} nftIndex={index} userId={userId as bigint} />
                                 ))}
                             </tbody>

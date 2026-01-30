@@ -89,6 +89,11 @@ export function SmartPackageCard() {
             setSelectedAction(null);
             setIsWaitingForApproval(false);
             refetchAllowance();
+            
+            // Reload page after 2 seconds to refresh all data
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
         }
     }, [purchaseSuccess]);
 
