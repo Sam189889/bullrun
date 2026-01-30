@@ -12,8 +12,20 @@ export const opBnbTestnet: Chain = {
     symbol: 'tBNB',
   },
   rpcUrls: {
-    default: { http: ['https://opbnb-testnet-rpc.bnbchain.org'] },
-    public: { http: ['https://opbnb-testnet-rpc.bnbchain.org'] },
+    default: { 
+      http: [
+        'https://opbnb-testnet.nodereal.io/v1/e9a36765eb8a40b9bd12e680a1fd2bc5',
+        'https://opbnb-testnet-rpc.bnbchain.org',
+        'https://opbnb-testnet.publicnode.com',
+      ] 
+    },
+    public: { 
+      http: [
+        'https://opbnb-testnet.nodereal.io/v1/e9a36765eb8a40b9bd12e680a1fd2bc5',
+        'https://opbnb-testnet-rpc.bnbchain.org',
+        'https://opbnb-testnet.publicnode.com',
+      ] 
+    },
   },
   blockExplorers: {
     default: { name: 'opBNBScan', url: 'https://testnet.opbnbscan.com' },

@@ -8,17 +8,6 @@ import { BullRunMainLogicABI, USDTbABI } from '@/abi'
 // ============ READ HOOKS ============
 
 /**
- * Get pool balance
- */
-export function usePoolBalance() {
-    return useReadContract({
-        address: CONTRACTS.BULL_RUN,
-        abi: BullRunMainLogicABI,
-        functionName: 'poolBalance',
-    })
-}
-
-/**
  * Get weekly pool balance
  */
 export function useWeeklyPoolBalance() {

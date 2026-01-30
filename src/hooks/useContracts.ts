@@ -381,6 +381,76 @@ export function useBuyNFT() {
     return { buyNFT, ...rest }
 }
 
+// ============ SHARE POOL HOOKS ============
+
+/**
+ * Get current week number
+ */
+export function useCurrentWeek() {
+    return useReadContract({
+        address: contracts.bullRun,
+        abi: BullRunMainLogicABI,
+        functionName: 'currentWeek',
+    })
+}
+
+/**
+ * Get user's shares for a specific week
+ */
+export function useUserWeeklyShares(userId: bigint | undefined, weekNumber: number) {
+    return useReadContract({
+        address: contracts.bullRun,
+        abi: BullRunMainLogicABI,
+        functionName: 'userWeeklyShares',
+        args: userId ? [userId, weekNumber] : undefined,
+        query: { enabled: !!userId && userId > BigInt(0) && weekNumber > 0 },
+    })
+}
+
+/**
+ * Get total shares for current week
+ */
+export function useTotalWeeklyShares() {
+    return useReadContract({
+        address: contracts.bullRun,
+        abi: BullRunMainLogicABI,
+        functionName: 'totalWeeklyShares',
+    })
+}
+
+/**
+ * Get weekly pool balance
+ */
+export function useWeeklyPoolBalance() {
+    return useReadContract({
+        address: contracts.bullRun,
+        abi: BullRunMainLogicABI,
+        functionName: 'weeklyPoolBalance',
+    })
+}
+
+/**
+ * Get trading share threshold ($1000 = 2 shares by default)
+ */
+export function useTradingShareThreshold() {
+    return useReadContract({
+        address: contracts.bullRun,
+        abi: BullRunMainLogicABI,
+        functionName: 'tradingShareThreshold',
+    })
+}
+
+/**
+ * Get shares awarded per threshold
+ */
+export function useTradingSharesPerThreshold() {
+    return useReadContract({
+        address: contracts.bullRun,
+        abi: BullRunMainLogicABI,
+        functionName: 'tradingSharesPerThreshold',
+    })
+}
+
 // ============ LUCKY DRAW HOOKS ============
 
 /**

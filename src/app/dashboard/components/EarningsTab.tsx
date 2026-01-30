@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAccount, useWaitForTransactionReceipt } from 'wagmi';
 import { formatUnits, parseUnits } from 'viem';
-import { useUserId, useUserEarnings, useUserTradingEarnings, useUserBalance, useWithdraw, useLuckyDrawPool, useUserLuckyDrawEntries, useTotalLuckyDrawEntries, useLuckyDrawThreshold } from '@/hooks/useContracts';
+import { useUserId, useUserEarnings, useUserTradingEarnings, useUserBalance, useWithdraw, useLuckyDrawPool, useUserLuckyDrawEntries, useTotalLuckyDrawEntries, useLuckyDrawThreshold, useCurrentWeek, useUserWeeklyShares, useTotalWeeklyShares, useWeeklyPoolBalance, useTradingShareThreshold, useTradingSharesPerThreshold } from '@/hooks/useContracts';
 import { Button } from '@/components/ui/Button';
 import { IncomeHistoryModal } from './IncomeHistoryModal';
 import toast from 'react-hot-toast';
@@ -104,6 +104,21 @@ export function EarningsTab() {
     const totalWeeklyEntries = totalEntries ? Number(totalEntries) : 0;
     const winChance = totalWeeklyEntries > 0 ? ((myEntries / totalWeeklyEntries) * 100).toFixed(2) : '0';
     const thresholdAmount = entryThreshold ? Number(formatUnits(entryThreshold as bigint, 18)) : 100;
+
+    // Share Pool Data
+    const { data: currentWeek } = useCurrentWeek();
+    const shareWeekNumber = currentWeek ? Number(currentWeek) : 0;
+    const { data: sharePoolBalance } = useWeeklyPoolBalance();
+    const { data: totalShares } = useTotalWeeklyShares();
+    const { data: userShares } = useUserWeeklyShares(userId as bigint, shareWeekNumber);
+    const { data: shareThreshold } = useTradingShareThreshold();
+    const { data: sharesPerThreshold } = useTradingSharesPerThreshold();
+
+    const myShares = userShares ? Number(userShares) : 0;
+    const totalWeeklyShares = totalShares ? Number(totalShares) : 0;
+    const sharePercentage = totalWeeklyShares > 0 ? ((myShares / totalWeeklyShares) * 100).toFixed(2) : '0';
+    const shareThresholdAmount = shareThreshold ? Number(formatUnits(shareThreshold as bigint, 18)) : 1000;
+    const sharesPerTrade = sharesPerThreshold ? Number(sharesPerThreshold) : 2;
 
     // Parse balance struct (totalEarned, availableBalance, claimedBalance)
     const totalEarned = balance ? balance[0] : BigInt(0);
@@ -231,6 +246,42 @@ export function EarningsTab() {
                     <div className="bg-[#10B981]/10 rounded-lg p-2.5 border border-[#10B981]/20">
                         <p className="text-[10px] text-[#10B981]">
                             <strong>Tip:</strong> Every <span className="font-bold">${thresholdAmount}</span> trading volume = 1 entry!
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Share Pool Section */}
+            <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] rounded-2xl border border-[#334155] p-1 overflow-hidden animate-slide-up" style={{ animationDelay: '0.1s' }}>
+                <div className="bg-[#1E293B]/50 p-3 sm:p-4 rounded-xl">
+                    <div className="flex justify-between items-center mb-4">
+                        <div className="flex items-center gap-2">
+                            <span className="p-2 bg-[#10B981]/10 text-[#10B981] rounded-lg">📊</span>
+                            <div>
+                                <h3 className="text-sm sm:text-base font-bold text-white">Share Pool</h3>
+                                <p className="text-[10px] text-[#64748B]">Week #{shareWeekNumber}</p>
+                            </div>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-xs text-[#64748B] uppercase">Pool Balance</p>
+                            <p className="text-lg font-bold text-[#10B981]">{formatUSDT(sharePoolBalance as bigint)}</p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                        <div className="bg-[#0F172A] p-2.5 rounded-lg border border-[#334155]">
+                            <p className="text-[10px] text-[#64748B] uppercase">My Shares</p>
+                            <p className="text-sm font-bold text-[#EC4899]">{myShares} ⭐</p>
+                        </div>
+                        <div className="bg-[#0F172A] p-2.5 rounded-lg border border-[#334155]">
+                            <p className="text-[10px] text-[#64748B] uppercase">My Share %</p>
+                            <p className="text-sm font-bold text-[#3B82F6]">{sharePercentage}% 🎯</p>
+                        </div>
+                    </div>
+
+                    <div className="bg-[#10B981]/10 rounded-lg p-2.5 border border-[#10B981]/20">
+                        <p className="text-[10px] text-[#10B981]">
+                            <strong>Tip:</strong> Trade <span className="font-bold">${shareThresholdAmount}</span> = +{sharesPerTrade} shares | Sponsor = +1 share | CALF Rank = +5 shares
                         </p>
                     </div>
                 </div>

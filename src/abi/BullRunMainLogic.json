@@ -27,6 +27,29 @@
   },
   {
     "type": "function",
+    "name": "adminUpdatePackageTopUpCount",
+    "inputs": [
+      {
+        "name": "_userId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "_packageId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "_count",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "allUsers",
     "inputs": [
       {
@@ -197,19 +220,6 @@
       }
     ],
     "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "depositToPool",
-    "inputs": [
-      {
-        "name": "_amount",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -912,19 +922,6 @@
   {
     "type": "function",
     "name": "platformStartTime",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "poolBalance",
     "inputs": [],
     "outputs": [
       {
@@ -1843,24 +1840,6 @@
   },
   {
     "type": "function",
-    "name": "withdrawFromPool",
-    "inputs": [
-      {
-        "name": "_to",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "_amount",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
     "name": "wpsPercent",
     "inputs": [],
     "outputs": [
@@ -2249,6 +2228,31 @@
         "type": "bool",
         "indexed": false,
         "internalType": "bool"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "PackageTopUpCountUpdated",
+    "inputs": [
+      {
+        "name": "userId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "packageId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "count",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
       }
     ],
     "anonymous": false

@@ -1,12 +1,11 @@
 'use client';
 
 import { formatUnits } from 'viem';
-import { usePoolBalance, useWeeklyPoolBalance, useTotalUsers, useCurrentWeek, useTotalWeeklyShares, usePackageIdCounter, useFirstUser, useContractVersion } from '@/hooks/useAdminContracts';
+import { useWeeklyPoolBalance, useTotalUsers, useCurrentWeek, useTotalWeeklyShares, usePackageIdCounter, useFirstUser, useContractVersion } from '@/hooks/useAdminContracts';
 import { Card, StatCard } from '@/components/ui/Card';
 
 export function OverviewTab() {
     // Fetch real data from contracts
-    const { data: poolBalance, isLoading: poolLoading } = usePoolBalance();
     const { data: weeklyPoolBalance, isLoading: weeklyLoading } = useWeeklyPoolBalance();
     const { data: totalUsers, isLoading: usersLoading } = useTotalUsers();
     const { data: currentWeek, isLoading: weekLoading } = useCurrentWeek();
@@ -43,13 +42,8 @@ export function OverviewTab() {
             {/* Main Stats Grid */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard
-                    icon="💰"
-                    label="Pool Balance"
-                    value={poolLoading ? 'Loading...' : formatUSDT(poolBalance as bigint)}
-                />
-                <StatCard
                     icon="📅"
-                    label="Weekly Pool"
+                    label="Weekly Pool Balance"
                     value={weeklyLoading ? 'Loading...' : formatUSDT(weeklyPoolBalance as bigint)}
                 />
                 <StatCard
@@ -108,11 +102,7 @@ export function OverviewTab() {
                 <h3 className="text-sm font-semibold text-[#F8FAFC] mb-3">📋 Contract Info</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                     <div className="flex justify-between p-3 bg-[#0F172A] rounded-lg">
-                        <span className="text-[#64748B]">Pool Balance</span>
-                        <span className="text-[#10B981] font-mono">{formatUSDT(poolBalance as bigint)}</span>
-                    </div>
-                    <div className="flex justify-between p-3 bg-[#0F172A] rounded-lg">
-                        <span className="text-[#64748B]">Weekly Pool</span>
+                        <span className="text-[#64748B]">Weekly Pool Balance</span>
                         <span className="text-[#EC4899] font-mono">{formatUSDT(weeklyPoolBalance as bigint)}</span>
                     </div>
                     <div className="flex justify-between p-3 bg-[#0F172A] rounded-lg">
