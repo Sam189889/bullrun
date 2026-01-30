@@ -196,23 +196,35 @@ function PackageMiniCard({
                 </p>
             </div>
 
-            {/* Top-up Counter with Stars */}
-            <div className="mb-4">
-                <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs text-[#64748B]">Top-ups Remaining</p>
-                    <p className="text-xs font-bold text-[#F8FAFC]">{10 - topUpCount}/10</p>
+            {/* Top-up Counter with Stars (Hide for VIP) */}
+            {pkg.id !== 9 && (
+                <div className="mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs text-[#64748B]">Top-ups Remaining</p>
+                        <p className="text-xs font-bold text-[#F8FAFC]">{10 - topUpCount}/10</p>
+                    </div>
+                    <div className="flex justify-center gap-1 flex-wrap">
+                        {Array.from({ length: 10 }).map((_, i) => (
+                            <span key={i} className={`text-base ${i < topUpCount ? 'text-[#1E293B] opacity-40' : 'text-[#FBBF24]'}`}>
+                                ⭐
+                            </span>
+                        ))}
+                    </div>
+                    {topUpCount >= 10 && (
+                        <p className="text-xs text-[#EF4444] text-center mt-2">🚫 Top-up limit reached!</p>
+                    )}
                 </div>
-                <div className="flex justify-center gap-1 flex-wrap">
-                    {Array.from({ length: 10 }).map((_, i) => (
-                        <span key={i} className={`text-base ${i < topUpCount ? 'text-[#1E293B] opacity-40' : 'text-[#FBBF24]'}`}>
-                            ⭐
-                        </span>
-                    ))}
+            )}
+
+            {/* VIP Badge for Package 9 */}
+            {pkg.id === 9 && (
+                <div className="mb-4 text-center">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#F59E0B] to-[#EC4899] rounded-lg">
+                        <span className="text-2xl">👑</span>
+                        <span className="text-sm font-bold text-white">VIP - Unlimited Earning Cap</span>
+                    </div>
                 </div>
-                {topUpCount >= 10 && (
-                    <p className="text-xs text-[#EF4444] text-center mt-2">🚫 Top-up limit reached!</p>
-                )}
-            </div>
+            )}
 
             {/* Action Button */}
             <button
