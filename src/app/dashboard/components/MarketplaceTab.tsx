@@ -10,6 +10,7 @@ import {
     useBuyNFT,
     useUSDTAllowance,
     useUserAvailableLimit,
+    useUserDailyLimitData,
     useUSDTBalance
 } from '@/hooks/useContracts';
 import { useApproveUSDT, useDayStartTimestamp, useDayLength, useCurrentDay } from '@/hooks/useAdminContracts';
@@ -196,6 +197,12 @@ export function MarketplaceTab() {
     const { data: totalNFTs } = useTotalNFTs();
     const { data: allowance, refetch: refetchAllowance } = useUSDTAllowance(address);
     const { data: availableLimit, refetch: refetchLimit } = useUserAvailableLimit(userId as bigint);
+    const { data: dailyLimitData, refetch: refetchDailyLimitData } = useUserDailyLimitData(userId as bigint);
+    
+    // Calculate actual remaining limit (totalLimit - usedLimit)
+    const actualRemainingLimit = dailyLimitData 
+        ? (dailyLimitData as readonly [bigint, bigint, bigint])[0] - (dailyLimitData as readonly [bigint, bigint, bigint])[1]
+        : BigInt(0);
 
     // Fetch day settings for debugging
     const { data: dayStart } = useDayStartTimestamp();
@@ -264,13 +271,14 @@ export function MarketplaceTab() {
             setSelectedNFT(null);
             refetchAllowance();
             refetchLimit(); // Refetch daily limit after purchase
+            refetchDailyLimitData(); // Refetch raw daily limit data
             
-            // Reload page after 2 seconds to refresh marketplace
+            // Reload page after 3 seconds to ensure blockchain state is updated
             setTimeout(() => {
                 window.location.reload();
-            }, 2000);
+            }, 3000);
         }
-    }, [buySuccess, refetchAllowance, refetchLimit]);
+    }, [buySuccess, refetchAllowance, refetchLimit, refetchDailyLimitData]);
 
     const handleSelectNFT = (nft: SelectedNFT) => {
         setSelectedNFT(nft);
@@ -304,8 +312,8 @@ export function MarketplaceTab() {
             return { isValid: false, error };
         }
 
-        // Check daily trading limit
-        const currentLimit = availableLimit as bigint || BigInt(0);
+        // Check daily trading limit (use actual remaining)
+        const currentLimit = actualRemainingLimit || BigInt(0);
         if (currentLimit < price) {
             const error = `📊 Daily limit exceeded! Available: $${Number(formatUnits(currentLimit, 18)).toFixed(2)}, Need: $${Number(formatUnits(price, 18)).toFixed(2)}`;
             setError(error);
@@ -428,21 +436,21 @@ export function MarketplaceTab() {
                     )}
                 </div>
 
-                {/* Daily Limit */}
+                {/* Daily Limit - Show Actual Remaining */}
                 <div className={`bg-gradient-to-br from-[#1E293B] to-[#0F172A] border rounded-lg p-2 sm:p-3 ${
-                    (availableLimit as bigint || BigInt(0)) < BigInt('10000000000000000000')
+                    actualRemainingLimit < BigInt('10000000000000000000')
                         ? 'border-[#F59E0B]/50'
                         : 'border-[#334155]'
                 }`}>
                     <p className="text-[8px] sm:text-[10px] text-[#64748B] mb-1">📊 Daily Limit</p>
                     <p className={`text-sm sm:text-base font-bold ${
-                        (availableLimit as bigint || BigInt(0)) === BigInt(0)
+                        actualRemainingLimit === BigInt(0)
                             ? 'text-[#EF4444]'
                             : 'text-[#EC4899]'
                     }`}>
-                        {formatUSD(availableLimit as bigint)}
+                        {formatUSD(actualRemainingLimit)}
                     </p>
-                    {(availableLimit as bigint || BigInt(0)) === BigInt(0) && (
+                    {actualRemainingLimit === BigInt(0) && (
                         <p className="text-[8px] text-[#EF4444] mt-1">⚠️ Limit reached</p>
                     )}
                 </div>
@@ -583,21 +591,21 @@ export function MarketplaceTab() {
                                 )}
                             </div>
 
-                            {/* Daily Limit */}
+                            {/* Daily Limit - Actual Remaining */}
                             <div className={`bg-[#0F172A] border rounded-lg p-2 ${
-                                (availableLimit as bigint || BigInt(0)) < selectedNFT.currentPrice
+                                actualRemainingLimit < selectedNFT.currentPrice
                                     ? 'border-[#EF4444] animate-pulse'
                                     : 'border-[#334155]'
                             }`}>
                                 <p className="text-[8px] text-[#64748B] mb-1">📊 Limit</p>
                                 <p className={`text-xs font-bold ${
-                                    (availableLimit as bigint || BigInt(0)) < selectedNFT.currentPrice
+                                    actualRemainingLimit < selectedNFT.currentPrice
                                         ? 'text-[#EF4444]'
                                         : 'text-[#EC4899]'
                                 }`}>
-                                    ${Number(formatUnits(availableLimit as bigint || BigInt(0), 18)).toFixed(2)}
+                                    ${Number(formatUnits(actualRemainingLimit, 18)).toFixed(2)}
                                 </p>
-                                {(availableLimit as bigint || BigInt(0)) < selectedNFT.currentPrice && (
+                                {actualRemainingLimit < selectedNFT.currentPrice && (
                                     <p className="text-[8px] text-[#EF4444] mt-1">⚠️ Low</p>
                                 )}
                             </div>

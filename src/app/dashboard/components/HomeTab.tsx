@@ -5,7 +5,7 @@ import { StatCard } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { useAccount } from 'wagmi';
 import { formatUnits } from 'viem';
-import { useUserId, useUserInfo, useUserEarnings, useUserBalance } from '@/hooks/useContracts';
+import { useUserId, useUserInfo, useUserEarnings, useUserBalance, useUserDailyLimitData } from '@/hooks/useContracts';
 import { useDayStartTimestamp, useDayLength } from '@/hooks/useAdminContracts';
 import { SmartPackageCard } from './SmartPackageCard';
 
@@ -89,10 +89,17 @@ export function HomeTab() {
     const { data: userInfo, isLoading: infoLoading } = useUserInfo(userId as bigint);
     const { data: earnings, isLoading: earningsLoading } = useUserEarnings(userId as bigint);
     const { data: balanceData } = useUserBalance(userId as bigint);
+    const { data: dailyLimitData } = useUserDailyLimitData(userId as bigint);
 
     // Day settings for timer
     const { data: dayStart } = useDayStartTimestamp();
     const { data: dayLength } = useDayLength();
+    
+    // Calculate daily trade limit (totalLimit, usedLimit, lastResetDay)
+    const dailyLimit = dailyLimitData as readonly [bigint, bigint, bigint] | undefined;
+    const totalDailyLimit = dailyLimit ? dailyLimit[0] : BigInt(0);
+    const usedDailyLimit = dailyLimit ? dailyLimit[1] : BigInt(0);
+    const remainingDailyLimit = totalDailyLimit - usedDailyLimit;
 
     // Referral link - using wallet address
     const referralLink = typeof window !== 'undefined' && address
@@ -197,17 +204,17 @@ export function HomeTab() {
                 <ResetTimer dayStart={dayStart as bigint} dayLengthSeconds={dayLength as bigint} />
             )}
 
-            {/* 10x Earning Cap Meter */}
-            {isRegistered && info && balance && (
+            {/* Daily Trade Limit Meter */}
+            {isRegistered && (
                 <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] border border-[#334155] rounded-xl p-4 sm:p-5 animate-slide-up" style={{ animationDelay: '0.15s' }}>
                     <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
                             <span className="text-lg sm:text-xl">📊</span>
-                            <h3 className="text-xs sm:text-sm font-semibold text-[#F8FAFC]">Subscription Earning Limit (10x Cap)</h3>
+                            <h3 className="text-xs sm:text-sm font-semibold text-[#F8FAFC]">Daily Trade Limit</h3>
                         </div>
                         <span className="text-xs sm:text-sm font-bold text-[#EC4899]">
-                            {info.earningCap > BigInt(0) 
-                                ? `${((Number(formatUnits(balance.totalEarned, 18)) / Number(formatUnits(info.earningCap, 18))) * 100).toFixed(1)}%`
+                            {totalDailyLimit > BigInt(0) 
+                                ? `${((Number(formatUnits(usedDailyLimit, 18)) / Number(formatUnits(totalDailyLimit, 18))) * 100).toFixed(1)}%`
                                 : '0%'
                             }
                         </span>
@@ -216,10 +223,10 @@ export function HomeTab() {
                     {/* Progress Bar */}
                     <div className="relative h-3 sm:h-4 bg-[#0F172A] rounded-full overflow-hidden mb-2">
                         <div
-                            className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#EC4899] to-[#D946EF] rounded-full transition-all duration-500"
+                            className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#10B981] to-[#3B82F6] rounded-full transition-all duration-500"
                             style={{
-                                width: info.earningCap > BigInt(0)
-                                    ? `${Math.min((Number(formatUnits(balance.totalEarned, 18)) / Number(formatUnits(info.earningCap, 18))) * 100, 100)}%`
+                                width: totalDailyLimit > BigInt(0)
+                                    ? `${Math.min((Number(formatUnits(usedDailyLimit, 18)) / Number(formatUnits(totalDailyLimit, 18))) * 100, 100)}%`
                                     : '0%'
                             }}
                         />
@@ -228,18 +235,21 @@ export function HomeTab() {
                     {/* Stats */}
                     <div className="flex items-center justify-between text-[10px] sm:text-xs">
                         <span className="text-[#64748B]">
-                            Earned: <span className="text-[#10B981] font-bold">{formatUSDT(balance.totalEarned)}</span>
+                            Used: <span className="text-[#F59E0B] font-bold">{formatUSDT(usedDailyLimit)}</span>
                         </span>
                         <span className="text-[#64748B]">
-                            Cap: <span className="text-[#EC4899] font-bold">{formatUSDT(info.earningCap)}</span>
+                            Remaining: <span className="text-[#10B981] font-bold">{formatUSDT(remainingDailyLimit)}</span>
+                        </span>
+                        <span className="text-[#64748B]">
+                            Total: <span className="text-[#EC4899] font-bold">{formatUSDT(totalDailyLimit)}</span>
                         </span>
                     </div>
                     
-                    {/* Warning if near cap */}
-                    {info.earningCap > BigInt(0) && (Number(formatUnits(balance.totalEarned, 18)) / Number(formatUnits(info.earningCap, 18))) >= 0.9 && (
+                    {/* Warning if limit low */}
+                    {totalDailyLimit > BigInt(0) && remainingDailyLimit < BigInt('10000000000000000000') && (
                         <div className="mt-3 p-2 bg-[#F59E0B]/10 border border-[#F59E0B]/30 rounded-lg">
                             <p className="text-[10px] sm:text-xs text-[#F59E0B] flex items-center gap-1">
-                                ⚠️ <span>You're near your earning cap! Top up your package to increase the limit.</span>
+                                ⚠️ <span>Daily limit running low! Resets in a few hours.</span>
                             </p>
                         </div>
                     )}

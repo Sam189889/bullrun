@@ -306,7 +306,7 @@ export function useNFT(nftId: bigint | undefined) {
 }
 
 /**
- * Get user's available daily trading limit
+ * Get user's available daily trading limit (contract calculated)
  */
 export function useUserAvailableLimit(userId: bigint | undefined) {
     return useReadContract({
@@ -317,6 +317,22 @@ export function useUserAvailableLimit(userId: bigint | undefined) {
         query: {
             enabled: !!userId && userId > BigInt(0),
             refetchInterval: 3000, // Refetch every 3 seconds
+        },
+    })
+}
+
+/**
+ * Get user's raw daily limit data (totalLimit, usedLimit, lastResetDay)
+ */
+export function useUserDailyLimitData(userId: bigint | undefined) {
+    return useReadContract({
+        address: contracts.bullRun,
+        abi: BullRunMainLogicABI,
+        functionName: 'userDailyLimits',
+        args: userId ? [userId] : undefined,
+        query: {
+            enabled: !!userId && userId > BigInt(0),
+            refetchInterval: 3000,
         },
     })
 }

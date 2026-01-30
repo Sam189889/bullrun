@@ -90,10 +90,10 @@ export function SmartPackageCard() {
             setIsWaitingForApproval(false);
             refetchAllowance();
             
-            // Reload page after 2 seconds to refresh all data
+            // Reload page after 3 seconds to ensure blockchain state is updated
             setTimeout(() => {
                 window.location.reload();
-            }, 2000);
+            }, 3000);
         }
     }, [purchaseSuccess]);
 
