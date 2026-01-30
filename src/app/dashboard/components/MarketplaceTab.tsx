@@ -264,6 +264,11 @@ export function MarketplaceTab() {
             setSelectedNFT(null);
             refetchAllowance();
             refetchLimit(); // Refetch daily limit after purchase
+            
+            // Reload page after 2 seconds to refresh marketplace
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
         }
     }, [buySuccess, refetchAllowance, refetchLimit]);
 

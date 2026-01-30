@@ -66,7 +66,7 @@ export function SmartPackageCard() {
         ? Number((totalEarned * BigInt(100)) / earningCap) 
         : 0;
 
-    const canTopUp = capPercentage >= 100 && topUpCount < 10 && currentPackageLevel > 0;
+    const canTopUp = topUpCount < 10 && currentPackageLevel > 0; // Allow anytime, not just when cap exhausted
     const canUpgrade = currentPackageLevel > 0 && currentPackageLevel < 9;
     const mustUpgrade = capPercentage >= 100 && topUpCount >= 10;
 
@@ -272,7 +272,7 @@ export function SmartPackageCard() {
             {/* Helper Text */}
             <div className="mt-3 text-center">
                 <p className="text-[10px] text-[#64748B]">
-                    {canTopUp && !mustUpgrade && 'Top-up resets your earning cap • '}
+                    {canTopUp && !mustUpgrade && 'Top-up adds to your earning cap • '}
                     {canUpgrade && `Next: ${PACKAGE_NAMES[nextPackageLevel - 1]}`}
                     {mustUpgrade && 'Upgrade required to continue earning'}
                 </p>
