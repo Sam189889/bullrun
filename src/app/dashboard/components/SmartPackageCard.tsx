@@ -7,8 +7,10 @@ import { useState, useEffect } from 'react';
 import { contracts } from '@/config/wagmi';
 import { USDTbABI } from '@/abi';
 
-// Package prices in order
-const PACKAGE_PRICES = [11, 27.5, 50, 100, 250, 500, 1000, 2500, 5000];
+// Package base prices (contract values)
+const PACKAGE_BASE_PRICES = [10, 25, 50, 100, 250, 500, 1000, 2500, 5000];
+// TPV = Base Price + 10% WPS (actual purchase cost)
+const PACKAGE_PRICES = PACKAGE_BASE_PRICES.map(price => price * 1.1);
 const PACKAGE_NAMES = ['Starter', 'Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Elite', 'Master', 'VIP'];
 
 interface UserInfo {
@@ -142,8 +144,8 @@ function PackageMiniCard({
     const isLower = pkg.id < currentPackageLevel;
     const isFirstPurchase = currentPackageLevel === 0 && pkg.id === 1; // First must be Package 1
     
-    // Can topup if: (1) current package OR (2) lower package that was purchased before
-    const canTopUp = (isCurrent || (isLower && topUpCount > 0)) && topUpCount < 10;
+    // Can topup if: ANY package that was purchased before (topUpCount > 0) and not maxed
+    const canTopUp = topUpCount > 0 && topUpCount < 10;
     const isMaxed = topUpCount >= 10;
 
     const formatUSD = (value: number) => `$${value.toLocaleString()}`;
