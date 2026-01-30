@@ -92,7 +92,7 @@ function AllPackagesGrid({
         <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] rounded-xl border border-[#334155] p-4 sm:p-6">
             <h3 className="text-sm sm:text-base font-bold text-[#F8FAFC] mb-4">📦 Packages (Highest to Lowest)</h3>
             
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {packages.map((pkg) => (
                     <PackageMiniCard 
                         key={pkg.id}
@@ -150,51 +150,48 @@ function PackageMiniCard({
 
     return (
         <div className={`
-            relative rounded-lg border p-3
+            relative rounded-xl border-2 p-4 sm:p-5
             ${isCurrent ? 'border-[#EC4899] bg-[#EC4899]/10' : 'border-[#334155] bg-[#0F172A]'}
-            ${isMaxed ? 'opacity-50' : ''}
-            transition-all duration-200
+            ${isMaxed ? 'opacity-60' : ''}
+            transition-all duration-300 hover:border-[#EC4899]/50
         `}>
             {/* Badge */}
             {isCurrent && (
-                <div className="absolute -top-2 -right-2 bg-[#EC4899] text-white text-[8px] font-bold px-2 py-0.5 rounded-full">
+                <div className="absolute -top-3 -right-3 bg-[#EC4899] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
                     ACTIVE
                 </div>
             )}
             {isMaxed && !isCurrent && (
-                <div className="absolute -top-2 -right-2 bg-[#EF4444] text-white text-[8px] font-bold px-2 py-0.5 rounded-full">
-                    MAX
+                <div className="absolute -top-3 -right-3 bg-[#EF4444] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
+                    MAXED
                 </div>
             )}
 
             {/* Package Info */}
-            <div className="text-center mb-2">
-                <h4 className="text-[10px] font-bold text-[#F8FAFC] mb-1">{pkg.name}</h4>
-                <p className="text-sm font-black text-[#EC4899]">{formatUSD(pkg.price)}</p>
+            <div className="text-center mb-4">
+                <h4 className="text-sm sm:text-base font-bold text-[#F8FAFC] mb-2">{pkg.name}</h4>
+                <p className="text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#EC4899] to-[#F59E0B]">
+                    {formatUSD(pkg.price)}
+                </p>
             </div>
 
-            {/* Top-up Stars (compact) */}
-            {topUpCount > 0 && (
-                <div className="mb-2">
-                    <div className="flex justify-center gap-0.5 mb-1">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                            <span key={i} className={`text-[10px] ${i < Math.min(topUpCount, 5) ? 'text-[#F59E0B]' : 'text-[#334155]'}`}>
-                                ⭐
-                            </span>
-                        ))}
-                    </div>
-                    {topUpCount > 5 && (
-                        <div className="flex justify-center gap-0.5">
-                            {Array.from({ length: 5 }).map((_, i) => (
-                                <span key={i + 5} className={`text-[10px] ${i < (topUpCount - 5) ? 'text-[#F59E0B]' : 'text-[#334155]'}`}>
-                                    ⭐
-                                </span>
-                            ))}
-                        </div>
-                    )}
-                    <p className="text-[8px] text-center text-[#64748B] mt-1">{topUpCount}/10</p>
+            {/* Top-up Counter with Stars */}
+            <div className="mb-4">
+                <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs text-[#64748B]">Top-ups Used</p>
+                    <p className="text-xs font-bold text-[#F8FAFC]">{topUpCount}/10</p>
                 </div>
-            )}
+                <div className="flex justify-center gap-1 flex-wrap">
+                    {Array.from({ length: 10 }).map((_, i) => (
+                        <span key={i} className={`text-sm ${i < topUpCount ? 'text-[#F59E0B]' : 'text-[#334155]'}`}>
+                            ⭐
+                        </span>
+                    ))}
+                </div>
+                {topUpCount >= 10 && (
+                    <p className="text-xs text-[#EF4444] text-center mt-2">🚫 Top-up limit reached!</p>
+                )}
+            </div>
 
             {/* Action Button */}
             <button
@@ -219,20 +216,20 @@ function PackageMiniCard({
                 }}
                 disabled={!userId || isMaxed || (!canTopUp && !isNextPackage && !isFirstPurchase) || (isApproving || isPurchasing)}
                 className={`
-                    w-full py-1.5 rounded text-[9px] font-bold uppercase
-                    transition-all duration-200
+                    w-full py-3 rounded-lg text-sm font-bold uppercase tracking-wide
+                    transition-all duration-300 active:scale-95
                     ${canTopUp || isNextPackage || isFirstPurchase
-                        ? 'bg-gradient-to-r from-[#EC4899] to-[#D946EF] text-white hover:scale-105'
+                        ? 'bg-gradient-to-r from-[#EC4899] to-[#D946EF] text-white hover:shadow-[0_0_20px_rgba(236,72,153,0.4)]'
                         : 'bg-[#334155] text-[#64748B] cursor-not-allowed'
                     }
                 `}
             >
-                {isMaxed ? '🚫 Max' :
-                    isFirstPurchase ? '✅ Start' :
+                {isMaxed ? '🚫 Maxed Out' :
+                    isFirstPurchase ? '✅ Start Here' :
                     canTopUp ? '🔄 Top-Up' :
                     isNextPackage ? '⬆️ Upgrade' :
                     topUpCount === 0 ? '🔒 Locked' :
-                    '✓ Done'
+                    '✓ Purchased'
                 }
             </button>
         </div>
