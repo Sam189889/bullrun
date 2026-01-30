@@ -1,11 +1,12 @@
 'use client';
 
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useBalance } from 'wagmi';
 import { formatUnits, parseUnits } from 'viem';
 import { useUserId, useUserInfo, useUserBalance, usePackageTopUpCount, useUSDTAllowance, usePurchasePackage } from '@/hooks/useContracts';
 import { useState, useEffect } from 'react';
 import { contracts } from '@/config/wagmi';
 import { USDTbABI } from '@/abi';
+import PackagePurchaseModal from './PackagePurchaseModal';
 
 // Package base prices (contract values)
 const PACKAGE_BASE_PRICES = [10, 25, 50, 100, 250, 500, 1000, 2500, 5000];
@@ -136,16 +137,22 @@ function PackageMiniCard({
     approveUSDT: any;
     purchase: (userAddress: `0x${string}`, packageId: bigint) => void;
 }) {
+    const [isModalOpen, setIsModalOpen] = useState(false);
     const { data: topUpCountData } = usePackageTopUpCount(userId as bigint, BigInt(pkg.id));
+    const { data: usdtBalance } = useBalance({
+        address,
+        token: contracts.usdt,
+    });
     const topUpCount = topUpCountData ? Number(topUpCountData) : 0;
 
     const isCurrent = currentPackageLevel === pkg.id;
     const isNextPackage = pkg.id === currentPackageLevel + 1; // Only next package for upgrade
     const isLower = pkg.id < currentPackageLevel;
     const isFirstPurchase = currentPackageLevel === 0 && pkg.id === 1; // First must be Package 1
+    const isVIP = currentPackageLevel === 9; // VIP users cannot purchase/retopup
     
-    // Can topup if: ANY package that was purchased before (topUpCount > 0) and not maxed
-    const canTopUp = topUpCount > 0 && topUpCount < 10;
+    // Can topup if: ANY package that was purchased before (topUpCount > 0) and not maxed AND not VIP
+    const canTopUp = !isVIP && topUpCount > 0 && topUpCount < 10;
     const isMaxed = topUpCount >= 10;
 
     const formatUSD = (value: number) => `$${value.toLocaleString()}`;
@@ -153,17 +160,23 @@ function PackageMiniCard({
     return (
         <div className={`
             relative rounded-xl border-2 p-4 sm:p-5
-            ${isCurrent ? 'border-[#EC4899] bg-[#EC4899]/10' : 'border-[#334155] bg-[#0F172A]'}
-            ${isMaxed ? 'opacity-60' : ''}
+            ${isVIP ? 'border-[#F59E0B] bg-gradient-to-br from-[#F59E0B]/20 to-[#0F172A]' : 
+              isCurrent ? 'border-[#EC4899] bg-[#EC4899]/10' : 'border-[#334155] bg-[#0F172A]'}
+            ${isMaxed && !isVIP ? 'opacity-60' : ''}
             transition-all duration-300 hover:border-[#EC4899]/50
         `}>
             {/* Badge */}
-            {isCurrent && (
+            {isVIP && (
+                <div className="absolute -top-3 -right-3 bg-gradient-to-r from-[#F59E0B] to-[#D97706] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
+                    👑 VIP
+                </div>
+            )}
+            {isCurrent && !isVIP && (
                 <div className="absolute -top-3 -right-3 bg-[#EC4899] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
                     ACTIVE
                 </div>
             )}
-            {isMaxed && !isCurrent && (
+            {isMaxed && !isCurrent && !isVIP && (
                 <div className="absolute -top-3 -right-3 bg-[#EF4444] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
                     MAXED
                 </div>
@@ -180,12 +193,12 @@ function PackageMiniCard({
             {/* Top-up Counter with Stars */}
             <div className="mb-4">
                 <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs text-[#64748B]">Top-ups Used</p>
-                    <p className="text-xs font-bold text-[#F8FAFC]">{topUpCount}/10</p>
+                    <p className="text-xs text-[#64748B]">Top-ups Remaining</p>
+                    <p className="text-xs font-bold text-[#F8FAFC]">{10 - topUpCount}/10</p>
                 </div>
                 <div className="flex justify-center gap-1 flex-wrap">
                     {Array.from({ length: 10 }).map((_, i) => (
-                        <span key={i} className={`text-sm ${i < topUpCount ? 'text-[#F59E0B]' : 'text-[#334155]'}`}>
+                        <span key={i} className={`text-sm ${i < topUpCount ? 'text-[#334155]' : 'text-[#F59E0B]'}`}>
                             ⭐
                         </span>
                     ))}
@@ -197,26 +210,12 @@ function PackageMiniCard({
 
             {/* Action Button */}
             <button
-                onClick={async () => {
+                onClick={() => {
                     if (!address || !userId) return;
-                    if (isMaxed || (!canTopUp && !isNextPackage && !isFirstPurchase)) return;
-                    
-                    const priceWithWPS = pkg.price * 1.1; // 10% WPS
-                    const requiredAmount = parseUnits(priceWithWPS.toString(), 18);
-                    const currentAllowance = (allowance as bigint) || BigInt(0);
-                    
-                    if (currentAllowance < requiredAmount) {
-                        approveUSDT({
-                            address: contracts.usdt,
-                            abi: USDTbABI,
-                            functionName: 'approve',
-                            args: [contracts.bullRun, requiredAmount],
-                        });
-                    } else {
-                        purchase(address, BigInt(pkg.id));
-                    }
+                    if (isVIP || isMaxed || (!canTopUp && !isNextPackage && !isFirstPurchase)) return;
+                    setIsModalOpen(true);
                 }}
-                disabled={!userId || isMaxed || (!canTopUp && !isNextPackage && !isFirstPurchase) || (isApproving || isPurchasing)}
+                disabled={!userId || isVIP || isMaxed || (!canTopUp && !isNextPackage && !isFirstPurchase)}
                 className={`
                     w-full py-3 rounded-lg text-sm font-bold uppercase tracking-wide
                     transition-all duration-300 active:scale-95
@@ -226,7 +225,8 @@ function PackageMiniCard({
                     }
                 `}
             >
-                {isMaxed ? '🚫 Maxed Out' :
+                {isVIP ? '👑 VIP - Unlimited Cap' :
+                    isMaxed ? '🚫 Maxed Out' :
                     isFirstPurchase ? '✅ Start Here' :
                     canTopUp ? '🔄 Top-Up' :
                     isNextPackage ? '⬆️ Upgrade' :
@@ -234,6 +234,40 @@ function PackageMiniCard({
                     '✓ Purchased'
                 }
             </button>
+
+            {/* Purchase Modal */}
+            <PackagePurchaseModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                packageId={pkg.id}
+                packageName={pkg.name}
+                packagePrice={pkg.price}
+                topUpCount={topUpCount}
+                actionType={
+                    isFirstPurchase ? 'start' :
+                    canTopUp ? 'topup' :
+                    isNextPackage ? 'upgrade' :
+                    'locked'
+                }
+                usdtBalance={usdtBalance ? BigInt(usdtBalance.value) : BigInt(0)}
+                usdtAllowance={(allowance as bigint) || BigInt(0)}
+                onApprove={() => {
+                    const requiredAmount = parseUnits(pkg.price.toString(), 18);
+                    approveUSDT({
+                        address: contracts.usdt,
+                        abi: USDTbABI,
+                        functionName: 'approve',
+                        args: [contracts.bullRun, requiredAmount],
+                    });
+                }}
+                onPurchase={() => {
+                    if (address) {
+                        purchase(address, BigInt(pkg.id));
+                    }
+                }}
+                isApproving={isApproving}
+                isPurchasing={isPurchasing}
+            />
         </div>
     );
 }
