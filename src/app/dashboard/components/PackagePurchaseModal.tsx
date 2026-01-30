@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { useAccount, useBalance, useWaitForTransactionReceipt } from 'wagmi';
 import { formatUnits, parseUnits } from 'viem';
 import { contracts } from '@/config/wagmi';
+import toast from 'react-hot-toast';
 
 interface PackagePurchaseModalProps {
     isOpen: boolean;
@@ -20,6 +21,7 @@ interface PackagePurchaseModalProps {
     onPurchase: () => void;
     isApproving: boolean;
     isPurchasing: boolean;
+    approveHash?: `0x${string}`;
 }
 
 export default function PackagePurchaseModal({
@@ -35,23 +37,63 @@ export default function PackagePurchaseModal({
     onApprove,
     onPurchase,
     isApproving,
-    isPurchasing
+    isPurchasing,
+    approveHash
 }: PackagePurchaseModalProps) {
     const { address } = useAccount();
     const { data: bnbBalance } = useBalance({ address });
     
+    // Wait for approval transaction receipt
+    const { isSuccess: isApproveSuccess, isLoading: isApproveConfirming } = useWaitForTransactionReceipt({
+        hash: approveHash,
+    });
+    
     const [error, setError] = useState<string>('');
     const [step, setStep] = useState<'check' | 'approve' | 'purchase'>('check');
     const [wasPurchasing, setWasPurchasing] = useState(false);
+    const [wasApproving, setWasApproving] = useState(false);
 
     const requiredAmount = parseUnits(packagePrice.toString(), 18);
     const hasEnoughUSDT = usdtBalance >= requiredAmount;
     const hasEnoughBNB = bnbBalance ? BigInt(bnbBalance.value) >= parseUnits('0.0001', 18) : false;
     const needsApproval = usdtAllowance < requiredAmount;
 
-    // Reload page when purchase completes
+    // Define handlers first
+    const handlePurchase = () => {
+        try {
+            setError('');
+            onPurchase();
+            // Page will reload automatically via useEffect when transaction completes
+        } catch (err: any) {
+            setError(err?.message || 'Purchase failed. Please try again.');
+        }
+    };
+
+    // Auto-trigger purchase after approval is CONFIRMED (not just sent)
     useEffect(() => {
-        if (wasPurchasing && !isPurchasing && !error) {
+        if (isApproveSuccess && step === 'approve' && !error) {
+            // Approval transaction confirmed, now trigger purchase
+            toast.success('✅ Approval confirmed!', { id: 'approval' });
+            setStep('purchase');
+            setTimeout(() => {
+                toast.loading('💰 Processing purchase...', { id: 'purchase' });
+                handlePurchase();
+            }, 500);
+        }
+    }, [isApproveSuccess, step, error]);
+
+    // Reset states when modal closes
+    useEffect(() => {
+        if (!isOpen) {
+            setWasApproving(false);
+            setWasPurchasing(false);
+        }
+    }, [isOpen]);
+
+    // Reload page when purchase completes (NOT after approval)
+    useEffect(() => {
+        if (wasPurchasing && !isPurchasing && !error && step === 'purchase') {
+            toast.success('🎉 Purchase successful! Reloading...', { id: 'purchase' });
             setTimeout(() => {
                 window.location.reload();
             }, 1500);
@@ -59,7 +101,7 @@ export default function PackagePurchaseModal({
         if (isPurchasing) {
             setWasPurchasing(true);
         }
-    }, [isPurchasing, wasPurchasing, error]);
+    }, [isPurchasing, wasPurchasing, error, step]);
 
     // Lock body scroll when modal is open
     useEffect(() => {
@@ -104,20 +146,12 @@ export default function PackagePurchaseModal({
     const handleApprove = async () => {
         try {
             setError('');
-            await onApprove();
-            setStep('purchase');
+            toast.loading('🔓 Approving USDT...', { id: 'approval' });
+            onApprove();
+            // Purchase will be triggered automatically after approval completes
         } catch (err: any) {
+            toast.error('❌ Approval failed', { id: 'approval' });
             setError(err?.message || 'Approval failed. Please try again.');
-        }
-    };
-
-    const handlePurchase = async () => {
-        try {
-            setError('');
-            onPurchase();
-            // Page will reload automatically via useEffect when transaction completes
-        } catch (err: any) {
-            setError(err?.message || 'Purchase failed. Please try again.');
         }
     };
 
@@ -168,7 +202,7 @@ export default function PackagePurchaseModal({
                     <div className="flex justify-between items-center mb-3">
                         <span className="text-sm text-[#64748B]">Package Price</span>
                         <span className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#EC4899] to-[#D946EF]">
-                            ${packagePrice.toLocaleString()}
+                            ${packagePrice.toFixed(2).replace(/\.00$/, '')}
                         </span>
                     </div>
                     
@@ -210,16 +244,16 @@ export default function PackagePurchaseModal({
                             disabled={isApproving}
                             className="w-full py-3 rounded-lg font-bold text-white bg-gradient-to-r from-[#3B82F6] to-[#2563EB] hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {isApproving ? (
+                            {isApproving || isApproveConfirming ? (
                                 <span className="flex items-center justify-center gap-2">
                                     <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
                                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                                     </svg>
-                                    Approving...
+                                    {isApproveConfirming ? 'Confirming...' : 'Approving...'}
                                 </span>
                             ) : (
-                                `🔓 Approve USDT ($${packagePrice})`
+                                `🔓 Approve USDT ($${packagePrice.toFixed(2).replace(/\.00$/, '')})`
                             )}
                         </button>
                     )}

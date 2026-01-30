@@ -48,7 +48,7 @@ export function SmartPackageCard() {
 
     const currentPackageLevel = info?.packageLevel ? Number(info.packageLevel) : 0;
     
-    const { writeContract: approveUSDT, isPending: isApproving } = useWriteContract();
+    const { writeContract: approveUSDT, isPending: isApproving, data: approveHash } = useWriteContract();
     const { purchase, isPending: isPurchasing } = usePurchasePackage();
 
     return (
@@ -61,6 +61,7 @@ export function SmartPackageCard() {
             isPurchasing={isPurchasing}
             approveUSDT={approveUSDT}
             purchase={purchase}
+            approveHash={approveHash}
         />
     );
 }
@@ -74,7 +75,8 @@ function AllPackagesGrid({
     isApproving,
     isPurchasing,
     approveUSDT,
-    purchase
+    purchase,
+    approveHash
 }: { 
     currentPackageLevel: number;
     userId: bigint | undefined;
@@ -84,6 +86,7 @@ function AllPackagesGrid({
     isPurchasing: boolean;
     approveUSDT: any;
     purchase: (userAddress: `0x${string}`, packageId: bigint) => void;
+    approveHash?: `0x${string}`;
 }) {
     const packages = PACKAGE_PRICES.map((price, index) => ({
         id: index + 1,
@@ -108,6 +111,7 @@ function AllPackagesGrid({
                         isPurchasing={isPurchasing}
                         approveUSDT={approveUSDT}
                         purchase={purchase}
+                        approveHash={approveHash}
                     />
                 ))}
             </div>
@@ -125,7 +129,8 @@ function PackageMiniCard({
     isApproving,
     isPurchasing,
     approveUSDT,
-    purchase
+    purchase,
+    approveHash
 }: { 
     pkg: { id: number; name: string; price: number };
     currentPackageLevel: number;
@@ -136,6 +141,7 @@ function PackageMiniCard({
     isPurchasing: boolean;
     approveUSDT: any;
     purchase: (userAddress: `0x${string}`, packageId: bigint) => void;
+    approveHash?: `0x${string}`;
 }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const { data: topUpCountData } = usePackageTopUpCount(userId as bigint, BigInt(pkg.id));
@@ -198,7 +204,7 @@ function PackageMiniCard({
                 </div>
                 <div className="flex justify-center gap-1 flex-wrap">
                     {Array.from({ length: 10 }).map((_, i) => (
-                        <span key={i} className={`text-sm ${i < topUpCount ? 'text-[#334155]' : 'text-[#F59E0B]'}`}>
+                        <span key={i} className={`text-base ${i < topUpCount ? 'text-[#1E293B] opacity-40' : 'text-[#FBBF24]'}`}>
                             ⭐
                         </span>
                     ))}
@@ -267,6 +273,7 @@ function PackageMiniCard({
                 }}
                 isApproving={isApproving}
                 isPurchasing={isPurchasing}
+                approveHash={approveHash}
             />
         </div>
     );
