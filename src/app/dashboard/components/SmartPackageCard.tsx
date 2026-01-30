@@ -151,17 +151,19 @@ export function SmartPackageCard() {
     }
 
     return (
-        <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] rounded-xl border border-[#334155] p-4 sm:p-6 animate-slide-up">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-4">
-                <div>
-                    <p className="text-xs text-[#64748B] mb-1">Current Package</p>
-                    <h3 className="text-xl sm:text-2xl font-bold text-[#EC4899]">
-                        {formatUSD(currentPrice)} {PACKAGE_NAMES[currentPackageLevel - 1]}
-                    </h3>
+        <div className="space-y-4">
+            {/* Current Package Card */}
+            <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] rounded-xl border border-[#334155] p-4 sm:p-6 animate-slide-up">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-4">
+                    <div>
+                        <p className="text-xs text-[#64748B] mb-1">Current Package</p>
+                        <h3 className="text-xl sm:text-2xl font-bold text-[#EC4899]">
+                            {formatUSD(currentPrice)} {PACKAGE_NAMES[currentPackageLevel - 1]}
+                        </h3>
+                    </div>
+                    <div className="text-4xl">📦</div>
                 </div>
-                <div className="text-4xl">📦</div>
-            </div>
 
             {/* Top-up Counter */}
             <div className="mb-4">
@@ -174,35 +176,6 @@ export function SmartPackageCard() {
                 </div>
                 {topUpCount >= 10 && (
                     <p className="text-[10px] text-[#EF4444] mt-1">🚫 Top-up limit reached!</p>
-                )}
-            </div>
-
-            {/* Earning Cap Progress */}
-            <div className="mb-4">
-                <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs text-[#64748B]">Earning Cap Progress</p>
-                    <p className="text-xs font-bold text-[#F8FAFC]">{capPercentage}%</p>
-                </div>
-                <div className="w-full bg-[#0F172A] rounded-full h-3 overflow-hidden border border-[#334155]">
-                    <div 
-                        className={`h-full transition-all duration-500 ${
-                            capPercentage >= 100 
-                                ? 'bg-gradient-to-r from-[#EF4444] to-[#F59E0B]' 
-                                : 'bg-gradient-to-r from-[#10B981] to-[#3B82F6]'
-                        }`}
-                        style={{ width: `${Math.min(capPercentage, 100)}%` }}
-                    />
-                </div>
-                <div className="flex justify-between mt-1">
-                    <p className="text-[10px] text-[#64748B]">
-                        {formatUSD(Number(formatUnits(totalEarned, 18)))}
-                    </p>
-                    <p className="text-[10px] text-[#64748B]">
-                        {formatUSD(Number(formatUnits(earningCap, 18)))}
-                    </p>
-                </div>
-                {capPercentage >= 100 && (
-                    <p className="text-[10px] text-[#F59E0B] mt-1">⚠️ Earning cap reached!</p>
                 )}
             </div>
 
@@ -282,6 +255,191 @@ export function SmartPackageCard() {
                     {mustUpgrade && 'Upgrade required to continue earning'}
                 </p>
             </div>
+            </div>
+
+            {/* All Packages Grid */}
+            <AllPackagesGrid 
+                currentPackageLevel={currentPackageLevel}
+                userId={userId as bigint}
+                address={address}
+                allowance={allowance}
+                isApproving={isApproving}
+                isPurchasing={isPurchasing}
+                approveUSDT={approveUSDT}
+                purchase={purchase}
+            />
+        </div>
+    );
+}
+
+// All Packages Grid Component
+function AllPackagesGrid({ 
+    currentPackageLevel, 
+    userId,
+    address,
+    allowance,
+    isApproving,
+    isPurchasing,
+    approveUSDT,
+    purchase
+}: { 
+    currentPackageLevel: number;
+    userId: bigint | undefined;
+    address: `0x${string}` | undefined;
+    allowance: unknown;
+    isApproving: boolean;
+    isPurchasing: boolean;
+    approveUSDT: any;
+    purchase: (userAddress: `0x${string}`, packageId: bigint) => void;
+}) {
+    const packages = PACKAGE_PRICES.map((price, index) => ({
+        id: index + 1,
+        name: PACKAGE_NAMES[index],
+        price: price
+    }));
+
+    return (
+        <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] rounded-xl border border-[#334155] p-4 sm:p-6">
+            <h3 className="text-sm sm:text-base font-bold text-[#F8FAFC] mb-4">📦 All Packages</h3>
+            
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                {packages.map((pkg) => (
+                    <PackageMiniCard 
+                        key={pkg.id}
+                        pkg={pkg}
+                        currentPackageLevel={currentPackageLevel}
+                        userId={userId}
+                        address={address}
+                        allowance={allowance}
+                        isApproving={isApproving}
+                        isPurchasing={isPurchasing}
+                        approveUSDT={approveUSDT}
+                        purchase={purchase}
+                    />
+                ))}
+            </div>
+        </div>
+    );
+}
+
+// Mini Package Card Component
+function PackageMiniCard({ 
+    pkg, 
+    currentPackageLevel,
+    userId,
+    address,
+    allowance,
+    isApproving,
+    isPurchasing,
+    approveUSDT,
+    purchase
+}: { 
+    pkg: { id: number; name: string; price: number };
+    currentPackageLevel: number;
+    userId: bigint | undefined;
+    address: `0x${string}` | undefined;
+    allowance: unknown;
+    isApproving: boolean;
+    isPurchasing: boolean;
+    approveUSDT: any;
+    purchase: (userAddress: `0x${string}`, packageId: bigint) => void;
+}) {
+    const { data: topUpCountData } = usePackageTopUpCount(userId as bigint, BigInt(pkg.id));
+    const topUpCount = topUpCountData ? Number(topUpCountData) : 0;
+
+    const isCurrent = currentPackageLevel === pkg.id;
+    const isHigher = pkg.id > currentPackageLevel;
+    const canTopUp = topUpCount < 10 && topUpCount > 0;
+    const isMaxed = topUpCount >= 10;
+
+    const formatUSD = (value: number) => `$${value.toLocaleString()}`;
+
+    return (
+        <div className={`
+            relative rounded-lg border p-3
+            ${isCurrent ? 'border-[#EC4899] bg-[#EC4899]/10' : 'border-[#334155] bg-[#0F172A]'}
+            ${isMaxed ? 'opacity-50' : ''}
+            transition-all duration-200
+        `}>
+            {/* Badge */}
+            {isCurrent && (
+                <div className="absolute -top-2 -right-2 bg-[#EC4899] text-white text-[8px] font-bold px-2 py-0.5 rounded-full">
+                    ACTIVE
+                </div>
+            )}
+            {isMaxed && !isCurrent && (
+                <div className="absolute -top-2 -right-2 bg-[#EF4444] text-white text-[8px] font-bold px-2 py-0.5 rounded-full">
+                    MAX
+                </div>
+            )}
+
+            {/* Package Info */}
+            <div className="text-center mb-2">
+                <h4 className="text-[10px] font-bold text-[#F8FAFC] mb-1">{pkg.name}</h4>
+                <p className="text-sm font-black text-[#EC4899]">{formatUSD(pkg.price)}</p>
+            </div>
+
+            {/* Top-up Stars (compact) */}
+            {topUpCount > 0 && (
+                <div className="mb-2">
+                    <div className="flex justify-center gap-0.5 mb-1">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                            <span key={i} className={`text-[10px] ${i < Math.min(topUpCount, 5) ? 'text-[#F59E0B]' : 'text-[#334155]'}`}>
+                                ⭐
+                            </span>
+                        ))}
+                    </div>
+                    {topUpCount > 5 && (
+                        <div className="flex justify-center gap-0.5">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                                <span key={i + 5} className={`text-[10px] ${i < (topUpCount - 5) ? 'text-[#F59E0B]' : 'text-[#334155]'}`}>
+                                    ⭐
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                    <p className="text-[8px] text-center text-[#64748B] mt-1">{topUpCount}/10</p>
+                </div>
+            )}
+
+            {/* Action Button */}
+            <button
+                onClick={async () => {
+                    if (!address || !userId) return;
+                    if (isMaxed || (!isCurrent && !isHigher)) return;
+                    
+                    const priceWithWPS = pkg.price * 1.1; // 10% WPS
+                    const requiredAmount = parseUnits(priceWithWPS.toString(), 18);
+                    const currentAllowance = (allowance as bigint) || BigInt(0);
+                    
+                    if (currentAllowance < requiredAmount) {
+                        approveUSDT({
+                            address: contracts.usdt,
+                            abi: USDTbABI,
+                            functionName: 'approve',
+                            args: [contracts.bullRun, requiredAmount],
+                        });
+                    } else {
+                        purchase(address, BigInt(pkg.id));
+                    }
+                }}
+                disabled={!userId || isMaxed || (!isCurrent && !isHigher) || (isApproving || isPurchasing)}
+                className={`
+                    w-full py-1.5 rounded text-[9px] font-bold uppercase
+                    transition-all duration-200
+                    ${(isCurrent && canTopUp) || isHigher
+                        ? 'bg-gradient-to-r from-[#EC4899] to-[#D946EF] text-white hover:scale-105'
+                        : 'bg-[#334155] text-[#64748B] cursor-not-allowed'
+                    }
+                `}
+            >
+                {isMaxed ? '🚫 Max' :
+                    isCurrent && canTopUp ? '🔄 Top-Up' :
+                    isHigher ? '⬆️ Upgrade' :
+                    topUpCount === 0 ? '🔒 Locked' :
+                    '✓ Done'
+                }
+            </button>
         </div>
     );
 }

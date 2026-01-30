@@ -1,8 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { StatCard } from '@/components/ui/Card';
-import { ProgressBar } from '@/components/ui/ProgressBar';
 import { useAccount } from 'wagmi';
 import { formatUnits } from 'viem';
 import { useUserId, useUserInfo, useUserEarnings, useUserBalance, useUserDailyLimitData } from '@/hooks/useContracts';
@@ -256,6 +254,59 @@ export function HomeTab() {
                 </div>
             )}
 
+            {/* Earning Cap Progress Card */}
+            {isRegistered && info && balance && (
+                <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] rounded-xl border border-[#334155] p-4 sm:p-5 animate-slide-up" style={{ animationDelay: '0.2s' }}>
+                    <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                            <span className="text-lg sm:text-xl">📈</span>
+                            <h3 className="text-xs sm:text-sm font-semibold text-[#F8FAFC]">Total Earning Cap Progress</h3>
+                        </div>
+                        <span className="text-xs sm:text-sm font-bold text-[#EC4899]">
+                            {info.earningCap > BigInt(0) 
+                                ? `${((Number(formatUnits(balance.totalEarned, 18)) / Number(formatUnits(info.earningCap, 18))) * 100).toFixed(1)}%`
+                                : '0%'
+                            }
+                        </span>
+                    </div>
+                    
+                    {/* Progress Bar */}
+                    <div className="relative h-3 sm:h-4 bg-[#0F172A] rounded-full overflow-hidden mb-2 border border-[#334155]">
+                        <div
+                            className={`absolute inset-y-0 left-0 rounded-full transition-all duration-500 ${
+                                info.earningCap > BigInt(0) && (Number(formatUnits(balance.totalEarned, 18)) / Number(formatUnits(info.earningCap, 18))) >= 1
+                                    ? 'bg-gradient-to-r from-[#EF4444] to-[#F59E0B]'
+                                    : 'bg-gradient-to-r from-[#10B981] to-[#3B82F6]'
+                            }`}
+                            style={{
+                                width: info.earningCap > BigInt(0)
+                                    ? `${Math.min((Number(formatUnits(balance.totalEarned, 18)) / Number(formatUnits(info.earningCap, 18))) * 100, 100)}%`
+                                    : '0%'
+                            }}
+                        />
+                    </div>
+                    
+                    {/* Stats */}
+                    <div className="flex items-center justify-between text-[10px] sm:text-xs">
+                        <span className="text-[#64748B]">
+                            Earned: <span className="text-[#10B981] font-bold">{formatUSDT(balance.totalEarned)}</span>
+                        </span>
+                        <span className="text-[#64748B]">
+                            Cap: <span className="text-[#EC4899] font-bold">{formatUSDT(info.earningCap)}</span>
+                        </span>
+                    </div>
+                    
+                    {/* Warning if near cap */}
+                    {info.earningCap > BigInt(0) && (Number(formatUnits(balance.totalEarned, 18)) / Number(formatUnits(info.earningCap, 18))) >= 0.9 && (
+                        <div className="mt-3 p-2 bg-[#F59E0B]/10 border border-[#F59E0B]/30 rounded-lg">
+                            <p className="text-[10px] sm:text-xs text-[#F59E0B] flex items-center gap-1">
+                                ⚠️ <span>You're near your earning cap! Top up any package to increase the limit.</span>
+                            </p>
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* Smart Package Card */}
             {isRegistered && (
                 <SmartPackageCard />
@@ -332,48 +383,6 @@ export function HomeTab() {
                 </div>
             </div>
 
-            {/* Earnings Breakdown */}
-            {isRegistered && earn && (
-                <div className="relative overflow-hidden bg-gradient-to-r from-[#1E293B] to-[#0F172A] rounded-xl p-4 sm:p-5 border border-[#334155] animate-slide-up" style={{ animationDelay: '0.4s' }}>
-                    <h3 className="text-sm sm:text-base font-semibold text-[#F8FAFC] mb-3">💰 Earnings Breakdown</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        <div className="p-3 bg-[#0F172A] rounded-lg">
-                            <p className="text-[10px] text-[#64748B]">Direct Sponsor</p>
-                            <p className="text-sm font-bold text-[#EC4899]">{formatUSDT(earn.directSponsor)}</p>
-                        </div>
-                        <div className="p-3 bg-[#0F172A] rounded-lg">
-                            <p className="text-[10px] text-[#64748B]">Level Income</p>
-                            <p className="text-sm font-bold text-[#3B82F6]">{formatUSDT(earn.levelIncome)}</p>
-                        </div>
-                        <div className="p-3 bg-[#0F172A] rounded-lg">
-                            <p className="text-[10px] text-[#64748B]">Rank EMI</p>
-                            <p className="text-sm font-bold text-[#10B981]">{formatUSDT(earn.rankEmi)}</p>
-                        </div>
-                        <div className="p-3 bg-[#0F172A] rounded-lg">
-                            <p className="text-[10px] text-[#64748B]">Fast Bonus</p>
-                            <p className="text-sm font-bold text-[#D946EF]">{formatUSDT(earn.fastBonus)}</p>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Quick Actions */}
-            <div className="grid grid-cols-4 gap-2 sm:gap-3 animate-slide-up" style={{ animationDelay: '0.5s' }}>
-                {[
-                    { icon: '🛒', label: 'Buy', color: '#EC4899' },
-                    { icon: '💸', label: 'Claim', color: '#10B981' },
-                    { icon: '👥', label: 'Invite', color: '#3B82F6' },
-                    { icon: '📊', label: 'Reports', color: '#D946EF' },
-                ].map((action, index) => (
-                    <button
-                        key={index}
-                        className="flex flex-col items-center gap-1 sm:gap-2 p-3 sm:p-4 md:p-5 bg-gradient-to-br from-[#1E293B] to-[#0F172A] rounded-xl border border-[#334155] hover:border-[#EC4899]/50 transition-all duration-300 card-hover group active:scale-95"
-                    >
-                        <span className="text-2xl sm:text-3xl md:text-4xl group-hover:scale-125 transition-transform duration-300">{action.icon}</span>
-                        <span className="text-[10px] sm:text-xs md:text-sm text-[#F8FAFC] font-medium">{action.label}</span>
-                    </button>
-                ))}
-            </div>
 
             {/* Not Registered Message */}
             {!isRegistered && isConnected && (
