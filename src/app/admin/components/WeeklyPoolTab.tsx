@@ -8,7 +8,6 @@ import {
     useCurrentWeek,
     useAddToWeeklyPool,
     useDistributeWeeklyPool,
-    useStartNewWeek,
     useApproveUSDT
 } from '@/hooks/useAdminContracts';
 import { Card } from '@/components/ui/Card';
@@ -61,8 +60,6 @@ export function WeeklyPoolTab() {
                 <AddToPoolCard onSuccess={refetchAll} />
                 <DistributeCard onSuccess={refetchAll} />
             </div>
-
-            <StartNewWeekCard onSuccess={refetchAll} />
         </div>
     );
 }
@@ -202,42 +199,3 @@ function DistributeCard({ onSuccess }: { onSuccess: () => void }) {
     );
 }
 
-// Start New Week Card
-function StartNewWeekCard({ onSuccess }: { onSuccess: () => void }) {
-    const toastShown = useRef(false);
-    const { startNewWeek, isPending, isConfirming, isSuccess, error } = useStartNewWeek();
-
-    useEffect(() => {
-        if (isSuccess && !toastShown.current) {
-            toastShown.current = true;
-            toast.success('New week started!');
-            onSuccess();
-        }
-        if (error && !toastShown.current) {
-            toastShown.current = true;
-            toast.error('Failed to start new week');
-        }
-    }, [isSuccess, error, onSuccess]);
-
-    const handleStartWeek = () => {
-        toastShown.current = false;
-        startNewWeek();
-    };
-
-    return (
-        <Card variant="stat" hover>
-            <h3 className="text-sm font-semibold text-[#F8FAFC] mb-4">🗓️ Start New Week</h3>
-            <p className="text-sm text-[#64748B] mb-4">
-                Reset weekly shares and start a new distribution cycle. This will clear all current shares.
-            </p>
-            <Button
-                variant="danger"
-                onClick={handleStartWeek}
-                disabled={isPending || isConfirming}
-                className="w-full"
-            >
-                {isPending ? 'Confirm...' : isConfirming ? 'Starting...' : 'Start New Week'}
-            </Button>
-        </Card>
-    );
-}

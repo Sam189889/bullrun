@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { formatUnits } from 'viem';
 import {
     useTotalNFTs,
@@ -21,12 +21,12 @@ import toast from 'react-hot-toast';
 // Helper component to display owner username
 function OwnerUsername({ ownerId }: { ownerId: bigint }) {
     const { data: userInfo } = useUserInfo(ownerId);
-    
+
     if (!userInfo) return <span className="text-slate-500">Loading...</span>;
-    
+
     // Wagmi returns struct as object with named fields
     const user = userInfo as { usernameId: bigint };
-    
+
     return <span className="font-mono">BULL{user.usernameId.toString()}</span>;
 }
 
@@ -37,21 +37,29 @@ export function NFTsTab() {
     const [selectedNftId, setSelectedNftId] = useState<string>('');
 
     // Reads
-    const { data: totalNFTs } = useTotalNFTs();
+    const { data: totalNFTs, refetch: refetchTotalNFTs } = useTotalNFTs();
     const { data: threshold } = useNFTSplitThreshold();
     const { data: count } = useNFTSplitCount();
     const { data: appreciation } = useNFTAppreciationBps();
 
-    // Writes
-    const { createNFT, isPending: creating } = useCreateNFT();
+    // Writes - get isSuccess to know when tx is confirmed
+    const { createNFT, isPending: creating, isConfirming: creatingConfirming, isSuccess: createSuccess } = useCreateNFT();
     const { setSplitSettings, isPending: settingSplit } = useSetSplitSettings();
     const { toggleFeatured, isPending: togglingFeatured } = useToggleNFTFeatured();
     const { toggleHidden, isPending: togglingHidden } = useToggleNFTHidden();
     const { setOrder, isPending: settingOrder } = useSetNFTDisplayOrder();
 
+    // Refetch when NFT creation is confirmed
+    useEffect(() => {
+        if (createSuccess) {
+            toast.success('NFT Created Successfully!');
+            refetchTotalNFTs();
+        }
+    }, [createSuccess, refetchTotalNFTs]);
+
     const handleCreateNFT = async () => {
         try {
-            await createNFT(basePrice);
+            createNFT(basePrice);
             toast.success('NFT Creation Transaction Sent');
         } catch (err) {
             toast.error('Failed to create NFT');

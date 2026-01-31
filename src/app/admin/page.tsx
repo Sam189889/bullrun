@@ -9,7 +9,6 @@ import {
     AdminNav,
     OverviewTab,
     UsersTab,
-    TransactionsTab,
     PackagesTab,
     SettingsTab,
     WeeklyPoolTab,
@@ -36,8 +35,6 @@ export default function AdminPage() {
                 return <OverviewTab />;
             case 'users':
                 return <UsersTab />;
-            case 'transactions':
-                return <TransactionsTab />;
             case 'packages':
                 return <PackagesTab />;
             case 'settings':

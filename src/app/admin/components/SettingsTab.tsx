@@ -2,12 +2,25 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { formatUnits } from 'viem';
-import { useSetWallets, useDepositToPool, useWithdrawFromPool, useApproveUSDT, useWeeklyPoolBalance, useSetFirstUser, useSetPaymentToken, useFirstUser, useUSDTAddress, useSetDaySettings, useDayStartTimestamp, useDayLength, useCurrentDay } from '@/hooks/useAdminContracts';
+import { useSetCreatorWallet, useApproveUSDT, useCreatorWallet, useSetDaySettings, useDayStartTimestamp, useDayLength, useCurrentDay, useAllPoolBalances, useAddToPool, useWithdrawFromAnyPool, PoolType, useSetFirstUser, useFirstUser } from '@/hooks/useAdminContracts';
+import {
+    useGetAllShareholders,
+    usePendingBalance,
+    useTotalSharePercent,
+    useTotalDistributed,
+    useIsConfigured,
+    useAddShareholder,
+    useRemoveShareholder,
+    useBatchAddShareholders,
+    useDistribute
+} from '@/hooks/useRevenueSplitter';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import toast from 'react-hot-toast';
 import { useAccount } from 'wagmi';
+import { WeekManagement } from './WeekManagement';
+import { CONTRACTS } from '@/config/constants';
 
 export function SettingsTab() {
     return (
@@ -18,89 +31,54 @@ export function SettingsTab() {
                 <p className="text-sm text-[#64748B]">Platform configuration and pool management</p>
             </div>
 
-            {/* Contract Settings */}
-            <ContractSettings />
+            {/* Week Management */}
+            <WeekManagement />
 
-            {/* Wallet Configuration */}
-            <WalletSettings />
+            {/* Day Settings */}
+            <DaySettings />
+
+            {/* First User Settings */}
+            <FirstUserSettings />
+
+            {/* Creator Wallet */}
+            <CreatorWalletSettings />
 
             {/* Pool Management */}
             <PoolManagement />
+
+            {/* Revenue Splitter */}
+            <RevenueSplitterSection />
         </div>
     );
 }
 
-// Contract Configuration Component
-function ContractSettings() {
-    const [firstUserAddress, setFirstUserAddress] = useState('');
-    const [paymentTokenAddress, setPaymentTokenAddress] = useState('');
+// Day Settings Component
+function DaySettings() {
     const [dayStartTimestamp, setDayStartTimestamp] = useState('');
     const [dayLength, setDayLength] = useState('86400');
-    const toastShown1 = useRef(false);
-    const toastShown2 = useRef(false);
-    const toastShown3 = useRef(false);
+    const toastShown = useRef(false);
 
-    const { data: currentFirstUser } = useFirstUser();
-    const { data: currentUSDT } = useUSDTAddress();
     const { data: currentDayStart } = useDayStartTimestamp();
     const { data: currentDayLength } = useDayLength();
     const { data: currentDay } = useCurrentDay();
-    
-    const { setFirstUser, isPending: pending1, isConfirming: confirming1, isSuccess: success1, error: error1 } = useSetFirstUser();
-    const { setPaymentToken, isPending: pending2, isConfirming: confirming2, isSuccess: success2, error: error2 } = useSetPaymentToken();
-    const { setDaySettings, isPending: pending3, isConfirming: confirming3, isSuccess: success3, error: error3 } = useSetDaySettings();
+
+    const { setDaySettings, isPending, isConfirming, isSuccess, error } = useSetDaySettings();
 
     useEffect(() => {
-        if (success1 && !toastShown1.current) {
-            toastShown1.current = true;
-            toast.success('First user updated!');
-            setFirstUserAddress('');
-        }
-        if (error1 && !toastShown1.current) {
-            toastShown1.current = true;
-            toast.error('Failed to set first user');
-        }
-    }, [success1, error1]);
-
-    useEffect(() => {
-        if (success2 && !toastShown2.current) {
-            toastShown2.current = true;
-            toast.success('Payment token updated!');
-            setPaymentTokenAddress('');
-        }
-        if (error2 && !toastShown2.current) {
-            toastShown2.current = true;
-            toast.error('Failed to set payment token');
-        }
-    }, [success2, error2]);
-
-    useEffect(() => {
-        if (success3 && !toastShown3.current) {
-            toastShown3.current = true;
-            toast.success('Day settings initialized! Daily limits are now active.');
+        if (isSuccess && !toastShown.current) {
+            toastShown.current = true;
+            toast.success('Day settings initialized!');
             setDayStartTimestamp('');
         }
-        if (error3 && !toastShown3.current) {
-            toastShown3.current = true;
+        if (error && !toastShown.current) {
+            toastShown.current = true;
             toast.error('Failed to set day settings');
         }
-    }, [success3, error3]);
+    }, [isSuccess, error]);
 
-    const handleSetFirstUser = () => {
-        if (!firstUserAddress) return;
-        toastShown1.current = false;
-        setFirstUser(firstUserAddress as `0x${string}`);
-    };
-
-    const handleSetPaymentToken = () => {
-        if (!paymentTokenAddress) return;
-        toastShown2.current = false;
-        setPaymentToken(paymentTokenAddress as `0x${string}`);
-    };
-
-    const handleInitializeDaySettings = () => {
+    const handleInitialize = () => {
         if (!dayStartTimestamp || !dayLength) return;
-        toastShown3.current = false;
+        toastShown.current = false;
         setDaySettings(BigInt(dayStartTimestamp), BigInt(dayLength));
     };
 
@@ -110,24 +88,12 @@ function ContractSettings() {
     };
 
     return (
-        <Card variant="stat" hover>
-            <h3 className="text-sm font-semibold text-[#F8FAFC] mb-4">🔧 Contract Settings</h3>
-
-            {/* Current Values */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-                {Boolean(currentFirstUser) && (
-                    <div className="p-3 bg-[#0F172A] rounded-lg">
-                        <p className="text-xs text-[#64748B] mb-1">Current First User</p>
-                        <p className="text-sm text-[#F8FAFC] font-mono truncate">{String(currentFirstUser)}</p>
-                    </div>
-                )}
-                {Boolean(currentUSDT) && (
-                    <div className="p-3 bg-[#0F172A] rounded-lg">
-                        <p className="text-xs text-[#64748B] mb-1">Current USDT Token</p>
-                        <p className="text-sm text-[#10B981] font-mono truncate">{String(currentUSDT)}</p>
-                    </div>
-                )}
-            </div>
+        <Card variant="default">
+            <h3 className="text-sm font-semibold text-[#F8FAFC] mb-3">🕐 Initialize Day Settings</h3>
+            <p className="text-xs text-[#64748B] mb-2">
+                Required for daily trading limits. Day 0 start timestamp and day length in seconds.
+            </p>
+            <p className="text-xs text-[#F59E0B] mb-4">⚠️ Run this once after deployment</p>
 
             {/* Current Day Settings */}
             {Boolean(currentDayStart) && currentDayStart !== BigInt(0) && (
@@ -159,332 +125,391 @@ function ContractSettings() {
                 </div>
             )}
 
-            <div className="space-y-4">
-                {/* Set First User */}
-                <div className="p-3 bg-[#0F172A] rounded-lg">
-                    <label className="text-sm text-[#F8FAFC] block mb-1">Set First User</label>
-                    <p className="text-xs text-[#64748B] mb-2">Root user / company wallet address</p>
-                    <div className="flex gap-2">
-                        <input
-                            type="text"
-                            value={firstUserAddress}
-                            onChange={(e) => setFirstUserAddress(e.target.value)}
-                            placeholder="0x..."
-                            className="flex-1 px-3 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-white font-mono text-sm focus:border-[#EC4899] outline-none"
-                        />
-                        <Button
-                            variant="primary"
-                            size="sm"
-                            onClick={handleSetFirstUser}
-                            disabled={pending1 || confirming1 || !firstUserAddress}
+            <div className="space-y-3">
+                {/* Quick Select Timezone */}
+                <div>
+                    <label className="text-xs text-[#94A3B8] block mb-1">Quick Select Timezone</label>
+                    <select
+                        onChange={(e) => {
+                            if (e.target.value) {
+                                const offset = parseInt(e.target.value);
+                                const now = Math.floor(Date.now() / 1000);
+                                setDayStartTimestamp((now + offset).toString());
+                            }
+                        }}
+                        className="w-full px-3 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-white text-sm focus:border-[#EC4899] outline-none"
+                    >
+                        <option value="">Select Country/Timezone</option>
+                        <option value="19800">🇮🇳 India (IST, UTC+5:30)</option>
+                        <option value="14400">🇦🇪 Dubai (GST, UTC+4:00)</option>
+                        <option value="0">🇬🇧 London (GMT, UTC+0:00)</option>
+                        <option value="-18000">🇺🇸 New York (EST, UTC-5:00)</option>
+                        <option value="-28800">🇺🇸 Los Angeles (PST, UTC-8:00)</option>
+                        <option value="32400">🇯🇵 Tokyo (JST, UTC+9:00)</option>
+                        <option value="28800">🇨🇳 China (CST, UTC+8:00)</option>
+                        <option value="28800">🇸🇬 Singapore (SGT, UTC+8:00)</option>
+                        <option value="36000">🇦🇺 Sydney (AEST, UTC+10:00)</option>
+                        <option value="10800">🇷🇺 Moscow (MSK, UTC+3:00)</option>
+                    </select>
+                </div>
+
+                {/* Adjust Time (Optional) */}
+                <div>
+                    <label className="text-xs text-[#94A3B8] block mb-1">Adjust Time (Optional)</label>
+                    <div className="grid grid-cols-2 gap-2 mb-2">
+                        <button
+                            onClick={() => {
+                                if (!dayStartTimestamp) return;
+                                const ts = parseInt(dayStartTimestamp);
+                                const date = new Date(ts * 1000);
+                                date.setHours(0, 0, 0, 0);
+                                setDayStartTimestamp(Math.floor(date.getTime() / 1000).toString());
+                            }}
+                            disabled={!dayStartTimestamp}
+                            className="px-3 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-white text-xs hover:border-[#EC4899] disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {pending1 || confirming1 ? '...' : 'Set'}
-                        </Button>
+                            🌙 Set to Midnight (12:00 AM)
+                        </button>
+                        <button
+                            onClick={() => {
+                                if (!dayStartTimestamp) return;
+                                const ts = parseInt(dayStartTimestamp);
+                                const date = new Date(ts * 1000);
+                                date.setHours(12, 0, 0, 0);
+                                setDayStartTimestamp(Math.floor(date.getTime() / 1000).toString());
+                            }}
+                            disabled={!dayStartTimestamp}
+                            className="px-3 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-white text-xs hover:border-[#F59E0B] disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            ☀️ Set to Noon (12:00 PM)
+                        </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                        <button
+                            onClick={() => {
+                                if (!dayStartTimestamp) return;
+                                const ts = parseInt(dayStartTimestamp);
+                                const newTs = ts - 86400; // Subtract 1 day
+                                setDayStartTimestamp(newTs.toString());
+                            }}
+                            disabled={!dayStartTimestamp}
+                            className="px-3 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-white text-xs hover:border-[#3B82F6] disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            ⬅️ Previous Day (-24h)
+                        </button>
+                        <button
+                            onClick={() => {
+                                if (!dayStartTimestamp) return;
+                                const ts = parseInt(dayStartTimestamp);
+                                const newTs = ts + 86400; // Add 1 day
+                                setDayStartTimestamp(newTs.toString());
+                            }}
+                            disabled={!dayStartTimestamp}
+                            className="px-3 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-white text-xs hover:border-[#3B82F6] disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            Next Day (+24h) ➡️
+                        </button>
                     </div>
                 </div>
 
-                {/* Set Payment Token */}
-                <div className="p-3 bg-[#0F172A] rounded-lg">
-                    <label className="text-sm text-[#F8FAFC] block mb-1">Set Payment Token</label>
-                    <p className="text-xs text-[#64748B] mb-2">USDT contract address</p>
+                {/* Timestamp Input */}
+                <div>
+                    <label className="text-xs text-[#94A3B8] block mb-1">Start Timestamp (Unix)</label>
                     <div className="flex gap-2">
                         <input
                             type="text"
-                            value={paymentTokenAddress}
-                            onChange={(e) => setPaymentTokenAddress(e.target.value)}
-                            placeholder="0x..."
+                            value={dayStartTimestamp}
+                            onChange={(e) => setDayStartTimestamp(e.target.value)}
+                            placeholder="1737565800"
                             className="flex-1 px-3 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-white font-mono text-sm focus:border-[#EC4899] outline-none"
                         />
-                        <Button
-                            variant="danger"
-                            size="sm"
-                            onClick={handleSetPaymentToken}
-                            disabled={pending2 || confirming2 || !paymentTokenAddress}
-                        >
-                            {pending2 || confirming2 ? '...' : 'Set'}
+                        <Button variant="secondary" size="sm" onClick={handleUseCurrentTime}>
+                            Now
                         </Button>
                     </div>
+                    {dayStartTimestamp && (
+                        <p className="text-[10px] text-[#10B981] mt-1">
+                            📅 {new Date(parseInt(dayStartTimestamp) * 1000).toLocaleString('en-US', {
+                                dateStyle: 'full',
+                                timeStyle: 'long'
+                            })}
+                        </p>
+                    )}
                 </div>
 
-                {/* Initialize Day Settings */}
-                <div className="p-3 bg-[#0F172A] rounded-lg border-2 border-[#EC4899]/30">
-                    <label className="text-sm text-[#F8FAFC] block mb-1">🕐 Initialize Day Settings</label>
-                    <p className="text-xs text-[#64748B] mb-3">
-                        Required for daily trading limits. Day 0 start timestamp and day length in seconds.
-                        <span className="block mt-1 text-[#EC4899]">⚠️ Run this once after deployment!</span>
-                    </p>
-                    
-                    <div className="space-y-2">
-                        <div>
-                            <label className="text-xs text-[#94A3B8] block mb-1">Quick Select Timezone</label>
-                            <select
-                                onChange={(e) => {
-                                    if (e.target.value) {
-                                        const offset = parseInt(e.target.value);
-                                        const now = Math.floor(Date.now() / 1000);
-                                        setDayStartTimestamp((now + offset).toString());
-                                    }
-                                }}
-                                className="w-full px-3 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-white text-sm focus:border-[#EC4899] outline-none"
-                            >
-                                <option value="">Select Country/Timezone</option>
-                                <option value="19800">🇮🇳 India (IST, UTC+5:30)</option>
-                                <option value="14400">🇦🇪 Dubai (GST, UTC+4:00)</option>
-                                <option value="0">🇬🇧 London (GMT, UTC+0:00)</option>
-                                <option value="-18000">🇺🇸 New York (EST, UTC-5:00)</option>
-                                <option value="-28800">🇺🇸 Los Angeles (PST, UTC-8:00)</option>
-                                <option value="32400">🇯🇵 Tokyo (JST, UTC+9:00)</option>
-                                <option value="28800">🇨🇳 China (CST, UTC+8:00)</option>
-                                <option value="28800">🇸🇬 Singapore (SGT, UTC+8:00)</option>
-                                <option value="36000">🇦🇺 Sydney (AEST, UTC+10:00)</option>
-                                <option value="10800">🇷🇺 Moscow (MSK, UTC+3:00)</option>
-                            </select>
-                        </div>
-                        
-                        <div>
-                            <label className="text-xs text-[#94A3B8] block mb-1">Adjust Time (Optional)</label>
-                            <div className="grid grid-cols-2 gap-2 mb-2">
-                                <button
-                                    onClick={() => {
-                                        if (!dayStartTimestamp) return;
-                                        const ts = parseInt(dayStartTimestamp);
-                                        const date = new Date(ts * 1000);
-                                        date.setHours(0, 0, 0, 0);
-                                        setDayStartTimestamp(Math.floor(date.getTime() / 1000).toString());
-                                    }}
-                                    disabled={!dayStartTimestamp}
-                                    className="px-3 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-white text-xs hover:border-[#EC4899] disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    🌙 Set to Midnight (12:00 AM)
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        if (!dayStartTimestamp) return;
-                                        const ts = parseInt(dayStartTimestamp);
-                                        const date = new Date(ts * 1000);
-                                        date.setHours(12, 0, 0, 0);
-                                        setDayStartTimestamp(Math.floor(date.getTime() / 1000).toString());
-                                    }}
-                                    disabled={!dayStartTimestamp}
-                                    className="px-3 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-white text-xs hover:border-[#EC4899] disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    ☀️ Set to Noon (12:00 PM)
-                                </button>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                                <button
-                                    onClick={() => {
-                                        if (!dayStartTimestamp) return;
-                                        const ts = parseInt(dayStartTimestamp);
-                                        const newTs = ts - 86400; // Subtract 1 day
-                                        setDayStartTimestamp(newTs.toString());
-                                    }}
-                                    disabled={!dayStartTimestamp}
-                                    className="px-3 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-white text-xs hover:border-[#3B82F6] disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    ⬅️ Previous Day (-24h)
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        if (!dayStartTimestamp) return;
-                                        const ts = parseInt(dayStartTimestamp);
-                                        const newTs = ts + 86400; // Add 1 day
-                                        setDayStartTimestamp(newTs.toString());
-                                    }}
-                                    disabled={!dayStartTimestamp}
-                                    className="px-3 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-white text-xs hover:border-[#3B82F6] disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    Next Day (+24h) ➡️
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <div>
-                            <label className="text-xs text-[#94A3B8] block mb-1">Start Timestamp (Unix)</label>
-                            <div className="flex gap-2">
-                                <input
-                                    type="text"
-                                    value={dayStartTimestamp}
-                                    onChange={(e) => setDayStartTimestamp(e.target.value)}
-                                    placeholder="1737565800"
-                                    className="flex-1 px-3 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-white font-mono text-sm focus:border-[#EC4899] outline-none"
-                                />
-                                <Button
-                                    variant="secondary"
-                                    size="sm"
-                                    onClick={handleUseCurrentTime}
-                                >
-                                    Now
-                                </Button>
-                            </div>
-                            {dayStartTimestamp && (
-                                <p className="text-[10px] text-[#10B981] mt-1">
-                                    📅 {new Date(parseInt(dayStartTimestamp) * 1000).toLocaleString('en-US', { 
-                                        dateStyle: 'full', 
-                                        timeStyle: 'long'
-                                    })}
-                                </p>
-                            )}
-                        </div>
-                        
-                        <div>
-                            <label className="text-xs text-[#94A3B8] block mb-1">Day Length (seconds)</label>
-                            <input
-                                type="text"
-                                value={dayLength}
-                                onChange={(e) => setDayLength(e.target.value)}
-                                placeholder="86400"
-                                className="w-full px-3 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-white font-mono text-sm focus:border-[#EC4899] outline-none"
-                            />
-                            <p className="text-[10px] text-[#64748B] mt-1">Default: 86400 (24 hours)</p>
-                        </div>
-                        
-                        <Button
-                            variant="primary"
-                            size="sm"
-                            onClick={handleInitializeDaySettings}
-                            disabled={pending3 || confirming3 || !dayStartTimestamp || !dayLength}
-                            className="w-full"
-                        >
-                            {pending3 || confirming3 ? 'Initializing...' : '🚀 Initialize Day Settings'}
-                        </Button>
-                    </div>
+                {/* Day Length */}
+                <div>
+                    <label className="text-xs text-[#94A3B8] block mb-1">Day Length (seconds)</label>
+                    <input
+                        type="text"
+                        value={dayLength}
+                        onChange={(e) => setDayLength(e.target.value)}
+                        placeholder="86400"
+                        className="w-full px-3 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-white font-mono text-sm focus:border-[#EC4899] outline-none"
+                    />
+                    <p className="text-[10px] text-[#64748B] mt-1">Default: 86400 (24 hours)</p>
                 </div>
+
+                <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={handleInitialize}
+                    disabled={isPending || isConfirming || !dayStartTimestamp || !dayLength}
+                    className="w-full"
+                >
+                    {isPending || isConfirming ? 'Initializing...' : '✨ Initialize Day Settings'}
+                </Button>
             </div>
         </Card>
     );
 }
 
-// Wallet Configuration Component
-function WalletSettings() {
-    const [wallets, setWallets] = useState({
-        buffer: '',
-        creator: '',
-        trip: '',
-        luckyDraw: '',
-    });
+// First User Settings Component
+function FirstUserSettings() {
+    const [firstUserAddress, setFirstUserAddress] = useState('');
     const toastShown = useRef(false);
 
-    const { setWallets: setWalletsContract, isPending, isConfirming, isSuccess, error } = useSetWallets();
+    const { data: currentFirstUser } = useFirstUser();
+    const { setFirstUser, isPending, isConfirming, isSuccess, error } = useSetFirstUser();
 
     useEffect(() => {
         if (isSuccess && !toastShown.current) {
             toastShown.current = true;
-            toast.success('Wallets updated successfully!');
+            toast.success('First user set successfully!');
+            setFirstUserAddress('');
         }
         if (error && !toastShown.current) {
             toastShown.current = true;
-            toast.error('Failed to update wallets');
+            toast.error('Failed to set first user');
         }
     }, [isSuccess, error]);
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSetFirstUser = () => {
+        if (!firstUserAddress) return;
         toastShown.current = false;
-
-        if (!wallets.buffer || !wallets.creator || !wallets.trip || !wallets.luckyDraw) {
-            toast.error('All wallet addresses are required');
-            return;
-        }
-
-        setWalletsContract(
-            wallets.buffer as `0x${string}`,
-            wallets.creator as `0x${string}`,
-            wallets.trip as `0x${string}`,
-            wallets.luckyDraw as `0x${string}`
-        );
+        setFirstUser(firstUserAddress as `0x${string}`);
     };
 
     return (
         <Card variant="default">
-            <h3 className="text-sm font-semibold text-[#F8FAFC] mb-4">💼 Distribution Wallets</h3>
-            <form onSubmit={handleSubmit} className="space-y-4">
-                {[
-                    { key: 'buffer', label: 'Buffer Wallet', desc: 'Buffer reserve wallet' },
-                    { key: 'creator', label: 'Creator Wallet', desc: 'Creator commission wallet' },
-                    { key: 'trip', label: 'Trip Wallet', desc: 'Trip reward wallet' },
-                    { key: 'luckyDraw', label: 'Lucky Draw Wallet', desc: 'Lucky draw pool wallet' },
-                ].map((item) => (
-                    <div key={item.key} className="p-3 bg-[#0F172A] rounded-lg">
-                        <label className="text-sm text-[#F8FAFC] block mb-1">{item.label}</label>
-                        <p className="text-xs text-[#64748B] mb-2">{item.desc}</p>
-                        <input
-                            type="text"
-                            value={wallets[item.key as keyof typeof wallets]}
-                            onChange={(e) => setWallets({ ...wallets, [item.key]: e.target.value })}
-                            placeholder="0x..."
-                            className="w-full px-4 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-white font-mono text-sm focus:border-[#EC4899] outline-none"
-                        />
-                    </div>
-                ))}
+            <h3 className="text-sm font-semibold text-[#F8FAFC] mb-3">👤 Set First User</h3>
+            <p className="text-xs text-[#64748B] mb-4">Root user / company wallet address</p>
 
+            {/* Current First User */}
+            {Boolean(currentFirstUser) && currentFirstUser !== '0x0000000000000000000000000000000000000000' && (
+                <div className="p-3 bg-[#10B981]/10 border border-[#10B981]/30 rounded-lg mb-4">
+                    <p className="text-xs text-[#10B981] font-bold mb-1">✅ Current First User</p>
+                    <p className="text-xs text-[#F8FAFC] font-mono truncate">{String(currentFirstUser)}</p>
+                </div>
+            )}
+
+            <div className="flex gap-2">
+                <input
+                    type="text"
+                    value={firstUserAddress}
+                    onChange={(e) => setFirstUserAddress(e.target.value)}
+                    placeholder="0x..."
+                    className="flex-1 px-3 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-white font-mono text-sm focus:border-[#EC4899] outline-none"
+                />
                 <Button
-                    type="submit"
                     variant="primary"
-                    disabled={isPending || isConfirming}
-                    className="w-full"
+                    size="sm"
+                    onClick={handleSetFirstUser}
+                    disabled={isPending || isConfirming || !firstUserAddress}
                 >
-                    {isPending ? 'Confirm in Wallet...' : isConfirming ? 'Updating...' : 'Update Wallets'}
+                    {isPending || isConfirming ? '...' : 'Set'}
                 </Button>
-            </form>
+            </div>
         </Card>
     );
 }
 
-// Pool Management Component
+// Creator Wallet Settings Component
+function CreatorWalletSettings() {
+    const [creatorAddress, setCreatorAddress] = useState('');
+    const toastShown = useRef(false);
+
+    const { data: currentCreator } = useCreatorWallet();
+    const { setCreatorWallet, isPending, isConfirming, isSuccess, error } = useSetCreatorWallet();
+
+    useEffect(() => {
+        if (isSuccess && !toastShown.current) {
+            toastShown.current = true;
+            toast.success('Creator wallet updated!');
+            setCreatorAddress('');
+        }
+        if (error && !toastShown.current) {
+            toastShown.current = true;
+            toast.error('Failed to update creator wallet');
+        }
+    }, [isSuccess, error]);
+
+    const handleSubmit = () => {
+        if (!creatorAddress) return;
+        toastShown.current = false;
+        setCreatorWallet(creatorAddress as `0x${string}`);
+    };
+
+    return (
+        <Card variant="default">
+            <h3 className="text-sm font-semibold text-[#F8FAFC] mb-4">💼 Creator Wallet</h3>
+
+            {/* Current Wallet */}
+            {Boolean(currentCreator) && (
+                <div className="p-3 bg-[#0F172A] rounded-lg mb-4">
+                    <p className="text-xs text-[#64748B] mb-1">Current Creator Wallet</p>
+                    <p className="text-sm text-[#10B981] font-mono truncate">{String(currentCreator)}</p>
+                </div>
+            )}
+
+            <div className="space-y-3">
+                <div>
+                    <label className="text-sm text-[#F8FAFC] block mb-1">New Creator Wallet</label>
+                    <p className="text-xs text-[#64748B] mb-2">Wallet to receive creator commissions</p>
+                    <input
+                        type="text"
+                        value={creatorAddress}
+                        onChange={(e) => setCreatorAddress(e.target.value)}
+                        placeholder="0x..."
+                        className="w-full px-4 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-white font-mono text-sm focus:border-[#EC4899] outline-none"
+                    />
+                </div>
+
+                <Button
+                    variant="primary"
+                    onClick={handleSubmit}
+                    disabled={isPending || isConfirming || !creatorAddress}
+                    className="w-full"
+                >
+                    {isPending ? 'Confirm in Wallet...' : isConfirming ? 'Updating...' : 'Update Creator Wallet'}
+                </Button>
+            </div>
+        </Card>
+    );
+}
+
+// Unified Pool Management Component
 function PoolManagement() {
-    const { address } = useAccount();
-    const { data: poolBalance } = useWeeklyPoolBalance();
+    const poolBalances = useAllPoolBalances();
     const [showDepositModal, setShowDepositModal] = useState(false);
     const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+    const [selectedPool, setSelectedPool] = useState<PoolType>(PoolType.WEEKLY_POOL);
 
-    const formatPool = () => {
-        if (!poolBalance) return '$0';
-        return `$${Number(formatUnits(poolBalance as bigint, 18)).toLocaleString()}`;
+    const pools = [
+        { type: PoolType.WEEKLY_POOL, name: 'Weekly Share Pool', icon: '📅', color: '#3B82F6', balance: poolBalances.weekly },
+        { type: PoolType.LUCKY_DRAW_POOL, name: 'Lucky Draw Pool', icon: '🎰', color: '#D946EF', balance: poolBalances.luckyDraw },
+        { type: PoolType.RANK_EMI_POOL, name: 'Rank EMI Pool', icon: '💎', color: '#10B981', balance: poolBalances.rankEmi },
+        { type: PoolType.TRIP_POOL, name: 'Trip Pool', icon: '✈️', color: '#F59E0B', balance: poolBalances.trip },
+        { type: PoolType.BUYSELL_POOL, name: 'BuySell Pool', icon: '🛒', color: '#EC4899', balance: poolBalances.buysell },
+        { type: PoolType.BUFFER_POOL, name: 'Buffer Pool', icon: '🏦', color: '#6366F1', balance: poolBalances.buffer },
+    ];
+
+    const formatBalance = (balance: bigint | undefined) => {
+        if (!balance) return '$0';
+        return `$${Number(formatUnits(balance, 18)).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+    };
+
+    const totalBalance = pools.reduce((sum, pool) => sum + (pool.balance || BigInt(0)), BigInt(0));
+
+    const openDeposit = (pool: PoolType) => {
+        setSelectedPool(pool);
+        setShowDepositModal(true);
+    };
+
+    const openWithdraw = (pool: PoolType) => {
+        setSelectedPool(pool);
+        setShowWithdrawModal(true);
     };
 
     return (
         <Card variant="glow">
-            <h3 className="text-sm font-semibold text-[#F8FAFC] mb-4">💰 Main Pool (EMI/Rewards)</h3>
-
-            <div className="text-center p-6 bg-[#0F172A] rounded-xl mb-4">
-                <p className="text-[#64748B] text-sm mb-2">Main Pool Balance</p>
-                <p className="text-3xl font-bold text-[#10B981] font-mono">{formatPool()}</p>
-                <p className="text-xs text-[#64748B] mt-2">Used for Rank EMI, Fast Bonus payments</p>
+            <div className="flex justify-between items-center mb-4">
+                <div>
+                    <h3 className="text-sm font-semibold text-[#F8FAFC]">💰 Pool Management</h3>
+                    <p className="text-xs text-[#64748B]">All platform pools and balances</p>
+                </div>
+                <div className="text-right">
+                    <p className="text-xs text-[#64748B]">Total Balance</p>
+                    <p className="text-lg font-bold text-[#10B981]">{formatBalance(totalBalance)}</p>
+                </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-                <Button variant="primary" onClick={() => setShowDepositModal(true)}>
-                    Deposit
-                </Button>
-                <Button variant="danger" onClick={() => setShowWithdrawModal(true)}>
-                    Withdraw
-                </Button>
+            {/* Pool Grid */}
+            <div className="grid grid-cols-1 gap-3">
+                {pools.map((pool) => (
+                    <div
+                        key={pool.type}
+                        className="p-3 bg-[#0F172A] rounded-lg flex items-center justify-between"
+                        style={{ borderLeft: `3px solid ${pool.color}` }}
+                    >
+                        <div className="flex items-center gap-3">
+                            <span className="text-xl">{pool.icon}</span>
+                            <div>
+                                <p className="text-sm text-[#F8FAFC] font-medium">{pool.name}</p>
+                                <p className="text-lg font-bold font-mono" style={{ color: pool.color }}>
+                                    {formatBalance(pool.balance)}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex gap-2">
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => openDeposit(pool.type)}
+                            >
+                                +
+                            </Button>
+                            <Button
+                                variant="danger"
+                                size="sm"
+                                onClick={() => openWithdraw(pool.type)}
+                            >
+                                −
+                            </Button>
+                        </div>
+                    </div>
+                ))}
             </div>
 
-            {/* Deposit Modal */}
-            <DepositModal
+            <UnifiedDepositModal
                 isOpen={showDepositModal}
                 onClose={() => setShowDepositModal(false)}
+                poolType={selectedPool}
+                onSuccess={poolBalances.refetch}
             />
-
-            {/* Withdraw Modal */}
-            <WithdrawModal
+            <UnifiedWithdrawModal
                 isOpen={showWithdrawModal}
                 onClose={() => setShowWithdrawModal(false)}
+                poolType={selectedPool}
+                onSuccess={poolBalances.refetch}
             />
         </Card>
     );
 }
 
-// Deposit Modal
-function DepositModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+// Pool Names Map
+const poolNames: Record<PoolType, string> = {
+    [PoolType.WEEKLY_POOL]: 'Weekly Share Pool',
+    [PoolType.LUCKY_DRAW_POOL]: 'Lucky Draw Pool',
+    [PoolType.RANK_EMI_POOL]: 'Rank EMI Pool',
+    [PoolType.TRIP_POOL]: 'Trip Pool',
+    [PoolType.BUYSELL_POOL]: 'BuySell Pool',
+    [PoolType.BUFFER_POOL]: 'Buffer Pool',
+};
+
+// Unified Deposit Modal
+function UnifiedDepositModal({ isOpen, onClose, poolType, onSuccess }: {
+    isOpen: boolean;
+    onClose: () => void;
+    poolType: PoolType;
+    onSuccess: () => void;
+}) {
     const [amount, setAmount] = useState('');
     const [step, setStep] = useState<'approve' | 'deposit'>('approve');
     const toastShown = useRef(false);
 
     const { approve, isPending: approvePending, isConfirming: approveConfirming, isSuccess: approveSuccess, error: approveError } = useApproveUSDT();
-    const { depositToPool, isPending: depositPending, isConfirming: depositConfirming, isSuccess: depositSuccess, error: depositError } = useDepositToPool();
+    const { addToPool, isPending: depositPending, isConfirming: depositConfirming, isSuccess: depositSuccess, error: depositError } = useAddToPool();
 
     useEffect(() => {
         if (approveSuccess && step === 'approve') {
@@ -504,18 +529,19 @@ function DepositModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => voi
             onClose();
             setAmount('');
             setStep('approve');
+            onSuccess();
         }
         if (depositError && !toastShown.current) {
             toastShown.current = true;
             toast.error('Deposit failed');
         }
-    }, [depositSuccess, depositError, onClose]);
+    }, [depositSuccess, depositError, onClose, onSuccess]);
 
-    // Reset when modal opens
     useEffect(() => {
         if (isOpen) {
             toastShown.current = false;
             setStep('approve');
+            setAmount('');
         }
     }, [isOpen]);
 
@@ -528,11 +554,11 @@ function DepositModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => voi
     const handleDeposit = () => {
         if (!amount) return;
         toastShown.current = false;
-        depositToPool(amount);
+        addToPool(poolType, amount);
     };
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Deposit to Pool" size="sm">
+        <Modal isOpen={isOpen} onClose={onClose} title={`Deposit to ${poolNames[poolType]}`} size="sm">
             <div className="space-y-4">
                 <div>
                     <label className="text-sm text-[#64748B]">Amount (USDT)</label>
@@ -569,13 +595,18 @@ function DepositModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => voi
     );
 }
 
-// Withdraw Modal
-function WithdrawModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+// Unified Withdraw Modal
+function UnifiedWithdrawModal({ isOpen, onClose, poolType, onSuccess }: {
+    isOpen: boolean;
+    onClose: () => void;
+    poolType: PoolType;
+    onSuccess: () => void;
+}) {
     const [amount, setAmount] = useState('');
     const [toAddress, setToAddress] = useState('');
     const toastShown = useRef(false);
 
-    const { withdrawFromPool, isPending, isConfirming, isSuccess, error } = useWithdrawFromPool();
+    const { withdrawFromAnyPool, isPending, isConfirming, isSuccess, error } = useWithdrawFromAnyPool();
 
     useEffect(() => {
         if (isSuccess && !toastShown.current) {
@@ -584,16 +615,19 @@ function WithdrawModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
             onClose();
             setAmount('');
             setToAddress('');
+            onSuccess();
         }
         if (error && !toastShown.current) {
             toastShown.current = true;
             toast.error('Withdrawal failed');
         }
-    }, [isSuccess, error, onClose]);
+    }, [isSuccess, error, onClose, onSuccess]);
 
     useEffect(() => {
         if (isOpen) {
             toastShown.current = false;
+            setAmount('');
+            setToAddress('');
         }
     }, [isOpen]);
 
@@ -603,11 +637,11 @@ function WithdrawModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
             return;
         }
         toastShown.current = false;
-        withdrawFromPool(toAddress as `0x${string}`, amount);
+        withdrawFromAnyPool(poolType, amount, toAddress as `0x${string}`);
     };
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Withdraw from Pool" size="sm">
+        <Modal isOpen={isOpen} onClose={onClose} title={`Withdraw from ${poolNames[poolType]}`} size="sm">
             <div className="space-y-4">
                 <div>
                     <label className="text-sm text-[#64748B]">To Address</label>
@@ -641,5 +675,248 @@ function WithdrawModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
                 </Button>
             </div>
         </Modal>
+    );
+}
+
+// ============ REVENUE SPLITTER SECTION ============
+function RevenueSplitterSection() {
+    const { data: pendingBalance, refetch: refetchBalance } = usePendingBalance();
+    const { data: totalDistributed } = useTotalDistributed();
+    const { data: totalSharePercent } = useTotalSharePercent();
+    const { data: isConfigured } = useIsConfigured();
+    const { data: shareholdersData, refetch: refetchShareholders } = useGetAllShareholders();
+
+    const { distribute, isPending: distPending, isConfirming: distConfirming, isSuccess: distSuccess, error: distError } = useDistribute();
+    const { addShareholder, isPending: addPending, isConfirming: addConfirming, isSuccess: addSuccess, error: addError } = useAddShareholder();
+    const { removeShareholder, isPending: remPending, isConfirming: remConfirming, isSuccess: remSuccess } = useRemoveShareholder();
+    const { batchAddShareholders, isPending: batchPending, isConfirming: batchConfirming, isSuccess: batchSuccess, error: batchError } = useBatchAddShareholders();
+
+    const [newWallet, setNewWallet] = useState('');
+    const [newShare, setNewShare] = useState('');
+    const [batchEntries, setBatchEntries] = useState<{ wallet: string, share: string }[]>([
+        { wallet: '', share: '' },
+        { wallet: '', share: '' },
+    ]);
+    const [removingAddr, setRemovingAddr] = useState<string | null>(null);
+    const toastShown = useRef(false);
+
+    // Toast handlers
+    useEffect(() => {
+        if (distSuccess && !toastShown.current) {
+            toastShown.current = true;
+            toast.success('Funds distributed!');
+            refetchBalance();
+            refetchShareholders();
+        }
+        if (distError) toast.error('Distribution failed');
+    }, [distSuccess, distError, refetchBalance, refetchShareholders]);
+
+    useEffect(() => {
+        if (addSuccess) {
+            toast.success('Shareholder added!');
+            setNewWallet('');
+            setNewShare('');
+            refetchShareholders();
+        }
+        if (addError) toast.error('Failed to add');
+    }, [addSuccess, addError, refetchShareholders]);
+
+    useEffect(() => {
+        if (remSuccess) {
+            toast.success('Removed!');
+            setRemovingAddr(null);
+            refetchShareholders();
+        }
+    }, [remSuccess, refetchShareholders]);
+
+    useEffect(() => {
+        if (batchSuccess) {
+            toast.success('Shareholders configured!');
+            setBatchEntries([{ wallet: '', share: '' }, { wallet: '', share: '' }]);
+            refetchShareholders();
+        }
+        if (batchError) toast.error('Batch config failed');
+    }, [batchSuccess, batchError, refetchShareholders]);
+
+    // Parse shareholders
+    const shareholders: { wallet: string; share: bigint; totalPaid: bigint }[] = [];
+    if (shareholdersData) {
+        const [wallets, shares, totalPaid] = shareholdersData as [string[], bigint[], bigint[]];
+        for (let i = 0; i < wallets.length; i++) {
+            shareholders.push({ wallet: wallets[i], share: shares[i], totalPaid: totalPaid[i] });
+        }
+    }
+
+    const formatUSDT = (value: bigint | undefined) => {
+        if (!value) return '$0';
+        return `$${Number(formatUnits(value, 18)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    };
+
+    const handleDistribute = () => {
+        toastShown.current = false;
+        distribute();
+    };
+
+    const handleAddShareholder = () => {
+        if (!newWallet || !newShare) return;
+        addShareholder(newWallet as `0x${string}`, BigInt(newShare));
+    };
+
+    const handleRemove = (wallet: string) => {
+        setRemovingAddr(wallet);
+        removeShareholder(wallet as `0x${string}`);
+    };
+
+    const updateBatchEntry = (idx: number, field: 'wallet' | 'share', value: string) => {
+        const updated = [...batchEntries];
+        updated[idx][field] = value;
+        setBatchEntries(updated);
+    };
+
+    const batchTotal = batchEntries.reduce((sum, e) => sum + (parseInt(e.share) || 0), 0);
+
+    const handleBatchAdd = () => {
+        const valid = batchEntries.filter(e => e.wallet && e.share);
+        if (valid.length === 0) return;
+        batchAddShareholders(
+            valid.map(e => e.wallet as `0x${string}`),
+            valid.map(e => BigInt(e.share))
+        );
+    };
+
+    return (
+        <Card variant="glow">
+            <div className="flex justify-between items-start mb-4">
+                <div>
+                    <h3 className="text-sm font-semibold text-[#F8FAFC]">💸 Revenue Splitter</h3>
+                    <p className="text-xs text-[#64748B]">Manage creator commission distribution</p>
+                    <p className="text-[10px] text-[#EC4899] font-mono mt-1">{CONTRACTS.REVENUE_SPLITTER}</p>
+                </div>
+                <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={handleDistribute}
+                    disabled={distPending || distConfirming || !isConfigured || !pendingBalance || pendingBalance === BigInt(0)}
+                >
+                    {distPending || distConfirming ? '...' : '💸 Distribute'}
+                </Button>
+            </div>
+
+            {/* Stats Row */}
+            <div className="grid grid-cols-3 gap-3 mb-4">
+                <div className="p-3 bg-[#0F172A] rounded-lg text-center">
+                    <p className="text-[10px] text-[#64748B]">Pending</p>
+                    <p className="text-lg font-bold text-[#10B981]">{formatUSDT(pendingBalance as bigint)}</p>
+                </div>
+                <div className="p-3 bg-[#0F172A] rounded-lg text-center">
+                    <p className="text-[10px] text-[#64748B]">Total Distributed</p>
+                    <p className="text-lg font-bold text-[#3B82F6]">{formatUSDT(totalDistributed as bigint)}</p>
+                </div>
+                <div className="p-3 bg-[#0F172A] rounded-lg text-center">
+                    <p className="text-[10px] text-[#64748B]">Allocation</p>
+                    <p className={`text-lg font-bold ${isConfigured ? 'text-[#10B981]' : 'text-[#EF4444]'}`}>
+                        {totalSharePercent?.toString() || '0'}%
+                    </p>
+                </div>
+            </div>
+
+            {/* Current Shareholders */}
+            {shareholders.length > 0 && (
+                <div className="mb-4">
+                    <p className="text-xs text-[#64748B] mb-2">👥 Shareholders</p>
+                    <div className="space-y-2">
+                        {shareholders.map((sh, idx) => (
+                            <div key={idx} className="flex items-center justify-between p-2 bg-[#0F172A] rounded-lg">
+                                <div className="flex-1 min-w-0 mr-2">
+                                    <p className="text-xs text-[#F8FAFC] font-mono truncate">{sh.wallet}</p>
+                                    <p className="text-[10px] text-[#64748B]">{sh.share.toString()}% • Paid: {formatUSDT(sh.totalPaid)}</p>
+                                </div>
+                                <Button
+                                    variant="danger"
+                                    size="sm"
+                                    onClick={() => handleRemove(sh.wallet)}
+                                    disabled={remPending || remConfirming}
+                                >
+                                    {removingAddr === sh.wallet ? '...' : '✕'}
+                                </Button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Add Single */}
+            <div className="p-3 bg-[#0F172A] rounded-lg mb-4">
+                <p className="text-xs text-[#64748B] mb-2">➕ Add Shareholder</p>
+                <div className="flex gap-2">
+                    <input
+                        type="text"
+                        value={newWallet}
+                        onChange={(e) => setNewWallet(e.target.value)}
+                        placeholder="0x..."
+                        className="flex-1 px-2 py-1.5 bg-[#1E293B] border border-[#334155] rounded text-white font-mono text-xs"
+                    />
+                    <input
+                        type="number"
+                        value={newShare}
+                        onChange={(e) => setNewShare(e.target.value)}
+                        placeholder="%"
+                        className="w-16 px-2 py-1.5 bg-[#1E293B] border border-[#334155] rounded text-white text-xs"
+                    />
+                    <Button variant="primary" size="sm" onClick={handleAddShareholder} disabled={addPending || addConfirming}>
+                        {addPending || addConfirming ? '...' : '+'}
+                    </Button>
+                </div>
+            </div>
+
+            {/* Batch Config */}
+            <div className="p-3 bg-[#EC4899]/10 border border-[#EC4899]/30 rounded-lg">
+                <p className="text-xs text-[#EC4899] font-bold mb-2">🔄 Batch Configure (Replaces All - Must = 100%)</p>
+                <div className="space-y-2">
+                    {batchEntries.map((entry, idx) => (
+                        <div key={idx} className="flex gap-2">
+                            <input
+                                type="text"
+                                value={entry.wallet}
+                                onChange={(e) => updateBatchEntry(idx, 'wallet', e.target.value)}
+                                placeholder="0x..."
+                                className="flex-1 px-2 py-1.5 bg-[#0F172A] border border-[#334155] rounded text-white font-mono text-xs"
+                            />
+                            <input
+                                type="number"
+                                value={entry.share}
+                                onChange={(e) => updateBatchEntry(idx, 'share', e.target.value)}
+                                placeholder="%"
+                                className="w-16 px-2 py-1.5 bg-[#0F172A] border border-[#334155] rounded text-white text-xs"
+                            />
+                            {batchEntries.length > 1 && (
+                                <button
+                                    onClick={() => setBatchEntries(batchEntries.filter((_, i) => i !== idx))}
+                                    className="text-red-500 text-xs px-2"
+                                >✕</button>
+                            )}
+                        </div>
+                    ))}
+                    <div className="flex justify-between items-center mt-2">
+                        <button
+                            onClick={() => setBatchEntries([...batchEntries, { wallet: '', share: '' }])}
+                            className="text-xs text-[#3B82F6]"
+                        >+ Add More</button>
+                        <span className={`text-xs font-bold ${batchTotal === 100 ? 'text-[#10B981]' : 'text-[#EF4444]'}`}>
+                            Total: {batchTotal}%
+                        </span>
+                    </div>
+                    <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={handleBatchAdd}
+                        disabled={batchPending || batchConfirming || batchTotal !== 100}
+                        className="w-full mt-2"
+                    >
+                        {batchPending || batchConfirming ? 'Configuring...' : '🚀 Configure All'}
+                    </Button>
+                </div>
+            </div>
+        </Card>
     );
 }

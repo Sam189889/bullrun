@@ -30,13 +30,47 @@ export function useTotalWeeklyShares() {
 }
 
 /**
- * Get current week number
+ * Get current week number (manual mode value)
  */
 export function useCurrentWeek() {
     return useReadContract({
         address: CONTRACTS.BULL_RUN,
         abi: BullRunMainLogicABI,
         functionName: 'currentWeek',
+    })
+}
+
+/**
+ * Get current week number (auto-calculated or manual)
+ */
+export function useGetCurrentWeek() {
+    return useReadContract({
+        address: CONTRACTS.BULL_RUN,
+        abi: BullRunMainLogicABI,
+        functionName: 'getCurrentWeek',
+    })
+}
+
+/**
+ * Get week start timestamp
+ */
+export function useWeekStartTimestamp() {
+    return useReadContract({
+        address: CONTRACTS.BULL_RUN,
+        abi: BullRunMainLogicABI,
+        functionName: 'weekStartTimestamp',
+    })
+}
+
+
+/**
+ * Get lucky draw pool info
+ */
+export function useLuckyDrawPool() {
+    return useReadContract({
+        address: CONTRACTS.BULL_RUN,
+        abi: BullRunMainLogicABI,
+        functionName: 'luckyDrawPool',
     })
 }
 
@@ -92,6 +126,17 @@ export function useUSDTAddress() {
         address: CONTRACTS.BULL_RUN,
         abi: BullRunMainLogicABI,
         functionName: 'USDT',
+    })
+}
+
+/**
+ * Get current creator wallet address
+ */
+export function useCreatorWallet() {
+    return useReadContract({
+        address: CONTRACTS.BULL_RUN,
+        abi: BullRunMainLogicABI,
+        functionName: 'creatorWallet',
     })
 }
 
@@ -485,6 +530,27 @@ export function useCurrentDay() {
     })
 }
 
+// ============ WEEK MANAGEMENT HOOKS ============
+
+/**
+ * Set week start timestamp (auto mode for both Share Pool & Lucky Draw)
+ */
+export function useSetWeekStartTimestamp() {
+    const { writeContract, data: hash, isPending, error } = useWriteContract()
+    const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
+
+    const setStartTimestamp = (timestamp: bigint) => {
+        writeContract({
+            address: CONTRACTS.BULL_RUN,
+            abi: BullRunMainLogicABI,
+            functionName: 'setWeekStartTimestamp',
+            args: [timestamp],
+        })
+    }
+
+    return { setStartTimestamp, hash, isPending, isConfirming, isSuccess, error }
+}
+
 /**
  * Set day configuration for daily limit reset
  */
@@ -502,4 +568,151 @@ export function useSetDaySettings() {
     }
 
     return { setDaySettings, hash, isPending, isConfirming, isSuccess, error }
+}
+
+/**
+ * Set creator wallet address (calls setWallets in contract)
+ */
+export function useSetCreatorWallet() {
+    const { writeContract, data: hash, isPending, error } = useWriteContract()
+    const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
+
+    const setCreatorWallet = (creatorAddress: `0x${string}`) => {
+        writeContract({
+            address: CONTRACTS.BULL_RUN,
+            abi: BullRunMainLogicABI,
+            functionName: 'setWallets',
+            args: [creatorAddress],
+        })
+    }
+
+    return { setCreatorWallet, hash, isPending, isConfirming, isSuccess, error }
+}
+
+// ============ UNIFIED POOL MANAGEMENT ============
+
+/**
+ * Pool types enum matching contract
+ */
+export enum PoolType {
+    WEEKLY_POOL = 0,
+    LUCKY_DRAW_POOL = 1,
+    RANK_EMI_POOL = 2,
+    TRIP_POOL = 3,
+    BUYSELL_POOL = 4,
+    BUFFER_POOL = 5,
+}
+
+/**
+ * Get balance of any pool
+ */
+export function useGetPoolBalance(poolType: PoolType) {
+    return useReadContract({
+        address: CONTRACTS.BULL_RUN,
+        abi: BullRunMainLogicABI,
+        functionName: 'getPoolBalance',
+        args: [poolType],
+    })
+}
+
+/**
+ * Get all pool balances at once
+ */
+export function useAllPoolBalances() {
+    const weekly = useReadContract({
+        address: CONTRACTS.BULL_RUN,
+        abi: BullRunMainLogicABI,
+        functionName: 'getPoolBalance',
+        args: [PoolType.WEEKLY_POOL],
+    })
+    const luckyDraw = useReadContract({
+        address: CONTRACTS.BULL_RUN,
+        abi: BullRunMainLogicABI,
+        functionName: 'getPoolBalance',
+        args: [PoolType.LUCKY_DRAW_POOL],
+    })
+    const rankEmi = useReadContract({
+        address: CONTRACTS.BULL_RUN,
+        abi: BullRunMainLogicABI,
+        functionName: 'getPoolBalance',
+        args: [PoolType.RANK_EMI_POOL],
+    })
+    const trip = useReadContract({
+        address: CONTRACTS.BULL_RUN,
+        abi: BullRunMainLogicABI,
+        functionName: 'getPoolBalance',
+        args: [PoolType.TRIP_POOL],
+    })
+    const buysell = useReadContract({
+        address: CONTRACTS.BULL_RUN,
+        abi: BullRunMainLogicABI,
+        functionName: 'getPoolBalance',
+        args: [PoolType.BUYSELL_POOL],
+    })
+    const buffer = useReadContract({
+        address: CONTRACTS.BULL_RUN,
+        abi: BullRunMainLogicABI,
+        functionName: 'getPoolBalance',
+        args: [PoolType.BUFFER_POOL],
+    })
+
+    return {
+        weekly: weekly.data as bigint | undefined,
+        luckyDraw: luckyDraw.data as bigint | undefined,
+        rankEmi: rankEmi.data as bigint | undefined,
+        trip: trip.data as bigint | undefined,
+        buysell: buysell.data as bigint | undefined,
+        buffer: buffer.data as bigint | undefined,
+        isLoading: weekly.isLoading || luckyDraw.isLoading || rankEmi.isLoading || trip.isLoading || buysell.isLoading || buffer.isLoading,
+        refetch: async () => {
+            await Promise.all([
+                weekly.refetch(),
+                luckyDraw.refetch(),
+                rankEmi.refetch(),
+                trip.refetch(),
+                buysell.refetch(),
+                buffer.refetch(),
+            ])
+        }
+    }
+}
+
+/**
+ * Add funds to any pool (admin only)
+ */
+export function useAddToPool() {
+    const { writeContract, data: hash, isPending, error } = useWriteContract()
+    const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
+
+    const addToPool = (poolType: PoolType, amount: string) => {
+        const amountWei = parseUnits(amount, 18)
+        writeContract({
+            address: CONTRACTS.BULL_RUN,
+            abi: BullRunMainLogicABI,
+            functionName: 'addToPool',
+            args: [poolType, amountWei],
+        })
+    }
+
+    return { addToPool, hash, isPending, isConfirming, isSuccess, error }
+}
+
+/**
+ * Withdraw funds from any pool (admin only)
+ */
+export function useWithdrawFromAnyPool() {
+    const { writeContract, data: hash, isPending, error } = useWriteContract()
+    const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
+
+    const withdrawFromAnyPool = (poolType: PoolType, amount: string, recipient: `0x${string}`) => {
+        const amountWei = parseUnits(amount, 18)
+        writeContract({
+            address: CONTRACTS.BULL_RUN,
+            abi: BullRunMainLogicABI,
+            functionName: 'withdrawFromPool',
+            args: [poolType, amountWei, recipient],
+        })
+    }
+
+    return { withdrawFromAnyPool, hash, isPending, isConfirming, isSuccess, error }
 }

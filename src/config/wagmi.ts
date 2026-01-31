@@ -1,6 +1,14 @@
-import { http, createConfig } from 'wagmi'
+import { http, createConfig, fallback } from 'wagmi'
 import { Chain } from 'viem'
 import { CONTRACTS } from './constants'
+
+// Multiple RPC endpoints for opBNB Testnet (fallback on rate limit)
+const RPC_ENDPOINTS = [
+  'https://opbnb-testnet-rpc.bnbchain.org',
+  'https://opbnb-testnet.publicnode.com',
+  'https://opbnb-testnet.nodereal.io/v1/e9a36765eb8a40b9bd12e680a1fd2bc5',
+  'https://opbnb-testnet.drpc.org',
+]
 
 // opBNB Testnet Chain Definition with icon
 export const opBnbTestnet: Chain = {
@@ -12,20 +20,8 @@ export const opBnbTestnet: Chain = {
     symbol: 'tBNB',
   },
   rpcUrls: {
-    default: { 
-      http: [
-        'https://opbnb-testnet.nodereal.io/v1/e9a36765eb8a40b9bd12e680a1fd2bc5',
-        'https://opbnb-testnet-rpc.bnbchain.org',
-        'https://opbnb-testnet.publicnode.com',
-      ] 
-    },
-    public: { 
-      http: [
-        'https://opbnb-testnet.nodereal.io/v1/e9a36765eb8a40b9bd12e680a1fd2bc5',
-        'https://opbnb-testnet-rpc.bnbchain.org',
-        'https://opbnb-testnet.publicnode.com',
-      ] 
-    },
+    default: { http: RPC_ENDPOINTS },
+    public: { http: RPC_ENDPOINTS },
   },
   blockExplorers: {
     default: { name: 'opBNBScan', url: 'https://testnet.opbnbscan.com' },
@@ -36,11 +32,16 @@ export const opBnbTestnet: Chain = {
   iconBackground: '#F3BA2F',
 } as Chain & { iconUrl: string; iconBackground: string }
 
-// Wagmi Config
+// Wagmi Config with fallback transport (auto-failover on rate limit)
 export const config = createConfig({
   chains: [opBnbTestnet],
   transports: {
-    [opBnbTestnet.id]: http(),
+    [opBnbTestnet.id]: fallback(
+      RPC_ENDPOINTS.map(url => http(url, {
+        timeout: 10000,
+        retryCount: 2,
+      }))
+    ),
   },
 })
 
@@ -50,3 +51,4 @@ export const contracts = {
   bullRun: CONTRACTS.BULL_RUN,
   proxyAdmin: CONTRACTS.PROXY_ADMIN,
 }
+

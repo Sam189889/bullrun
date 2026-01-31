@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useAccount, useWaitForTransactionReceipt, useBalance } from 'wagmi';
 import { formatUnits } from 'viem';
+import toast from 'react-hot-toast';
 import {
     useUserId,
     useTotalNFTs,
@@ -128,11 +130,7 @@ function NFTCard({ nftId, userId, onSelect }: { nftId: number; userId: bigint | 
     if (isOwnNFT) return null;
 
     const formatUSD = (value: bigint) => `$${Number(formatUnits(value, 18)).toFixed(2)}`;
-    const priceNum = Number(formatUnits(currentPrice, 18));
     const buyCountNum = Number(buyCount);
-
-    // Hot NFT if traded more than 5 times or near $200
-    const isHot = priceNum >= 150 || buyCountNum >= 5;
 
     // Select bull image (1-11) based on NFT ID, cycling
     const bullImageNum = ((nftId - 1) % 11) + 1;
@@ -198,9 +196,9 @@ export function MarketplaceTab() {
     const { data: allowance, refetch: refetchAllowance } = useUSDTAllowance(address);
     const { data: availableLimit, refetch: refetchLimit } = useUserAvailableLimit(userId as bigint);
     const { data: dailyLimitData, refetch: refetchDailyLimitData } = useUserDailyLimitData(userId as bigint);
-    
+
     // Calculate actual remaining limit (totalLimit - usedLimit)
-    const actualRemainingLimit = dailyLimitData 
+    const actualRemainingLimit = dailyLimitData
         ? (dailyLimitData as readonly [bigint, bigint, bigint])[0] - (dailyLimitData as readonly [bigint, bigint, bigint])[1]
         : BigInt(0);
 
@@ -233,13 +231,13 @@ export function MarketplaceTab() {
 
     // Fetch balances
     const { data: nativeBalance } = useBalance({ address });
-    const { data: usdtBalance } = useUSDTBalance(address);
+    const { data: usdtBalance, refetch: refetchUSDTBalance } = useUSDTBalance(address);
 
     const { buyNFT, data: buyHash, isPending: buyPending } = useBuyNFT();
     const { approve, hash: approveHash, isPending: approvePending } = useApproveUSDT();
 
-    const { isSuccess: buySuccess } = useWaitForTransactionReceipt({ hash: buyHash });
-    const { isSuccess: approveSuccess } = useWaitForTransactionReceipt({ hash: approveHash });
+    const { isSuccess: buySuccess, isError: buyError } = useWaitForTransactionReceipt({ hash: buyHash });
+    const { isSuccess: approveSuccess, isError: approveError } = useWaitForTransactionReceipt({ hash: approveHash });
 
     const [pendingNftId, setPendingNftId] = useState<bigint | null>(null);
     const [pendingPrice, setPendingPrice] = useState<bigint | null>(null);
@@ -251,12 +249,14 @@ export function MarketplaceTab() {
     // After approve success, execute buy automatically
     useEffect(() => {
         if (approveSuccess && pendingNftId && isWaitingForApproval) {
-            console.log('✅ Approval confirmed! Executing buy...');
+            console.log('✅ Approval confirmed! Waiting for blockchain...');
             setIsWaitingForApproval(false);
-            // Small delay to ensure blockchain state is updated
+            toast.loading('⏳ Preparing purchase...', { id: 'buy-prep', duration: 3000 });
+            // Longer delay to avoid RPC rate limiting
             setTimeout(() => {
+                console.log('🚀 Executing buy...');
                 buyNFT(pendingNftId);
-            }, 500);
+            }, 3000); // Increased to 3 seconds for RPC rate limit
         }
     }, [approveSuccess, pendingNftId, isWaitingForApproval]);
 
@@ -264,21 +264,59 @@ export function MarketplaceTab() {
     useEffect(() => {
         if (buySuccess) {
             console.log('✅ Purchase successful!');
+            // Dismiss any loading toasts
+            toast.dismiss('buy-prep');
+            // Show success toast
+            toast.success('🎉 NFT Purchase Successful!', {
+                duration: 4000,
+                icon: '✅',
+            });
+
             setPendingNftId(null);
             setPendingPrice(null);
             setError('');
             setIsModalOpen(false); // Close modal on success
             setSelectedNFT(null);
+
+            // Refetch all data without reload
             refetchAllowance();
-            refetchLimit(); // Refetch daily limit after purchase
-            refetchDailyLimitData(); // Refetch raw daily limit data
-            
-            // Reload page after 3 seconds to ensure blockchain state is updated
+            refetchLimit();
+            refetchDailyLimitData();
+            refetchUSDTBalance();
+
+            // Force refetch NFT list after delay to ensure blockchain state updated
             setTimeout(() => {
-                window.location.reload();
-            }, 3000);
+                // This will trigger re-render of NFT list
+                window.dispatchEvent(new Event('nft-purchased'));
+            }, 1000);
         }
-    }, [buySuccess, refetchAllowance, refetchLimit, refetchDailyLimitData]);
+    }, [buySuccess, refetchAllowance, refetchLimit, refetchDailyLimitData, refetchUSDTBalance]);
+
+    // Handle approval errors
+    useEffect(() => {
+        if (approveError) {
+            console.error('❌ Approval failed!');
+            toast.error('❌ Approval Failed! Please try again.', {
+                duration: 4000,
+            });
+            setIsWaitingForApproval(false);
+            setPendingNftId(null);
+            setPendingPrice(null);
+        }
+    }, [approveError]);
+
+    // Handle buy errors
+    useEffect(() => {
+        if (buyError) {
+            console.error('❌ Purchase failed!');
+            toast.dismiss('buy-prep');
+            toast.error('❌ Purchase Failed! Please try again.', {
+                duration: 4000,
+            });
+            setPendingNftId(null);
+            setPendingPrice(null);
+        }
+    }, [buyError]);
 
     const handleSelectNFT = (nft: SelectedNFT) => {
         setSelectedNFT(nft);
@@ -336,15 +374,16 @@ export function MarketplaceTab() {
 
         const currentAllowance = allowance as bigint || BigInt(0);
 
-        if (currentAllowance < price) {
-            // Need approval first - approve exact price
-            console.log(`🔐 Requesting approval for $${Number(formatUnits(price, 18)).toFixed(2)}...`);
-            setIsWaitingForApproval(true);
-            approve(formatUnits(price, 18));
-        } else {
+        if (currentAllowance >= price) {
             // Already approved, buy directly
             console.log('✅ Already approved, buying directly...');
             buyNFT(nftId);
+        } else {
+            // Need approval first - approve with buffer (price + 10%)
+            const approvalAmount = (price * BigInt(110)) / BigInt(100);
+            console.log(`🔐 Requesting approval for $${Number(formatUnits(approvalAmount, 18)).toFixed(2)}...`);
+            setIsWaitingForApproval(true);
+            approve(formatUnits(approvalAmount, 18));
         }
     };
 
@@ -399,17 +438,15 @@ export function MarketplaceTab() {
             {/* Balance Display - Compact with Warnings */}
             <div className="grid grid-cols-3 gap-2 sm:gap-3 animate-slide-up" style={{ animationDelay: '0.1s' }}>
                 {/* USDT Balance */}
-                <div className={`bg-gradient-to-br from-[#1E293B] to-[#0F172A] border rounded-lg p-2 sm:p-3 ${
-                    (usdtBalance as bigint || BigInt(0)) < BigInt('10000000000000000000') 
-                        ? 'border-[#EF4444]/50 animate-pulse' 
-                        : 'border-[#334155]'
-                }`}>
-                    <p className="text-[8px] sm:text-[10px] text-[#64748B] mb-1">💰 USDT</p>
-                    <p className={`text-sm sm:text-base font-bold ${
-                        (usdtBalance as bigint || BigInt(0)) < BigInt('10000000000000000000')
-                            ? 'text-[#EF4444]'
-                            : 'text-[#10B981]'
+                <div className={`bg-gradient-to-br from-[#1E293B] to-[#0F172A] border rounded-lg p-2 sm:p-3 ${(usdtBalance as bigint || BigInt(0)) < BigInt('10000000000000000000')
+                    ? 'border-[#EF4444]/50 animate-pulse'
+                    : 'border-[#334155]'
                     }`}>
+                    <p className="text-[8px] sm:text-[10px] text-[#64748B] mb-1">💰 USDT</p>
+                    <p className={`text-sm sm:text-base font-bold ${(usdtBalance as bigint || BigInt(0)) < BigInt('10000000000000000000')
+                        ? 'text-[#EF4444]'
+                        : 'text-[#10B981]'
+                        }`}>
                         ${Number(formatUnits(usdtBalance as bigint || BigInt(0), 18)).toFixed(2)}
                     </p>
                     {(usdtBalance as bigint || BigInt(0)) < BigInt('10000000000000000000') && (
@@ -418,17 +455,15 @@ export function MarketplaceTab() {
                 </div>
 
                 {/* BNB Balance */}
-                <div className={`bg-gradient-to-br from-[#1E293B] to-[#0F172A] border rounded-lg p-2 sm:p-3 ${
-                    (!nativeBalance || nativeBalance.value < BigInt('100000000000000'))
-                        ? 'border-[#EF4444]/50 animate-pulse'
-                        : 'border-[#334155]'
-                }`}>
-                    <p className="text-[8px] sm:text-[10px] text-[#64748B] mb-1">⛽ BNB</p>
-                    <p className={`text-sm sm:text-base font-bold ${
-                        (!nativeBalance || nativeBalance.value < BigInt('100000000000000'))
-                            ? 'text-[#EF4444]'
-                            : 'text-[#3B82F6]'
+                <div className={`bg-gradient-to-br from-[#1E293B] to-[#0F172A] border rounded-lg p-2 sm:p-3 ${(!nativeBalance || nativeBalance.value < BigInt('100000000000000'))
+                    ? 'border-[#EF4444]/50 animate-pulse'
+                    : 'border-[#334155]'
                     }`}>
+                    <p className="text-[8px] sm:text-[10px] text-[#64748B] mb-1">⛽ BNB</p>
+                    <p className={`text-sm sm:text-base font-bold ${(!nativeBalance || nativeBalance.value < BigInt('100000000000000'))
+                        ? 'text-[#EF4444]'
+                        : 'text-[#3B82F6]'
+                        }`}>
                         {nativeBalance ? Number(formatUnits(nativeBalance.value, 18)).toFixed(4) : '0.0000'}
                     </p>
                     {(!nativeBalance || nativeBalance.value < BigInt('100000000000000')) && (
@@ -437,17 +472,15 @@ export function MarketplaceTab() {
                 </div>
 
                 {/* Daily Limit - Show Actual Remaining */}
-                <div className={`bg-gradient-to-br from-[#1E293B] to-[#0F172A] border rounded-lg p-2 sm:p-3 ${
-                    actualRemainingLimit < BigInt('10000000000000000000')
-                        ? 'border-[#F59E0B]/50'
-                        : 'border-[#334155]'
-                }`}>
-                    <p className="text-[8px] sm:text-[10px] text-[#64748B] mb-1">📊 Daily Limit</p>
-                    <p className={`text-sm sm:text-base font-bold ${
-                        actualRemainingLimit === BigInt(0)
-                            ? 'text-[#EF4444]'
-                            : 'text-[#EC4899]'
+                <div className={`bg-gradient-to-br from-[#1E293B] to-[#0F172A] border rounded-lg p-2 sm:p-3 ${actualRemainingLimit < BigInt('10000000000000000000')
+                    ? 'border-[#F59E0B]/50'
+                    : 'border-[#334155]'
                     }`}>
+                    <p className="text-[8px] sm:text-[10px] text-[#64748B] mb-1">📊 Daily Limit</p>
+                    <p className={`text-sm sm:text-base font-bold ${actualRemainingLimit === BigInt(0)
+                        ? 'text-[#EF4444]'
+                        : 'text-[#EC4899]'
+                        }`}>
                         {formatUSD(actualRemainingLimit)}
                     </p>
                     {actualRemainingLimit === BigInt(0) && (
@@ -517,10 +550,10 @@ export function MarketplaceTab() {
                 </p>
             </div>
 
-            {/* NFT Details Modal */}
-            {isModalOpen && selectedNFT && (
-                <div 
-                    className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-start justify-center z-50 p-4 pt-8 overflow-y-auto" 
+            {/* NFT Details Modal - Portal to body for full screen coverage */}
+            {isModalOpen && selectedNFT && typeof document !== 'undefined' && createPortal(
+                <div
+                    className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-start justify-center z-[9999] p-4 pt-8 overflow-y-auto"
                     onClick={handleCloseModal}
                 >
                     <div className="relative bg-gradient-to-br from-[#1E293B] to-[#0F172A] border-2 border-[#EC4899] rounded-2xl p-6 max-w-sm w-full shadow-[0_0_50px_rgba(236,72,153,0.5)] animate-slide-up" onClick={(e) => e.stopPropagation()}>
@@ -554,17 +587,15 @@ export function MarketplaceTab() {
                         {/* Balance Display in Modal */}
                         <div className="grid grid-cols-3 gap-2 mb-4">
                             {/* USDT Balance */}
-                            <div className={`bg-[#0F172A] border rounded-lg p-2 ${
-                                (usdtBalance as bigint || BigInt(0)) < selectedNFT.currentPrice
-                                    ? 'border-[#EF4444] animate-pulse' 
-                                    : 'border-[#334155]'
-                            }`}>
-                                <p className="text-[8px] text-[#64748B] mb-1">💰 USDT</p>
-                                <p className={`text-xs font-bold ${
-                                    (usdtBalance as bigint || BigInt(0)) < selectedNFT.currentPrice
-                                        ? 'text-[#EF4444]'
-                                        : 'text-[#10B981]'
+                            <div className={`bg-[#0F172A] border rounded-lg p-2 ${(usdtBalance as bigint || BigInt(0)) < selectedNFT.currentPrice
+                                ? 'border-[#EF4444] animate-pulse'
+                                : 'border-[#334155]'
                                 }`}>
+                                <p className="text-[8px] text-[#64748B] mb-1">💰 USDT</p>
+                                <p className={`text-xs font-bold ${(usdtBalance as bigint || BigInt(0)) < selectedNFT.currentPrice
+                                    ? 'text-[#EF4444]'
+                                    : 'text-[#10B981]'
+                                    }`}>
                                     ${Number(formatUnits(usdtBalance as bigint || BigInt(0), 18)).toFixed(2)}
                                 </p>
                                 {(usdtBalance as bigint || BigInt(0)) < selectedNFT.currentPrice && (
@@ -573,17 +604,15 @@ export function MarketplaceTab() {
                             </div>
 
                             {/* BNB Balance */}
-                            <div className={`bg-[#0F172A] border rounded-lg p-2 ${
-                                (!nativeBalance || nativeBalance.value < BigInt('100000000000000'))
-                                    ? 'border-[#EF4444] animate-pulse'
-                                    : 'border-[#334155]'
-                            }`}>
-                                <p className="text-[8px] text-[#64748B] mb-1">⛽ BNB</p>
-                                <p className={`text-xs font-bold ${
-                                    (!nativeBalance || nativeBalance.value < BigInt('100000000000000'))
-                                        ? 'text-[#EF4444]'
-                                        : 'text-[#3B82F6]'
+                            <div className={`bg-[#0F172A] border rounded-lg p-2 ${(!nativeBalance || nativeBalance.value < BigInt('100000000000000'))
+                                ? 'border-[#EF4444] animate-pulse'
+                                : 'border-[#334155]'
                                 }`}>
+                                <p className="text-[8px] text-[#64748B] mb-1">⛽ BNB</p>
+                                <p className={`text-xs font-bold ${(!nativeBalance || nativeBalance.value < BigInt('100000000000000'))
+                                    ? 'text-[#EF4444]'
+                                    : 'text-[#3B82F6]'
+                                    }`}>
                                     {nativeBalance ? Number(formatUnits(nativeBalance.value, 18)).toFixed(4) : '0.0000'}
                                 </p>
                                 {(!nativeBalance || nativeBalance.value < BigInt('100000000000000')) && (
@@ -592,17 +621,15 @@ export function MarketplaceTab() {
                             </div>
 
                             {/* Daily Limit - Actual Remaining */}
-                            <div className={`bg-[#0F172A] border rounded-lg p-2 ${
-                                actualRemainingLimit < selectedNFT.currentPrice
-                                    ? 'border-[#EF4444] animate-pulse'
-                                    : 'border-[#334155]'
-                            }`}>
-                                <p className="text-[8px] text-[#64748B] mb-1">📊 Limit</p>
-                                <p className={`text-xs font-bold ${
-                                    actualRemainingLimit < selectedNFT.currentPrice
-                                        ? 'text-[#EF4444]'
-                                        : 'text-[#EC4899]'
+                            <div className={`bg-[#0F172A] border rounded-lg p-2 ${actualRemainingLimit < selectedNFT.currentPrice
+                                ? 'border-[#EF4444] animate-pulse'
+                                : 'border-[#334155]'
                                 }`}>
+                                <p className="text-[8px] text-[#64748B] mb-1">📊 Limit</p>
+                                <p className={`text-xs font-bold ${actualRemainingLimit < selectedNFT.currentPrice
+                                    ? 'text-[#EF4444]'
+                                    : 'text-[#EC4899]'
+                                    }`}>
                                     ${Number(formatUnits(actualRemainingLimit, 18)).toFixed(2)}
                                 </p>
                                 {actualRemainingLimit < selectedNFT.currentPrice && (
@@ -639,7 +666,8 @@ export function MarketplaceTab() {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );

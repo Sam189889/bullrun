@@ -66,7 +66,7 @@ export function EarningsTab() {
     const [activeFilter, setActiveFilter] = useState('All');
     const [claimAmount, setClaimAmount] = useState('');
     const [modalOpen, setModalOpen] = useState(false);
-    const [selectedIncome, setSelectedIncome] = useState<{type: string; icon: string; color: string} | null>(null);
+    const [selectedIncome, setSelectedIncome] = useState<{ type: string; icon: string; color: string } | null>(null);
     const { address } = useAccount();
 
     const openModal = (type: string, icon: string, color: string) => {
@@ -92,10 +92,14 @@ export function EarningsTab() {
     const balance = balanceData as readonly [bigint, bigint, bigint] | undefined;
     const isRegistered = typeof userId === 'bigint' && userId > BigInt(0);
 
+    // Get current week first (used by both Lucky Draw and Share Pool)
+    const { data: currentWeek } = useCurrentWeek();
+    const weekNumber = currentWeek ? Number(currentWeek) : 0;
+
     // Lucky Draw Data
     const { data: luckyDrawPool } = useLuckyDrawPool();
-    const poolBalance = luckyDrawPool ? (luckyDrawPool as [bigint, bigint, bigint])[0] : BigInt(0);
-    const weekNumber = luckyDrawPool ? Number((luckyDrawPool as [bigint, bigint, bigint])[1]) : 0;
+    // luckyDrawPool returns (balance, lastDrawAt) - NOT weekNumber!
+    const poolBalance = luckyDrawPool ? (luckyDrawPool as [bigint, bigint])[0] : BigInt(0);
     const { data: userEntries } = useUserLuckyDrawEntries(userId as bigint, weekNumber);
     const { data: totalEntries } = useTotalLuckyDrawEntries(weekNumber);
     const { data: entryThreshold } = useLuckyDrawThreshold();
@@ -105,9 +109,8 @@ export function EarningsTab() {
     const winChance = totalWeeklyEntries > 0 ? ((myEntries / totalWeeklyEntries) * 100).toFixed(2) : '0';
     const thresholdAmount = entryThreshold ? Number(formatUnits(entryThreshold as bigint, 18)) : 100;
 
-    // Share Pool Data
-    const { data: currentWeek } = useCurrentWeek();
-    const shareWeekNumber = currentWeek ? Number(currentWeek) : 0;
+    // Share Pool Data (uses same weekNumber from getCurrentWeek)
+    const shareWeekNumber = weekNumber;
     const { data: sharePoolBalance } = useWeeklyPoolBalance();
     const { data: totalShares } = useTotalWeeklyShares();
     const { data: userShares } = useUserWeeklyShares(userId as bigint, shareWeekNumber);
@@ -175,7 +178,7 @@ export function EarningsTab() {
 
     // Success handling in useEffect
     const toastShown = useRef(false);
-    
+
     useEffect(() => {
         if (isSuccess && !toastShown.current) {
             toastShown.current = true;

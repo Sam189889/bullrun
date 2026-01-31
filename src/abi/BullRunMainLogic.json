@@ -14,6 +14,24 @@
   },
   {
     "type": "function",
+    "name": "addToPool",
+    "inputs": [
+      {
+        "name": "_poolType",
+        "type": "uint8",
+        "internalType": "enum BullRunMainLogic.PoolType"
+      },
+      {
+        "name": "_amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "addToWeeklyPool",
     "inputs": [
       {
@@ -337,6 +355,19 @@
   },
   {
     "type": "function",
+    "name": "getCurrentWeek",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "getDirectReferrals",
     "inputs": [
       {
@@ -394,6 +425,25 @@
         "name": "isActive",
         "type": "bool",
         "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getPoolBalance",
+    "inputs": [
+      {
+        "name": "_poolType",
+        "type": "uint8",
+        "internalType": "enum BullRunMainLogic.PoolType"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "balance",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "stateMutability": "view"
@@ -624,11 +674,6 @@
     "outputs": [
       {
         "name": "balance",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "weekNumber",
         "type": "uint256",
         "internalType": "uint256"
       },
@@ -1132,19 +1177,6 @@
   },
   {
     "type": "function",
-    "name": "setPaymentToken",
-    "inputs": [
-      {
-        "name": "_usdt",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
     "name": "setSplitCount",
     "inputs": [
       {
@@ -1189,8 +1221,14 @@
   },
   {
     "type": "function",
-    "name": "startNewLuckyDrawWeek",
-    "inputs": [],
+    "name": "setWeekStartTimestamp",
+    "inputs": [
+      {
+        "name": "_startTimestamp",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
     "outputs": [],
     "stateMutability": "nonpayable"
   },
@@ -1814,6 +1852,19 @@
   },
   {
     "type": "function",
+    "name": "weekStartTimestamp",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "weeklyPoolBalance",
     "inputs": [],
     "outputs": [
@@ -1833,6 +1884,29 @@
         "name": "_amount",
         "type": "uint256",
         "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "withdrawFromPool",
+    "inputs": [
+      {
+        "name": "_poolType",
+        "type": "uint8",
+        "internalType": "enum BullRunMainLogic.PoolType"
+      },
+      {
+        "name": "_amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "_recipient",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "outputs": [],
@@ -2302,6 +2376,50 @@
         "name": "newToken",
         "type": "address",
         "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "PoolFundsAdded",
+    "inputs": [
+      {
+        "name": "poolType",
+        "type": "uint8",
+        "indexed": true,
+        "internalType": "uint8"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "PoolFundsWithdrawn",
+    "inputs": [
+      {
+        "name": "poolType",
+        "type": "uint8",
+        "indexed": true,
+        "internalType": "uint8"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "recipient",
+        "type": "address",
+        "indexed": false,
         "internalType": "address"
       }
     ],

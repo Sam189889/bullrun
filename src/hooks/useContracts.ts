@@ -384,13 +384,13 @@ export function useBuyNFT() {
 // ============ SHARE POOL HOOKS ============
 
 /**
- * Get current week number
+ * Get current week number (uses auto-calculated getCurrentWeek function, NOT manual currentWeek variable)
  */
 export function useCurrentWeek() {
     return useReadContract({
         address: contracts.bullRun,
         abi: BullRunMainLogicABI,
-        functionName: 'currentWeek',
+        functionName: 'getCurrentWeek',
     })
 }
 
@@ -402,7 +402,7 @@ export function useUserWeeklyShares(userId: bigint | undefined, weekNumber: numb
         address: contracts.bullRun,
         abi: BullRunMainLogicABI,
         functionName: 'userWeeklyShares',
-        args: userId ? [userId, weekNumber] : undefined,
+        args: userId ? [userId, BigInt(weekNumber)] : undefined,
         query: { enabled: !!userId && userId > BigInt(0) && weekNumber > 0 },
     })
 }
@@ -472,7 +472,7 @@ export function useUserLuckyDrawEntries(userId: bigint | undefined, weekNumber: 
         address: contracts.bullRun,
         abi: BullRunMainLogicABI,
         functionName: 'userLuckyDrawEntries',
-        args: userId ? [userId, weekNumber] : undefined,
+        args: userId ? [userId, BigInt(weekNumber)] : undefined,
         query: { enabled: !!userId && userId > BigInt(0) && weekNumber > 0 },
     })
 }
@@ -485,7 +485,7 @@ export function useTotalLuckyDrawEntries(weekNumber: number) {
         address: contracts.bullRun,
         abi: BullRunMainLogicABI,
         functionName: 'totalWeeklyLuckyEntries',
-        args: [weekNumber],
+        args: [BigInt(weekNumber)],
         query: { enabled: weekNumber > 0 },
     })
 }

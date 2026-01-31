@@ -12,7 +12,7 @@ import { usePackage, useUserId, useUSDTBalance, useUSDTAllowance, useRegister, u
 import { useApproveUSDT } from '@/hooks/useAdminContracts';
 import toast from 'react-hot-toast';
 
-// Minimum gas required for transactions (0.001 tBNB)
+// Minimum gas required for transactions (0.0003 tBNB)
 const MIN_GAS_REQUIRED = 0.0003;
 
 // Wrapper with Suspense for useSearchParams
@@ -37,19 +37,34 @@ function RegisterContent() {
     const hasReferralLink = !!refParam && refParam.trim() !== '';
 
     // Get referrer's userId from their address (if ref is an address)
-    const { data: referrerUserIdFromAddress } = useUserId(
+    const { data: referrerUserIdFromAddress, isLoading: referrerIdLoading } = useUserId(
         isRefAddress && hasReferralLink ? (refParam as `0x${string}`) : undefined
     );
 
     // Determine the actual referrer ID to use
-    const referrerId = isRefAddress 
-        ? (referrerUserIdFromAddress ? String(referrerUserIdFromAddress) : '')
+    const referrerId = isRefAddress
+        ? (typeof referrerUserIdFromAddress === 'bigint' && referrerUserIdFromAddress > BigInt(0) ? String(referrerUserIdFromAddress) : '')
         : (refParam || '');
 
-    // Check if referrer exists (only if we have a valid referrer ID)
-    const { data: referrerExists, isLoading: referrerLoading } = useUserExists(
-        referrerId && referrerId !== '0' ? BigInt(referrerId) : undefined
+    // For address-based refs: if loading is done but no userId found, referrer doesn't exist
+    const addressRefNotFound = isRefAddress && !referrerIdLoading && (
+        !referrerUserIdFromAddress ||
+        referrerUserIdFromAddress === BigInt(0) ||
+        (typeof referrerUserIdFromAddress === 'bigint' && referrerUserIdFromAddress <= BigInt(0))
     );
+
+    // Check if referrer exists (only if we have a valid referrer ID)
+    // For address-based refs, wait for userId to be fetched first
+    const shouldCheckExists = referrerId && referrerId !== '0' && (!isRefAddress || !referrerIdLoading);
+    const { data: referrerExists, isLoading: referrerExistsLoading } = useUserExists(
+        shouldCheckExists ? BigInt(referrerId) : undefined
+    );
+
+    // Combined loading state
+    const referrerLoading = (isRefAddress && referrerIdLoading) || referrerExistsLoading;
+
+    // Final referrer validity check
+    const isReferrerValid = addressRefNotFound ? false : (referrerExists === true);
 
     // Get first package ($25)
     const { data: packageData, isLoading: pkgLoading } = usePackage(BigInt(1));
@@ -199,7 +214,7 @@ function RegisterContent() {
                         </div>
                         <div className="flex justify-between">
                             <span className="text-[#64748B]">Earning Cap</span>
-                            <span className="text-[#10B981]">{pkg ? Number(pkg.cap) : 10}x</span>
+                            <span className="text-[#10B981]">10x</span>
                         </div>
                     </div>
                     <div className="border-t border-[#334155] pt-3 flex justify-between items-center">
@@ -288,15 +303,20 @@ function RegisterContent() {
                                 <p className="text-sm text-[#EF4444]">💰 Insufficient USDT balance</p>
                                 <p className="text-xs text-[#64748B] mt-1">You need ${tpv} USDT to register</p>
                             </div>
-                        ) : (referrerLoading || (isRefAddress && !referrerId)) ? (
+                        ) : referrerLoading ? (
                             <div className="text-center p-4 bg-[#F59E0B]/10 rounded-lg border border-[#F59E0B]/30">
                                 <p className="text-sm text-[#F59E0B]">⏳ Verifying referral link...</p>
                                 <p className="text-xs text-[#64748B] mt-1">Please wait while we verify your sponsor</p>
                             </div>
-                        ) : !referrerExists ? (
+                        ) : !isReferrerValid ? (
                             <div className="text-center p-4 bg-[#EF4444]/10 rounded-lg border border-[#EF4444]/30">
                                 <p className="text-sm text-[#EF4444]">❌ Invalid Referral Link</p>
-                                <p className="text-xs text-[#64748B] mt-1">This referral link is invalid. Please contact your sponsor for a valid link.</p>
+                                <p className="text-xs text-[#64748B] mt-1">
+                                    {isRefAddress
+                                        ? 'This wallet address is not registered. Please get a valid referral link from your sponsor.'
+                                        : 'This referral link is invalid. Please contact your sponsor for a valid link.'
+                                    }
+                                </p>
                             </div>
                         ) : !hasAllowance ? (
                             <Button
