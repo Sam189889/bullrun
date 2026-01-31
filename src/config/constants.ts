@@ -1,7 +1,7 @@
 // Contract Addresses - opBNB Testnet
 export const CONTRACTS = {
     USDT: '0x9907964f13E7d6433Af61135E126326c4f6786b0' as `0x${string}`,  // Existing USDT
-    // Latest Proxy (2026-01-31 2:32 PM) - BUFFER_POOL added to unified pool management
+    // Latest Proxy (2026-01-31 5:05 PM) - QUEUE LOGIC FIX + Self-healing for legacy users
     BULL_RUN: '0x6B336062238dFC25fC34801aF7925982ef571c4d' as `0x${string}`,
     PROXY_ADMIN: '0xAdc4587f4fDcFd732d3768906Df40f4277272F57' as `0x${string}`,
     // RevenueSplitter (2026-01-31 1:42 PM) - Creator wallet splitter
