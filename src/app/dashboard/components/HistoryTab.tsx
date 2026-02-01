@@ -66,7 +66,7 @@ export function HistoryTab() {
         { id: 'upgrade' as SubTab, label: 'Upgrade', icon: '⬆️' },
         { id: 'trading' as SubTab, label: 'Trading', icon: '📈' },
         { id: 'burning' as SubTab, label: 'Burning', icon: '🔥' },
-        { id: 'withdrawal' as SubTab, label: 'Withdrawal', icon: '💸' },
+        { id: 'withdrawal' as SubTab, label: 'Claim', icon: '💸' },
     ];
 
     return (
@@ -279,7 +279,7 @@ function WithdrawalHistory({ userId, walletAddress }: TradingHistoryProps) {
     const { events, isLoading } = useWithdrawnEvents(userId);
 
     if (isLoading) return <LoadingState />;
-    if (!events.length) return <EmptyState message="No withdrawal history" />;
+    if (!events.length) return <EmptyState message="No claim history" />;
 
     const formatAmount = (amount: bigint) => {
         const num = Number(formatUnits(amount, 18));
@@ -295,7 +295,7 @@ function WithdrawalHistory({ userId, walletAddress }: TradingHistoryProps) {
                             <span className="text-xl sm:text-2xl flex-shrink-0">💸</span>
                             <div className="min-w-0 flex-1">
                                 <p className="text-xs sm:text-sm font-bold text-[#F8FAFC]">
-                                    Withdrawal
+                                    Claimed
                                 </p>
                                 <p className="text-[10px] text-[#64748B] font-mono mt-1">
                                     To: {truncateAddress(event.wallet)}
