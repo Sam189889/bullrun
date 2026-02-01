@@ -94,6 +94,14 @@ export interface NFTBurnedEvent {
     transactionHash: `0x${string}`
 }
 
+export interface WithdrawnEvent {
+    userId: bigint
+    wallet: `0x${string}`
+    amount: bigint
+    blockNumber: bigint
+    transactionHash: `0x${string}`
+}
+
 // ============ INCOME EVENTS ============
 
 

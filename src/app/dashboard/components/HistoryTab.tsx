@@ -9,6 +9,7 @@ import {
     useNFTBuyEvents,
     useNFTSellEvents,
     useNFTBurnedEvents,
+    useWithdrawnEvents,
 } from '@/hooks/useEvents';
 
 // Helper to truncate address
@@ -35,7 +36,7 @@ interface PackageEvent {
 const PACKAGE_NAMES = ['None', 'Starter', 'Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Elite', 'Master', 'VIP'];
 
 // Sub-tab types
-type SubTab = 'activation' | 'topup' | 'upgrade' | 'trading' | 'burning';
+type SubTab = 'activation' | 'topup' | 'upgrade' | 'trading' | 'burning' | 'withdrawal';
 
 // User Info interface  
 interface UserInfoData {
@@ -65,6 +66,7 @@ export function HistoryTab() {
         { id: 'upgrade' as SubTab, label: 'Upgrade', icon: '⬆️' },
         { id: 'trading' as SubTab, label: 'Trading', icon: '📈' },
         { id: 'burning' as SubTab, label: 'Burning', icon: '🔥' },
+        { id: 'withdrawal' as SubTab, label: 'Withdrawal', icon: '💸' },
     ];
 
     return (
@@ -75,14 +77,14 @@ export function HistoryTab() {
                 <p className="text-[10px] sm:text-xs text-[#64748B]">Track all your activities</p>
             </div>
 
-            {/* Sub-tabs - Mobile Responsive */}
-            <div className="flex gap-1.5 sm:gap-2 overflow-x-auto pb-2 scrollbar-hide animate-slide-up -mx-1 px-1" style={{ animationDelay: '0.1s' }}>
+            {/* Sub-tabs - Grid on Mobile, Flex on Desktop */}
+            <div className="grid grid-cols-3 sm:flex gap-1.5 sm:gap-2 animate-slide-up" style={{ animationDelay: '0.1s' }}>
                 {subTabs.map((tab) => (
                     <button
                         key={tab.id}
                         onClick={() => setActiveSubTab(tab.id)}
                         className={`
-                            flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-xs font-medium whitespace-nowrap transition-all flex-shrink-0
+                            flex items-center justify-center sm:justify-start gap-1 sm:gap-1.5 px-2 sm:px-3 py-2 sm:py-2 rounded-lg text-[10px] sm:text-xs font-medium transition-all
                             ${activeSubTab === tab.id
                                 ? 'bg-gradient-to-r from-[#EC4899] to-[#D946EF] text-white shadow-[0_0_15px_rgba(236,72,153,0.3)]'
                                 : 'bg-[#1E293B] text-[#94A3B8] hover:text-white hover:bg-[#334155]'
@@ -90,7 +92,7 @@ export function HistoryTab() {
                         `}
                     >
                         <span className="text-sm sm:text-base">{tab.icon}</span>
-                        <span>{tab.label}</span>
+                        <span className="hidden xs:inline sm:inline">{tab.label}</span>
                     </button>
                 ))}
             </div>
@@ -102,6 +104,7 @@ export function HistoryTab() {
                 {activeSubTab === 'upgrade' && <UpgradeHistory userId={userId as bigint} usernameId={usernameId} walletAddress={address} />}
                 {activeSubTab === 'trading' && <TradingHistory userId={userId as bigint} walletAddress={address} />}
                 {activeSubTab === 'burning' && <BurningHistory userId={userId as bigint} walletAddress={address} />}
+                {activeSubTab === 'withdrawal' && <WithdrawalHistory userId={userId as bigint} walletAddress={address} />}
             </div>
         </div>
     );
@@ -266,6 +269,50 @@ function BurningHistory({ userId, walletAddress }: TradingHistoryProps) {
                     buyerId={event.buyerId}
                     txHash={event.transactionHash}
                 />
+            ))}
+        </div>
+    );
+}
+
+// Withdrawal History - All withdrawals by user
+function WithdrawalHistory({ userId, walletAddress }: TradingHistoryProps) {
+    const { events, isLoading } = useWithdrawnEvents(userId);
+
+    if (isLoading) return <LoadingState />;
+    if (!events.length) return <EmptyState message="No withdrawal history" />;
+
+    const formatAmount = (amount: bigint) => {
+        const num = Number(formatUnits(amount, 18));
+        return `$${num.toFixed(2)}`;
+    };
+
+    return (
+        <div className="space-y-3">
+            {events.map((event, i) => (
+                <div key={i} className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] border border-[#10B981]/30 rounded-xl p-3 sm:p-4 transition-all">
+                    <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-start gap-2 sm:gap-3 min-w-0 flex-1">
+                            <span className="text-xl sm:text-2xl flex-shrink-0">💸</span>
+                            <div className="min-w-0 flex-1">
+                                <p className="text-xs sm:text-sm font-bold text-[#F8FAFC]">
+                                    Withdrawal
+                                </p>
+                                <p className="text-[10px] text-[#64748B] font-mono mt-1">
+                                    To: {truncateAddress(event.wallet)}
+                                </p>
+                            </div>
+                        </div>
+                        <p className="text-sm sm:text-base font-bold text-[#10B981] flex-shrink-0">{formatAmount(event.amount)}</p>
+                    </div>
+                    <a
+                        href={`https://testnet.opbnbscan.com/tx/${event.transactionHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] text-[#3B82F6] hover:underline mt-2 inline-block"
+                    >
+                        View Tx ↗
+                    </a>
+                </div>
             ))}
         </div>
     );
