@@ -250,7 +250,7 @@ function TradingHistory({ userId, walletAddress }: TradingHistoryProps) {
 
 // Burning History - NFTs burned (bought at $200 threshold)
 function BurningHistory({ userId, walletAddress }: TradingHistoryProps) {
-    // Use NFTBurned events - these fire when user BUYS at $200 threshold
+    // Use NFTBurned events - fires when NFT is burned at $200 threshold
     const { events, isLoading } = useNFTBurnedEvents(userId);
 
     if (isLoading) return <LoadingState />;
