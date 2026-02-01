@@ -176,15 +176,14 @@
         "name": "_basePrice",
         "type": "uint256",
         "internalType": "uint256"
-      }
-    ],
-    "outputs": [
+      },
       {
-        "name": "",
+        "name": "_count",
         "type": "uint256",
         "internalType": "uint256"
       }
     ],
+    "outputs": [],
     "stateMutability": "nonpayable"
   },
   {

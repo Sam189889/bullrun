@@ -403,23 +403,24 @@ export function useApproveUSDT() {
 }
 
 /**
- * Create NFT
+ * Create NFT(s) - supports batch creation
  */
 export function useCreateNFT() {
     const { writeContract, data: hash, isPending, error } = useWriteContract()
     const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
 
-    const createNFT = (basePrice: string) => {
+    const createNFT = (basePrice: string, count: number = 1) => {
         writeContract({
             address: CONTRACTS.BULL_RUN,
             abi: BullRunMainLogicABI,
             functionName: 'createNFT',
-            args: [parseUnits(basePrice, 18)],
+            args: [parseUnits(basePrice, 18), BigInt(count)],
         })
     }
 
     return { createNFT, hash, isPending, isConfirming, isSuccess, error }
 }
+
 
 /**
  * Set NFT split settings
