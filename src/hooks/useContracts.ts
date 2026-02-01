@@ -101,6 +101,19 @@ export function useUserWallet(userId: bigint | undefined) {
 }
 
 /**
+ * Get user NFT sale refunds total
+ */
+export function useUserNftRefunds(userId: bigint | undefined) {
+    return useReadContract({
+        address: contracts.bullRun,
+        abi: BullRunMainLogicABI,
+        functionName: 'userNftRefunds',
+        args: userId ? [userId] : undefined,
+        query: { enabled: !!userId && userId > BigInt(0) },
+    })
+}
+
+/**
  * Get user current rank
  */
 export function useUserRank(userId: bigint | undefined) {

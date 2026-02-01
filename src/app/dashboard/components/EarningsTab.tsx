@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAccount, useWaitForTransactionReceipt } from 'wagmi';
 import { formatUnits, parseUnits } from 'viem';
-import { useUserId, useUserEarnings, useUserTradingEarnings, useUserBalance, useWithdraw, useLuckyDrawPool, useUserLuckyDrawEntries, useTotalLuckyDrawEntries, useLuckyDrawThreshold, useCurrentWeek, useUserWeeklyShares, useTotalWeeklyShares, useWeeklyPoolBalance, useTradingShareThreshold, useTradingSharesPerThreshold } from '@/hooks/useContracts';
+import { useUserId, useUserEarnings, useUserTradingEarnings, useUserBalance, useWithdraw, useLuckyDrawPool, useUserLuckyDrawEntries, useTotalLuckyDrawEntries, useLuckyDrawThreshold, useCurrentWeek, useUserWeeklyShares, useTotalWeeklyShares, useWeeklyPoolBalance, useTradingShareThreshold, useTradingSharesPerThreshold, useUserNftRefunds } from '@/hooks/useContracts';
 import { Button } from '@/components/ui/Button';
 import { IncomeHistoryModal } from './IncomeHistoryModal';
 import toast from 'react-hot-toast';
@@ -83,6 +83,7 @@ export function EarningsTab() {
     const { data: userId } = useUserId(address);
     const { data: earnings, isLoading } = useUserEarnings(userId as bigint);
     const { data: tradingEarnings, isLoading: isTradingLoading } = useUserTradingEarnings(userId as bigint);
+    const { data: nftRefundsData } = useUserNftRefunds(userId as bigint);
     const { data: balanceData, refetch: refetchBalance } = useUserBalance(userId as bigint);
 
     // Claim hook
@@ -142,6 +143,9 @@ export function EarningsTab() {
     const luckyDrawWinnings = tradingTuple ? tradingTuple[2] : BigInt(0);
     const tripReward = tradingTuple ? tradingTuple[3] : BigInt(0);
 
+    // NFT sale refunds (separate mapping, not in struct)
+    const nftRefunds = nftRefundsData ? (nftRefundsData as bigint) : BigInt(0);
+
     // Format values
     const formatUSDT = (value: bigint | undefined) => {
         if (!value) return '$0';
@@ -150,7 +154,7 @@ export function EarningsTab() {
 
     // Calculate totals from both package and trading earnings
     const packageTotal = directSponsor + levelIncome + rankEmi + fastBonus;
-    const tradingTotal = tradingLevelBonus + nftProfit + luckyDrawWinnings + tripReward;
+    const tradingTotal = tradingLevelBonus + nftProfit + luckyDrawWinnings + tripReward + nftRefunds;
     const totalEarnings = packageTotal + tradingTotal;
 
     // Handle claim
@@ -291,7 +295,7 @@ export function EarningsTab() {
             </div>
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3">
                 <div
                     className="relative overflow-hidden rounded-xl p-3 sm:p-4 border animate-slide-up"
                     style={{
@@ -364,6 +368,21 @@ export function EarningsTab() {
                     <p className="text-[10px] sm:text-xs text-[#64748B]">Claimed</p>
                     <p className="text-base sm:text-lg md:text-xl font-bold text-[#3B82F6]">
                         {formatUSDT(claimedBalance)}
+                    </p>
+                </div>
+
+                <div
+                    className="relative overflow-hidden rounded-xl p-3 sm:p-4 border animate-slide-up"
+                    style={{
+                        animationDelay: '0.25s',
+                        background: 'linear-gradient(to bottom right, #22C55E20, #1E293B)',
+                        borderColor: '#22C55E30'
+                    }}
+                >
+                    <div className="absolute top-1 right-1 sm:top-2 sm:right-2 text-xl sm:text-2xl opacity-20">💰</div>
+                    <p className="text-[10px] sm:text-xs text-[#64748B]">NFT Refunds</p>
+                    <p className="text-base sm:text-lg md:text-xl font-bold text-[#22C55E]">
+                        {formatUSDT(nftRefunds)}
                     </p>
                 </div>
             </div>

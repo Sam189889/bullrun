@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
 import { formatUnits } from 'viem';
-import { useUserId, useUserInfo, useUserEarnings, useUserBalance, useUserDailyLimitData, useUserAvailableLimit } from '@/hooks/useContracts';
+import { useUserId, useUserInfo, useUserEarnings, useUserTradingEarnings, useUserBalance, useUserDailyLimitData, useUserAvailableLimit } from '@/hooks/useContracts';
 import { useDayStartTimestamp, useDayLength } from '@/hooks/useAdminContracts';
 import { SmartPackageCard } from './SmartPackageCard';
 
@@ -86,6 +86,7 @@ export function HomeTab() {
     const { data: userId } = useUserId(address);
     const { data: userInfo, isLoading: infoLoading } = useUserInfo(userId as bigint);
     const { data: earnings, isLoading: earningsLoading } = useUserEarnings(userId as bigint);
+    const { data: tradingEarnings, isLoading: tradingLoading } = useUserTradingEarnings(userId as bigint);
     const { data: balanceData } = useUserBalance(userId as bigint);
     const { data: dailyLimitData } = useUserDailyLimitData(userId as bigint);
     const { data: availableLimit } = useUserAvailableLimit(userId as bigint);
@@ -138,9 +139,25 @@ export function HomeTab() {
         claimedBalance: balArr[2],
     } : undefined;
 
-    // Calculate total income
-    const totalIncome = earn ?
+    // Parse trading earnings - contract returns tuple (tradingLevelBonus, nftProfit, luckyDraw, tripReward)
+    const tradingTuple = tradingEarnings as readonly [bigint, bigint, bigint, bigint] | undefined;
+    const tradingEarn = tradingTuple ? {
+        tradingLevelBonus: tradingTuple[0],
+        nftProfit: tradingTuple[1],
+        luckyDraw: tradingTuple[2],
+        tripReward: tradingTuple[3],
+    } : undefined;
+
+    // Calculate package income (directSponsor, levelIncome, rankEmi, fastBonus)
+    const packageIncome = earn ?
         Number(formatUnits(earn.directSponsor + earn.levelIncome + earn.rankEmi + earn.fastBonus, 18)) : 0;
+
+    // Calculate trading income (tradingLevelBonus, nftProfit, luckyDraw, tripReward)
+    const tradingIncome = tradingEarn ?
+        Number(formatUnits(tradingEarn.tradingLevelBonus + tradingEarn.nftProfit + tradingEarn.luckyDraw + tradingEarn.tripReward, 18)) : 0;
+
+    // Total income = package + trading
+    const totalIncome = packageIncome + tradingIncome;
 
     // Format values
     const formatUSDT = (value: bigint | undefined) => {
@@ -148,7 +165,7 @@ export function HomeTab() {
         return `$${Number(formatUnits(value, 18)).toLocaleString()}`;
     };
 
-    const isLoading = infoLoading || earningsLoading;
+    const isLoading = infoLoading || earningsLoading || tradingLoading;
     const isRegistered = typeof userId === 'bigint' && userId > BigInt(0);
 
     return (
@@ -361,26 +378,26 @@ export function HomeTab() {
                         <span className="text-xl sm:text-2xl group-hover:scale-110 transition-transform duration-300">📦</span>
                     </div>
                     <p className="text-xl sm:text-2xl md:text-3xl font-bold text-[#3B82F6]">
-                        {info ? `$${Number(formatUnits(info.totalInvested, 18))}` : '$0'}
+                        {isLoading ? '...' : `$${packageIncome.toFixed(2)}`}
                     </p>
-                    <p className="text-[10px] sm:text-xs text-[#64748B]">Package</p>
+                    <p className="text-[10px] sm:text-xs text-[#64748B]">Package Income</p>
                 </div>
 
                 <div
                     className="animate-slide-up bg-gradient-to-br rounded-xl p-3 sm:p-4 border card-hover group"
                     style={{
                         animationDelay: '0.3s',
-                        background: 'linear-gradient(to bottom right, #D946EF15, #1E293B)',
-                        borderColor: '#D946EF30'
+                        background: 'linear-gradient(to bottom right, #F59E0B15, #1E293B)',
+                        borderColor: '#F59E0B30'
                     }}
                 >
                     <div className="flex items-center justify-between mb-1 sm:mb-2">
-                        <span className="text-xl sm:text-2xl group-hover:scale-110 transition-transform duration-300">👥</span>
+                        <span className="text-xl sm:text-2xl group-hover:scale-110 transition-transform duration-300">�</span>
                     </div>
-                    <p className="text-xl sm:text-2xl md:text-3xl font-bold text-[#D946EF]">
-                        {info ? String(info.directReferralsCount) : '0'}
+                    <p className="text-xl sm:text-2xl md:text-3xl font-bold text-[#F59E0B]">
+                        {isLoading ? '...' : `$${tradingIncome.toFixed(2)}`}
                     </p>
-                    <p className="text-[10px] sm:text-xs text-[#64748B]">Direct Referrals</p>
+                    <p className="text-[10px] sm:text-xs text-[#64748B]">Trading Income</p>
                 </div>
             </div>
 
