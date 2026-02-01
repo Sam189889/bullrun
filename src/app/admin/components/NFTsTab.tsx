@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { formatUnits } from 'viem';
 import {
     useTotalNFTs,
@@ -304,9 +305,9 @@ export function NFTsTab() {
                     )}
                 </div>
 
-                {/* Confirmation Modal */}
-                {showConfirmModal && (
-                    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+                {/* Confirmation Modal - Portal to body for proper z-index */}
+                {showConfirmModal && typeof document !== 'undefined' && createPortal(
+                    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[9999] p-4">
                         <div className="bg-slate-900 border-2 border-red-500/50 rounded-2xl p-6 max-w-md w-full">
                             <h3 className="text-2xl font-bold text-red-400 mb-4">⚠️ Confirm Settings Change</h3>
 
@@ -351,7 +352,8 @@ export function NFTsTab() {
                                 </button>
                             </div>
                         </div>
-                    </div>
+                    </div>,
+                    document.body
                 )}
             </div>
 
