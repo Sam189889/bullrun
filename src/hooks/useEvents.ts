@@ -642,7 +642,129 @@ export function useLuckyDrawWinnerEvents(userId: bigint | undefined) {
     return { events, isLoading, error, refetch: fetchEvents }
 }
 
+/**
+ * Get all lucky draw entries for current week (for admin - get participants)
+ */
+export interface LuckyDrawEntryEvent {
+    userId: bigint
+    week: bigint
+    entries: bigint
+    blockNumber: bigint
+    transactionHash: `0x${string}`
+}
+
+export function useLuckyDrawEntryEvents(week: bigint | undefined) {
+    const publicClient = usePublicClient()
+    const [events, setEvents] = useState<LuckyDrawEntryEvent[]>([])
+    const [isLoading, setIsLoading] = useState(false)
+    const [error, setError] = useState<Error | null>(null)
+
+    const fetchEvents = useCallback(async () => {
+        if (!week || !publicClient) return
+
+        setIsLoading(true)
+        setError(null)
+        try {
+            const logs = await getContractEvents(publicClient, {
+                address: CONTRACTS.BULL_RUN,
+                abi: BullRunMainLogicABI,
+                eventName: 'LuckyDrawEntry',
+                args: { week },
+                fromBlock: DEPLOY_BLOCK,
+                toBlock: 'latest',
+            })
+
+            const parsed: LuckyDrawEntryEvent[] = logs.map(log => {
+                const args = (log as any).args
+                return {
+                    userId: args.userId as bigint,
+                    week: args.week as bigint,
+                    entries: args.entries as bigint,
+                    blockNumber: log.blockNumber,
+                    transactionHash: log.transactionHash,
+                }
+            })
+
+            // Aggregate entries per user
+            const userEntries = new Map<string, LuckyDrawEntryEvent>()
+            parsed.forEach(event => {
+                const key = event.userId.toString()
+                const existing = userEntries.get(key)
+                if (existing) {
+                    existing.entries += event.entries
+                } else {
+                    userEntries.set(key, { ...event })
+                }
+            })
+
+            setEvents(Array.from(userEntries.values()).sort((a, b) =>
+                Number(b.entries - a.entries)  // Sort by entries descending
+            ))
+        } catch (err) {
+            setError(err as Error)
+        } finally {
+            setIsLoading(false)
+        }
+    }, [week, publicClient])
+
+    useEffect(() => {
+        fetchEvents()
+    }, [fetchEvents])
+
+    return { events, isLoading, error, refetch: fetchEvents }
+}
+
+/**
+ * Get all lucky draw winners (for admin history)
+ */
+export function useAllLuckyDrawWinners() {
+    const publicClient = usePublicClient()
+    const [events, setEvents] = useState<LuckyDrawWinnerEvent[]>([])
+    const [isLoading, setIsLoading] = useState(false)
+    const [error, setError] = useState<Error | null>(null)
+
+    const fetchEvents = useCallback(async () => {
+        if (!publicClient) return
+
+        setIsLoading(true)
+        setError(null)
+        try {
+            const logs = await getContractEvents(publicClient, {
+                address: CONTRACTS.BULL_RUN,
+                abi: BullRunMainLogicABI,
+                eventName: 'LuckyDrawWinner',
+                fromBlock: DEPLOY_BLOCK,
+                toBlock: 'latest',
+            })
+
+            const parsed: LuckyDrawWinnerEvent[] = logs.map(log => {
+                const args = (log as any).args
+                return {
+                    userId: args.userId as bigint,
+                    week: args.week as bigint,
+                    prize: args.prize as bigint,
+                    blockNumber: log.blockNumber,
+                    transactionHash: log.transactionHash,
+                }
+            })
+
+            setEvents(parsed.reverse())  // Most recent first
+        } catch (err) {
+            setError(err as Error)
+        } finally {
+            setIsLoading(false)
+        }
+    }, [publicClient])
+
+    useEffect(() => {
+        fetchEvents()
+    }, [fetchEvents])
+
+    return { events, isLoading, error, refetch: fetchEvents }
+}
+
 // ============ PACKAGE EVENTS ============
+
 
 /**
  * Get package purchases by a user

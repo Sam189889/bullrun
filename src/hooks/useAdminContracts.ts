@@ -338,18 +338,18 @@ export function useAddToWeeklyPool() {
 }
 
 /**
- * Distribute weekly pool
+ * Distribute weekly pool (no params needed - uses stored shareholders array)
  */
 export function useDistributeWeeklyPool() {
     const { writeContract, data: hash, isPending, error } = useWriteContract()
     const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
 
-    const distribute = (userIds: bigint[]) => {
+    const distribute = () => {
         writeContract({
             address: CONTRACTS.BULL_RUN,
             abi: BullRunMainLogicABI,
             functionName: 'distributeWeeklyPool',
-            args: [userIds],
+            args: [],
         })
     }
 
@@ -357,21 +357,16 @@ export function useDistributeWeeklyPool() {
 }
 
 /**
- * Start new week
+ * Get weekly shareholders for a specific week
  */
-export function useStartNewWeek() {
-    const { writeContract, data: hash, isPending, error } = useWriteContract()
-    const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
-
-    const startNewWeek = () => {
-        writeContract({
-            address: CONTRACTS.BULL_RUN,
-            abi: BullRunMainLogicABI,
-            functionName: 'startNewWeek',
-        })
-    }
-
-    return { startNewWeek, hash, isPending, isConfirming, isSuccess, error }
+export function useGetWeeklyShareholders(week: bigint | undefined) {
+    return useReadContract({
+        address: CONTRACTS.BULL_RUN,
+        abi: BullRunMainLogicABI,
+        functionName: 'getWeeklyShareholders',
+        args: week ? [week] : undefined,
+        query: { enabled: !!week }
+    })
 }
 
 /**
@@ -421,81 +416,42 @@ export function useCreateNFT() {
     return { createNFT, hash, isPending, isConfirming, isSuccess, error }
 }
 
-
 /**
- * Set NFT split settings
+ * Set NFT split count
  */
-export function useSetSplitSettings() {
+export function useSetSplitCount() {
     const { writeContract, data: hash, isPending, error } = useWriteContract()
     const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
 
-    const setSplitSettings = (threshold: string, count: bigint) => {
+    const setSplitCount = (count: bigint) => {
         writeContract({
             address: CONTRACTS.BULL_RUN,
             abi: BullRunMainLogicABI,
-            functionName: 'setSplitSettings',
-            args: [parseUnits(threshold, 18), count],
+            functionName: 'setSplitCount',
+            args: [count],
         })
     }
 
-    return { setSplitSettings, hash, isPending, isConfirming, isSuccess, error }
+    return { setSplitCount, hash, isPending, isConfirming, isSuccess, error }
 }
 
 /**
- * Toggle NFT featured status
+ * Draw lucky winner (admin only)
  */
-export function useToggleNFTFeatured() {
+export function useDrawLuckyWinner() {
     const { writeContract, data: hash, isPending, error } = useWriteContract()
     const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
 
-    const toggleFeatured = (nftId: bigint) => {
+    const drawWinner = (participantIds: bigint[]) => {
         writeContract({
             address: CONTRACTS.BULL_RUN,
             abi: BullRunMainLogicABI,
-            functionName: 'toggleNFTFeatured',
-            args: [nftId],
+            functionName: 'drawLuckyWinner',
+            args: [participantIds],
         })
     }
 
-    return { toggleFeatured, hash, isPending, isConfirming, isSuccess, error }
-}
-
-/**
- * Toggle NFT hidden status
- */
-export function useToggleNFTHidden() {
-    const { writeContract, data: hash, isPending, error } = useWriteContract()
-    const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
-
-    const toggleHidden = (nftId: bigint) => {
-        writeContract({
-            address: CONTRACTS.BULL_RUN,
-            abi: BullRunMainLogicABI,
-            functionName: 'toggleNFTHidden',
-            args: [nftId],
-        })
-    }
-
-    return { toggleHidden, hash, isPending, isConfirming, isSuccess, error }
-}
-
-/**
- * Set NFT display order
- */
-export function useSetNFTDisplayOrder() {
-    const { writeContract, data: hash, isPending, error } = useWriteContract()
-    const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
-
-    const setOrder = (nftId: bigint, order: bigint) => {
-        writeContract({
-            address: CONTRACTS.BULL_RUN,
-            abi: BullRunMainLogicABI,
-            functionName: 'setNFTDisplayOrder',
-            args: [nftId, order],
-        })
-    }
-
-    return { setOrder, hash, isPending, isConfirming, isSuccess, error }
+    return { drawWinner, hash, isPending, isConfirming, isSuccess, error }
 }
 
 /**
@@ -716,4 +672,38 @@ export function useWithdrawFromAnyPool() {
     }
 
     return { withdrawFromAnyPool, hash, isPending, isConfirming, isSuccess, error }
+}
+
+
+/**
+ * Distribute trip reward to single user (admin only)
+ */
+export function useDistributeTripReward() {
+    const { writeContract, data: hash, isPending, error } = useWriteContract()
+    const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
+
+    const distributeTripReward = (userId: bigint, amount: string) => {
+        const amountWei = parseUnits(amount, 18)
+        writeContract({
+            address: CONTRACTS.BULL_RUN,
+            abi: BullRunMainLogicABI,
+            functionName: 'distributeTripReward',
+            args: [userId, amountWei],
+        })
+    }
+
+    return { distributeTripReward, hash, isPending, isConfirming, isSuccess, error }
+}
+
+/**
+ * Get user lucky draw entries for specific week
+ */
+export function useUserLuckyDrawEntries(userId: bigint | undefined, week: bigint | undefined) {
+    return useReadContract({
+        address: CONTRACTS.BULL_RUN,
+        abi: BullRunMainLogicABI,
+        functionName: 'userLuckyDrawEntries',
+        args: userId && week ? [userId, week] : undefined,
+        query: { enabled: !!userId && !!week }
+    })
 }

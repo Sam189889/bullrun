@@ -14,60 +14,6 @@
   },
   {
     "type": "function",
-    "name": "addToPool",
-    "inputs": [
-      {
-        "name": "_poolType",
-        "type": "uint8",
-        "internalType": "enum BullRunMainLogic.PoolType"
-      },
-      {
-        "name": "_amount",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "addToWeeklyPool",
-    "inputs": [
-      {
-        "name": "_amount",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "adminUpdatePackageTopUpCount",
-    "inputs": [
-      {
-        "name": "_userId",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "_packageId",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "_count",
-        "type": "uint8",
-        "internalType": "uint8"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
     "name": "allUsers",
     "inputs": [
       {
@@ -253,33 +199,15 @@
   },
   {
     "type": "function",
-    "name": "distributeTripRewards",
+    "name": "distributeTripReward",
     "inputs": [
       {
-        "name": "_userIds",
-        "type": "uint256[]",
-        "internalType": "uint256[]"
+        "name": "_userId",
+        "type": "uint256",
+        "internalType": "uint256"
       },
       {
-        "name": "_amounts",
-        "type": "uint256[]",
-        "internalType": "uint256[]"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "distributeTripRewardsBatch",
-    "inputs": [
-      {
-        "name": "_userIds",
-        "type": "uint256[]",
-        "internalType": "uint256[]"
-      },
-      {
-        "name": "_amountEach",
+        "name": "_amount",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -710,16 +638,31 @@
   },
   {
     "type": "function",
-    "name": "marketplaceSortMode",
-    "inputs": [],
-    "outputs": [
+    "name": "managePool",
+    "inputs": [
       {
-        "name": "",
+        "name": "_poolType",
         "type": "uint8",
-        "internalType": "enum BullRunMainLogic.SortMode"
+        "internalType": "enum BullRunMainLogic.PoolType"
+      },
+      {
+        "name": "_amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "_isWithdraw",
+        "type": "bool",
+        "internalType": "bool"
+      },
+      {
+        "name": "_recipient",
+        "type": "address",
+        "internalType": "address"
       }
     ],
-    "stateMutability": "view"
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -762,7 +705,7 @@
   },
   {
     "type": "function",
-    "name": "nftPriceCap",
+    "name": "nftQueueCount",
     "inputs": [],
     "outputs": [
       {
@@ -851,27 +794,12 @@
         "internalType": "uint256"
       },
       {
-        "name": "displayOrder",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
         "name": "isListed",
         "type": "bool",
         "internalType": "bool"
       },
       {
         "name": "isBurned",
-        "type": "bool",
-        "internalType": "bool"
-      },
-      {
-        "name": "isFeatured",
-        "type": "bool",
-        "internalType": "bool"
-      },
-      {
-        "name": "isHidden",
         "type": "bool",
         "internalType": "bool"
       }
@@ -1138,69 +1066,7 @@
   },
   {
     "type": "function",
-    "name": "setLuckyDrawThreshold",
-    "inputs": [
-      {
-        "name": "_threshold",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "setMarketplaceSortMode",
-    "inputs": [
-      {
-        "name": "_mode",
-        "type": "uint8",
-        "internalType": "enum BullRunMainLogic.SortMode"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "setNFTDisplayOrder",
-    "inputs": [
-      {
-        "name": "_nftId",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "_order",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "setNFTDisplayOrderBatch",
-    "inputs": [
-      {
-        "name": "_nftIds",
-        "type": "uint256[]",
-        "internalType": "uint256[]"
-      },
-      {
-        "name": "_orders",
-        "type": "uint256[]",
-        "internalType": "uint256[]"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "setSplitCount",
+    "name": "setQueueCount",
     "inputs": [
       {
         "name": "_count",
@@ -1213,13 +1079,8 @@
   },
   {
     "type": "function",
-    "name": "setSplitSettings",
+    "name": "setSplitCount",
     "inputs": [
-      {
-        "name": "_threshold",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
       {
         "name": "_count",
         "type": "uint256",
@@ -1248,39 +1109,6 @@
     "inputs": [
       {
         "name": "_startTimestamp",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "startNewWeek",
-    "inputs": [],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "toggleNFTFeatured",
-    "inputs": [
-      {
-        "name": "_nftId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "toggleNFTHidden",
-    "inputs": [
-      {
-        "name": "_nftId",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -1933,29 +1761,6 @@
   },
   {
     "type": "function",
-    "name": "withdrawFromPool",
-    "inputs": [
-      {
-        "name": "_poolType",
-        "type": "uint8",
-        "internalType": "enum BullRunMainLogic.PoolType"
-      },
-      {
-        "name": "_amount",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "_recipient",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
     "name": "wpsPercent",
     "inputs": [],
     "outputs": [
@@ -2175,19 +1980,6 @@
   },
   {
     "type": "event",
-    "name": "NFTDelisted",
-    "inputs": [
-      {
-        "name": "nftId",
-        "type": "uint256",
-        "indexed": true,
-        "internalType": "uint256"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
     "name": "NFTListed",
     "inputs": [
       {
@@ -2350,81 +2142,6 @@
   },
   {
     "type": "event",
-    "name": "PackageTopUpCountUpdated",
-    "inputs": [
-      {
-        "name": "userId",
-        "type": "uint256",
-        "indexed": true,
-        "internalType": "uint256"
-      },
-      {
-        "name": "packageId",
-        "type": "uint256",
-        "indexed": true,
-        "internalType": "uint256"
-      },
-      {
-        "name": "count",
-        "type": "uint8",
-        "indexed": false,
-        "internalType": "uint8"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "PackageUpgraded",
-    "inputs": [
-      {
-        "name": "userId",
-        "type": "uint256",
-        "indexed": true,
-        "internalType": "uint256"
-      },
-      {
-        "name": "oldLevel",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "newLevel",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "priceDifference",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "PaymentTokenUpdated",
-    "inputs": [
-      {
-        "name": "oldToken",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "newToken",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
     "name": "PoolFundsAdded",
     "inputs": [
       {
@@ -2560,25 +2277,6 @@
       },
       {
         "name": "amount",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "UserActivated",
-    "inputs": [
-      {
-        "name": "userId",
-        "type": "uint256",
-        "indexed": true,
-        "internalType": "uint256"
-      },
-      {
-        "name": "activationDate",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"

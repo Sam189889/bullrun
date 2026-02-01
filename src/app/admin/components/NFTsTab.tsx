@@ -10,11 +10,9 @@ import {
     useNFTSplitCount,
     useNFTAppreciationBps,
     useCreateNFT,
-    useSetSplitSettings,
-    useToggleNFTFeatured,
-    useToggleNFTHidden,
-    useSetNFTDisplayOrder
+    useSetSplitCount
 } from '@/hooks/useAdminContracts';
+
 import { useUserInfo } from '@/hooks/useContracts';
 import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
@@ -49,10 +47,7 @@ export function NFTsTab() {
 
     // Writes - get isSuccess to know when tx is confirmed
     const { createNFT, isPending: creating, isConfirming: creatingConfirming, isSuccess: createSuccess } = useCreateNFT();
-    const { setSplitSettings, isPending: settingSplit, isSuccess: settingsSuccess } = useSetSplitSettings();
-    const { toggleFeatured, isPending: togglingFeatured, isSuccess: featuredSuccess } = useToggleNFTFeatured();
-    const { toggleHidden, isPending: togglingHidden, isSuccess: hiddenSuccess } = useToggleNFTHidden();
-    const { setOrder, isPending: settingOrder, isSuccess: orderSuccess } = useSetNFTDisplayOrder();
+    const { setSplitCount: updateSplitCount, isPending: settingSplit, isSuccess: settingsSuccess } = useSetSplitCount();
 
     // Refetch all data function
     const refetchAll = () => {
@@ -78,12 +73,6 @@ export function NFTsTab() {
         }
     }, [settingsSuccess]);
 
-    // Refetch when NFT actions are confirmed
-    useEffect(() => {
-        if (featuredSuccess || hiddenSuccess || orderSuccess) {
-            refetchAll();
-        }
-    }, [featuredSuccess, hiddenSuccess, orderSuccess]);
 
     const handleCreateNFT = async () => {
         try {
@@ -106,8 +95,8 @@ export function NFTsTab() {
 
     const confirmUpdateSettings = async () => {
         try {
-            await setSplitSettings(splitThreshold, BigInt(splitCount));
-            toast.success('Split Settings Update Sent');
+            await updateSplitCount(BigInt(splitCount));
+            toast.success('Split Count Update Sent');
             setShowConfirmModal(false);
         } catch (err) {
             toast.error('Failed to update settings');
@@ -433,8 +422,6 @@ export function NFTsTab() {
 
 function NFTCompactCard({ nftId }: { nftId: bigint }) {
     const { data: nft, isLoading } = useNFT(nftId);
-    const { toggleFeatured, isPending: togglingFeatured } = useToggleNFTFeatured();
-    const { toggleHidden, isPending: togglingHidden } = useToggleNFTHidden();
 
     if (isLoading) return (
         <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl animate-pulse h-40">
@@ -445,8 +432,9 @@ function NFTCompactCard({ nftId }: { nftId: bigint }) {
     const nftData = nft as any[] | undefined;
     if (!nftData || nftData[0] === BigInt(0)) return null;
 
-    // Correct array: [nftId, currentPrice, basePrice, lastPurchasePrice, ownerId, buyCount, createdAt, lastTradedAt, displayOrder, isListed, isBurned, isFeatured, isHidden]
-    const [id, currentPrice, basePrice, lastPurchasePrice, ownerId, , , , , isListed, isBurned, isFeatured, isHidden] = nftData;
+    // Updated array: [nftId, currentPrice, basePrice, lastPurchasePrice, ownerId, buyCount, createdAt, lastTradedAt, isListed, isBurned]
+    const [id, currentPrice, basePrice, lastPurchasePrice, ownerId, , , , isListed, isBurned] = nftData;
+
 
     return (
         <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl hover:border-slate-700 transition-all group">
@@ -461,8 +449,8 @@ function NFTCompactCard({ nftId }: { nftId: bigint }) {
                     </div>
                 </div>
                 <div className="flex gap-1">
-                    {isFeatured && <div className="w-2 h-2 bg-amber-500 rounded-full shadow-[0_0_8px_rgba(245,158,11,0.5)]" title="Featured" />}
-                    {isHidden && <div className="w-2 h-2 bg-red-500 rounded-full" title="Hidden" />}
+                    {isListed && <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]" title="For Sale" />}
+                    {isBurned && <div className="w-2 h-2 bg-red-500 rounded-full" title="Burned" />}
                 </div>
             </div>
 
@@ -484,22 +472,12 @@ function NFTCompactCard({ nftId }: { nftId: bigint }) {
             </div>
 
             <div className="flex gap-2">
-                <button
-                    onClick={() => toggleFeatured(id)}
-                    disabled={togglingFeatured}
-                    className={`flex-1 text-[10px] font-bold py-2 rounded-lg transition-colors ${isFeatured ? 'bg-amber-500/20 text-amber-500' : 'bg-slate-900 text-slate-400 hover:bg-slate-800'
-                        }`}
-                >
-                    {isFeatured ? 'Featured' : 'Feature'}
-                </button>
-                <button
-                    onClick={() => toggleHidden(id)}
-                    disabled={togglingHidden}
-                    className={`flex-1 text-[10px] font-bold py-2 rounded-lg transition-colors ${isHidden ? 'bg-red-500/20 text-red-400' : 'bg-slate-900 text-slate-400 hover:bg-slate-800'
-                        }`}
-                >
-                    {isHidden ? 'Hidden' : 'Hide'}
-                </button>
+                <span className={`flex-1 text-center text-[10px] font-bold py-2 rounded-lg ${isListed ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-900 text-slate-500'}`}>
+                    {isListed ? 'Listed' : 'Not Listed'}
+                </span>
+                <span className={`flex-1 text-center text-[10px] font-bold py-2 rounded-lg ${isBurned ? 'bg-red-500/20 text-red-400' : 'bg-slate-900 text-slate-500'}`}>
+                    {isBurned ? 'Burned' : 'Active'}
+                </span>
             </div>
         </div>
     );
@@ -507,16 +485,13 @@ function NFTCompactCard({ nftId }: { nftId: bigint }) {
 
 function NFTDetailsCard({ nftId }: { nftId: bigint }) {
     const { data: nft, isLoading } = useNFT(nftId);
-    const { toggleFeatured, isPending: togglingFeatured } = useToggleNFTFeatured();
-    const { toggleHidden, isPending: togglingHidden } = useToggleNFTHidden();
 
     if (isLoading) return <div className="p-4 text-slate-500">Loading NFT Details...</div>;
     const nftData = nft as any[] | undefined;
     if (!nftData || nftData[0] === BigInt(0)) return <div className="p-4 text-red-400 bg-red-900/20 rounded-xl border border-red-800">Invalid NFT ID or NFT not found</div>;
 
-    // nft structure from ABI: 
-    // [nftId, currentPrice, basePrice, lastPurchasePrice, ownerId, buyCount, createdAt, lastTradedAt, displayOrder, isListed, isBurned, isFeatured, isHidden]
-    const [id, currentPrice, basePrice, lastPurchasePrice, ownerId, buyCount, createdAt, lastTradedAt, displayOrder, isListed, isBurned, isFeatured, isHidden] = nftData;
+    // Updated nft structure: [nftId, currentPrice, basePrice, lastPurchasePrice, ownerId, buyCount, createdAt, lastTradedAt, isListed, isBurned]
+    const [id, currentPrice, basePrice, lastPurchasePrice, ownerId, buyCount, createdAt, lastTradedAt, isListed, isBurned] = nftData;
 
     return (
         <div className="bg-slate-950 border border-slate-800 p-6 rounded-2xl grid md:grid-cols-2 gap-8 items-start animate-in zoom-in-95 duration-300">
@@ -525,8 +500,6 @@ function NFTDetailsCard({ nftId }: { nftId: bigint }) {
                     <span className="text-4xl font-bold text-white"># {id.toString()}</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                    {isFeatured && <span className="px-3 py-1 bg-amber-500/20 text-amber-400 text-xs font-bold rounded-full border border-amber-800">FEATURED</span>}
-                    {isHidden && <span className="px-3 py-1 bg-red-500/20 text-red-400 text-xs font-bold rounded-full border border-red-800">HIDDEN</span>}
                     {isListed && <span className="px-3 py-1 bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded-full border border-emerald-800">FOR SALE</span>}
                     {isBurned && <span className="px-3 py-1 bg-slate-700 text-slate-400 text-xs font-bold rounded-full">BURNED</span>}
                 </div>
@@ -548,27 +521,14 @@ function NFTDetailsCard({ nftId }: { nftId: bigint }) {
                     <p className="text-white">${formatUnits(basePrice, 18)}</p>
                     <p className="text-slate-500">Buy Count</p>
                     <p className="text-white">{buyCount.toString()}</p>
-                </div>
-
-                <div className="flex flex-wrap gap-3">
-                    <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => toggleFeatured(id)}
-                        disabled={togglingFeatured}
-                        className="bg-amber-600/10 hover:bg-amber-600/20 text-amber-500 border-amber-600/50"
-                    >
-                        {isFeatured ? 'Un-Feature' : 'Set Featured'}
-                    </Button>
-                    <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => toggleHidden(id)}
-                        disabled={togglingHidden}
-                        className="bg-red-600/10 hover:bg-red-600/20 text-red-500 border-red-600/50"
-                    >
-                        {isHidden ? 'Un-Hide' : 'Hide NFT'}
-                    </Button>
+                    <p className="text-slate-500">Created</p>
+                    <p className="text-white">{new Date(Number(createdAt) * 1000).toLocaleDateString()}</p>
+                    {lastTradedAt > 0 && (
+                        <>
+                            <p className="text-slate-500">Last Trade</p>
+                            <p className="text-white">{new Date(Number(lastTradedAt) * 1000).toLocaleDateString()}</p>
+                        </>
+                    )}
                 </div>
             </div>
         </div>
