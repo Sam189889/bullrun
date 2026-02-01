@@ -141,12 +141,29 @@ export function TeamRankTab() {
     const { data: kingBullData, refetch: refetchKingBull } = useUserRankData(userId as bigint, 4);
     const { data: titanData, refetch: refetchTitan } = useUserRankData(userId as bigint, 5);
 
+    // Parse array data from contract to RankData object
+    // Contract returns: [achieved, achievedAt, emiPaidCount, lastEmiClaimAt, fastBonusClaimed]
+    const parseRankData = (data: any): RankData | undefined => {
+        if (!data) return undefined;
+        // Handle both array and object formats
+        if (Array.isArray(data)) {
+            return {
+                achieved: Boolean(data[0]),
+                achievedAt: data[1] as bigint,
+                emiPaidCount: data[2] as bigint,
+                lastEmiClaimAt: data[3] as bigint,
+                fastBonusClaimed: Boolean(data[4]),
+            };
+        }
+        return data as RankData;
+    };
+
     const rankDataMap: Record<number, RankData | undefined> = {
-        1: calfData as RankData | undefined,
-        2: bullData as RankData | undefined,
-        3: leadBullData as RankData | undefined,
-        4: kingBullData as RankData | undefined,
-        5: titanData as RankData | undefined,
+        1: parseRankData(calfData),
+        2: parseRankData(bullData),
+        3: parseRankData(leadBullData),
+        4: parseRankData(kingBullData),
+        5: parseRankData(titanData),
     };
 
     const refetchMap: Record<number, () => void> = {
