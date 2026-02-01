@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
 import { formatUnits } from 'viem';
-import { useUserId, useUserInfo, useUserEarnings, useUserBalance, useUserDailyLimitData } from '@/hooks/useContracts';
+import { useUserId, useUserInfo, useUserEarnings, useUserBalance, useUserDailyLimitData, useUserAvailableLimit } from '@/hooks/useContracts';
 import { useDayStartTimestamp, useDayLength } from '@/hooks/useAdminContracts';
 import { SmartPackageCard } from './SmartPackageCard';
 
@@ -88,16 +88,18 @@ export function HomeTab() {
     const { data: earnings, isLoading: earningsLoading } = useUserEarnings(userId as bigint);
     const { data: balanceData } = useUserBalance(userId as bigint);
     const { data: dailyLimitData } = useUserDailyLimitData(userId as bigint);
+    const { data: availableLimit } = useUserAvailableLimit(userId as bigint);
 
     // Day settings for timer
     const { data: dayStart } = useDayStartTimestamp();
     const { data: dayLength } = useDayLength();
-    
-    // Calculate daily trade limit (totalLimit, usedLimit, lastResetDay)
+
+    // Calculate daily trade limit - USE availableLimit from contract (handles day reset)
     const dailyLimit = dailyLimitData as readonly [bigint, bigint, bigint] | undefined;
     const totalDailyLimit = dailyLimit ? dailyLimit[0] : BigInt(0);
-    const usedDailyLimit = dailyLimit ? dailyLimit[1] : BigInt(0);
-    const remainingDailyLimit = totalDailyLimit - usedDailyLimit;
+    // Use availableLimit from contract (properly handles day reset)
+    const remainingDailyLimit = availableLimit ? (availableLimit as bigint) : BigInt(0);
+    const usedDailyLimit = totalDailyLimit - remainingDailyLimit; // Calculate from available
 
     // Referral link - using wallet address
     const referralLink = typeof window !== 'undefined' && address
@@ -211,13 +213,13 @@ export function HomeTab() {
                             <h3 className="text-xs sm:text-sm font-semibold text-[#F8FAFC]">Daily Trade Limit</h3>
                         </div>
                         <span className="text-xs sm:text-sm font-bold text-[#EC4899]">
-                            {totalDailyLimit > BigInt(0) 
+                            {totalDailyLimit > BigInt(0)
                                 ? `${((Number(formatUnits(usedDailyLimit, 18)) / Number(formatUnits(totalDailyLimit, 18))) * 100).toFixed(1)}%`
                                 : '0%'
                             }
                         </span>
                     </div>
-                    
+
                     {/* Progress Bar */}
                     <div className="relative h-3 sm:h-4 bg-[#0F172A] rounded-full overflow-hidden mb-2">
                         <div
@@ -229,7 +231,7 @@ export function HomeTab() {
                             }}
                         />
                     </div>
-                    
+
                     {/* Stats */}
                     <div className="flex items-center justify-between text-[10px] sm:text-xs">
                         <span className="text-[#64748B]">
@@ -242,7 +244,7 @@ export function HomeTab() {
                             Total: <span className="text-[#EC4899] font-bold">{formatUSDT(totalDailyLimit)}</span>
                         </span>
                     </div>
-                    
+
                     {/* Warning if limit low */}
                     {totalDailyLimit > BigInt(0) && remainingDailyLimit < BigInt('10000000000000000000') && (
                         <div className="mt-3 p-2 bg-[#F59E0B]/10 border border-[#F59E0B]/30 rounded-lg">
@@ -263,21 +265,20 @@ export function HomeTab() {
                             <h3 className="text-xs sm:text-sm font-semibold text-[#F8FAFC]">Total Earning Cap Progress</h3>
                         </div>
                         <span className="text-xs sm:text-sm font-bold text-[#EC4899]">
-                            {info.earningCap > BigInt(0) 
+                            {info.earningCap > BigInt(0)
                                 ? `${((Number(formatUnits(balance.totalEarned, 18)) / Number(formatUnits(info.earningCap, 18))) * 100).toFixed(1)}%`
                                 : '0%'
                             }
                         </span>
                     </div>
-                    
+
                     {/* Progress Bar */}
                     <div className="relative h-3 sm:h-4 bg-[#0F172A] rounded-full overflow-hidden mb-2 border border-[#334155]">
                         <div
-                            className={`absolute inset-y-0 left-0 rounded-full transition-all duration-500 ${
-                                info.earningCap > BigInt(0) && (Number(formatUnits(balance.totalEarned, 18)) / Number(formatUnits(info.earningCap, 18))) >= 1
-                                    ? 'bg-gradient-to-r from-[#EF4444] to-[#F59E0B]'
-                                    : 'bg-gradient-to-r from-[#10B981] to-[#3B82F6]'
-                            }`}
+                            className={`absolute inset-y-0 left-0 rounded-full transition-all duration-500 ${info.earningCap > BigInt(0) && (Number(formatUnits(balance.totalEarned, 18)) / Number(formatUnits(info.earningCap, 18))) >= 1
+                                ? 'bg-gradient-to-r from-[#EF4444] to-[#F59E0B]'
+                                : 'bg-gradient-to-r from-[#10B981] to-[#3B82F6]'
+                                }`}
                             style={{
                                 width: info.earningCap > BigInt(0)
                                     ? `${Math.min((Number(formatUnits(balance.totalEarned, 18)) / Number(formatUnits(info.earningCap, 18))) * 100, 100)}%`
@@ -285,7 +286,7 @@ export function HomeTab() {
                             }}
                         />
                     </div>
-                    
+
                     {/* Stats */}
                     <div className="flex items-center justify-between text-[10px] sm:text-xs">
                         <span className="text-[#64748B]">
@@ -295,7 +296,7 @@ export function HomeTab() {
                             Cap: <span className="text-[#EC4899] font-bold">{formatUSDT(info.earningCap)}</span>
                         </span>
                     </div>
-                    
+
                     {/* Warning if near cap */}
                     {info.earningCap > BigInt(0) && (Number(formatUnits(balance.totalEarned, 18)) / Number(formatUnits(info.earningCap, 18))) >= 0.9 && (
                         <div className="mt-3 p-2 bg-[#F59E0B]/10 border border-[#F59E0B]/30 rounded-lg">
