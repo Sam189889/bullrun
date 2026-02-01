@@ -314,6 +314,67 @@ export function useNFTBurnedEvents(buyerId: bigint | undefined) {
     return { events, isLoading, error, refetch: fetchEvents }
 }
 
+// NFT Split event - when NFT is split into multiple new NFTs
+export interface NFTSplitEvent {
+    originalNftId: bigint
+    buyerId: bigint
+    splitPrice: bigint
+    newNftIds: bigint[]
+    blockNumber: bigint
+    transactionHash: `0x${string}`
+}
+
+/**
+ * Get NFT Split events for a user (NFTs received from splits)
+ */
+export function useNFTSplitEvents(buyerId: bigint | undefined) {
+    const publicClient = usePublicClient()
+    const [events, setEvents] = useState<NFTSplitEvent[]>([])
+    const [isLoading, setIsLoading] = useState(false)
+    const [error, setError] = useState<Error | null>(null)
+
+    const fetchEvents = useCallback(async () => {
+        if (!buyerId || !publicClient) return
+
+        setIsLoading(true)
+        setError(null)
+        try {
+            const logs = await getContractEvents(publicClient, {
+                address: CONTRACTS.BULL_RUN,
+                abi: BullRunMainLogicABI,
+                eventName: 'NFTSplit',
+                args: { buyerId },
+                fromBlock: DEPLOY_BLOCK,
+                toBlock: 'latest',
+            })
+
+            const parsed: NFTSplitEvent[] = logs.map(log => {
+                const args = (log as any).args
+                return {
+                    originalNftId: args.originalNftId as bigint,
+                    buyerId: args.buyerId as bigint,
+                    splitPrice: args.splitPrice as bigint,
+                    newNftIds: args.newNftIds as bigint[],
+                    blockNumber: log.blockNumber,
+                    transactionHash: log.transactionHash,
+                }
+            })
+
+            setEvents(parsed.reverse())
+        } catch (err) {
+            setError(err as Error)
+        } finally {
+            setIsLoading(false)
+        }
+    }, [buyerId, publicClient])
+
+    useEffect(() => {
+        fetchEvents()
+    }, [fetchEvents])
+
+    return { events, isLoading, error, refetch: fetchEvents }
+}
+
 // ============ RANK EVENTS ============
 
 /**

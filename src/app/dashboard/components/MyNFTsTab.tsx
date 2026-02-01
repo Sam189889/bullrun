@@ -7,12 +7,12 @@ import { useUserId, useUserNFTCount, useUserNFT, useNFT, useUserInfo } from '@/h
 // Helper component to display owner username
 function OwnerUsername({ ownerId }: { ownerId: bigint }) {
     const { data: userInfo } = useUserInfo(ownerId);
-    
+
     if (!userInfo) return <span className="text-[#64748B]">...</span>;
-    
+
     // Wagmi returns struct as object with named fields
     const user = userInfo as { usernameId: bigint };
-    
+
     return <span className="font-mono text-[#EC4899]">BULL{user.usernameId.toString()}</span>;
 }
 
@@ -66,9 +66,9 @@ function NFTMobileCard({ nftIndex, userId }: { nftIndex: number; userId: bigint 
     const formatUSD = (value: bigint) => `$${Number(formatUnits(value, 18)).toFixed(2)}`;
     const formatDateTime = (timestamp: bigint) => {
         const date = new Date(Number(timestamp) * 1000);
-        return date.toLocaleString('en-US', { 
-            month: 'short', 
-            day: 'numeric', 
+        return date.toLocaleString('en-US', {
+            month: 'short',
+            day: 'numeric',
             year: 'numeric',
             hour: '2-digit',
             minute: '2-digit'
@@ -130,30 +130,51 @@ function NFTMobileCard({ nftIndex, userId }: { nftIndex: number; userId: bigint 
 
 // Transaction Link Component - Fetches transaction hash from events
 function NFTTransactionLink({ nftId, userId }: { nftId: number; userId: bigint }) {
-    const { useNFTBuyEvents } = require('@/hooks/useEvents');
-    const { events } = useNFTBuyEvents(userId);
+    const { useNFTBuyEvents, useNFTSplitEvents } = require('@/hooks/useEvents');
+    const { events: buyEvents } = useNFTBuyEvents(userId);
+    const { events: splitEvents } = useNFTSplitEvents(userId);
 
-    // Find the purchase event for this specific NFT
-    const nftPurchaseEvent = events?.find((event: any) => event.nftId === BigInt(nftId));
-    
-    if (!nftPurchaseEvent) {
-        return <span className="text-xs text-[#64748B]">-</span>;
+    // First check buy events
+    const nftPurchaseEvent = buyEvents?.find((event: any) => event.nftId === BigInt(nftId));
+
+    if (nftPurchaseEvent) {
+        const txHash = nftPurchaseEvent.transactionHash;
+        const explorerUrl = `https://testnet.opbnbscan.com/tx/${txHash}`;
+        return (
+            <a
+                href={explorerUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-[#3B82F6] hover:text-[#60A5FA] underline flex items-center gap-1"
+            >
+                {txHash.slice(0, 6)}...{txHash.slice(-4)}
+                <span className="text-[10px]">↗</span>
+            </a>
+        );
     }
 
-    const txHash = nftPurchaseEvent.transactionHash;
-    const explorerUrl = `https://testnet.opbnbscan.com/tx/${txHash}`;
-
-    return (
-        <a 
-            href={explorerUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-[#3B82F6] hover:text-[#60A5FA] underline flex items-center gap-1"
-        >
-            {txHash.slice(0, 6)}...{txHash.slice(-4)}
-            <span className="text-[10px]">↗</span>
-        </a>
+    // Check split events - NFT might be from a split
+    const splitEvent = splitEvents?.find((event: any) =>
+        event.newNftIds?.some((id: bigint) => id === BigInt(nftId))
     );
+
+    if (splitEvent) {
+        const txHash = splitEvent.transactionHash;
+        const explorerUrl = `https://testnet.opbnbscan.com/tx/${txHash}`;
+        return (
+            <a
+                href={explorerUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-[#8B5CF6] hover:text-[#A78BFA] underline flex items-center gap-1"
+            >
+                {txHash.slice(0, 6)}...{txHash.slice(-4)} 🔀
+                <span className="text-[10px]">↗</span>
+            </a>
+        );
+    }
+
+    return <span className="text-xs text-[#64748B]">-</span>;
 }
 
 // Desktop Table Row Component
@@ -203,9 +224,9 @@ function NFTTableRow({ nftIndex, userId }: { nftIndex: number; userId: bigint })
     const formatUSD = (value: bigint) => `$${Number(formatUnits(value, 18)).toFixed(2)}`;
     const formatDateTime = (timestamp: bigint) => {
         const date = new Date(Number(timestamp) * 1000);
-        return date.toLocaleString('en-US', { 
-            month: 'short', 
-            day: 'numeric', 
+        return date.toLocaleString('en-US', {
+            month: 'short',
+            day: 'numeric',
             year: 'numeric',
             hour: '2-digit',
             minute: '2-digit'
@@ -259,9 +280,9 @@ function useNFTStatus(userId: bigint, nftIndex: number) {
     const { data: nftIdData } = useUserNFT(userId, nftIndex);
     const nftId = nftIdData ? Number(nftIdData) : 0;
     const { data: nftData } = useNFT(BigInt(nftId));
-    
+
     if (!nftData || nftId === 0) return { nftId: 0, isListed: false, index: nftIndex };
-    
+
     const nftArray = nftData as unknown as readonly [bigint, bigint, bigint, bigint, bigint, bigint, bigint, bigint, bigint, boolean, boolean, boolean, boolean];
     return { nftId, isListed: nftArray[9], index: nftIndex };
 }
@@ -276,7 +297,7 @@ export function MyNFTsTab() {
 
     // Fetch user's NFT IDs from userNFTs array (indices 0 to nftCount-1)
     const nftIndices = Array.from({ length: nftCount }, (_, i) => i);
-    
+
     // Sort: Held NFTs (not listed) first, then listed NFTs
     const sortedIndices = [...nftIndices].sort((a, b) => {
         // This is a simple sort - in production you'd fetch all NFT data first
