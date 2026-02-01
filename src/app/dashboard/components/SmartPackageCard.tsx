@@ -1,9 +1,9 @@
 'use client';
 
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useBalance } from 'wagmi';
-import { formatUnits, parseUnits } from 'viem';
+import { useAccount, useWriteContract, useBalance } from 'wagmi';
+import { parseUnits } from 'viem';
 import { useUserId, useUserInfo, useUserBalance, usePackageTopUpCount, useUSDTAllowance, usePurchasePackage } from '@/hooks/useContracts';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { contracts } from '@/config/wagmi';
 import { USDTbABI } from '@/abi';
 import PackagePurchaseModal from './PackagePurchaseModal';

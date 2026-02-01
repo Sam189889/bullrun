@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useAccount } from 'wagmi';
 import { formatUnits } from 'viem';
-import { useUserId, useUserInfo, useUserRankData, useClaimRankEmi, useClaimFastBonus } from '@/hooks/useContracts';
+import { useUserId, useUserInfo, useUserRankData, useClaimRankEmi, useClaimFastBonus, useAllRankConfigs } from '@/hooks/useContracts';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import toast from 'react-hot-toast';
@@ -11,15 +11,8 @@ import toast from 'react-hot-toast';
 // Rank enum matching contract
 const RANKS = ['NONE', 'CALF', 'BULL', 'LEAD_BULL', 'KING_BULL', 'TITAN'];
 
-// Rank configs - matching contract
-const RANK_CONFIGS = [
-    { name: 'None', emiAmount: 0, fastBonus: 0, totalEmis: 0, fastBonusDays: 0 },
-    { name: 'Calf', emiAmount: 50, fastBonus: 100, totalEmis: 6, fastBonusDays: 30 },
-    { name: 'Bull', emiAmount: 100, fastBonus: 200, totalEmis: 6, fastBonusDays: 60 },
-    { name: 'Lead Bull', emiAmount: 150, fastBonus: 300, totalEmis: 6, fastBonusDays: 90 },
-    { name: 'King Bull', emiAmount: 200, fastBonus: 400, totalEmis: 6, fastBonusDays: 120 },
-    { name: 'Titan', emiAmount: 500, fastBonus: 500, totalEmis: 6, fastBonusDays: 120 },
-];
+// Fallback rank names (configs fetched from contract dynamically)
+const RANK_NAMES = ['None', 'Calf', 'Bull', 'Lead Bull', 'King Bull', 'Titan'];
 
 const EMI_INTERVAL_DAYS = 15;
 
@@ -62,6 +55,9 @@ export function RanksTab() {
     // Claim hooks
     const { claimEmi, isPending: emiPending } = useClaimRankEmi();
     const { claimFastBonus, isPending: fastBonusPending } = useClaimFastBonus();
+
+    // Fetch rank configs from contract dynamically
+    const { configs: RANK_CONFIGS, isLoading: configsLoading } = useAllRankConfigs();
 
     const info = userInfo as { activationDate: bigint } | undefined;
     const isRegistered = typeof userId === 'bigint' && userId > BigInt(0);

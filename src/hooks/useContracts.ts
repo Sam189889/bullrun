@@ -272,6 +272,59 @@ export function useUserRankData(userId: bigint | undefined, rank: number) {
 }
 
 /**
+ * Get rank configuration from contract
+ * @param rank Rank index (1=CALF, 2=BULL, 3=LEAD_BULL, 4=KING_BULL, 5=TITAN)
+ */
+export function useRankConfig(rank: number) {
+    return useReadContract({
+        address: contracts.bullRun,
+        abi: BullRunMainLogicABI,
+        functionName: 'rankConfigs',
+        args: [rank],
+        query: { enabled: rank >= 1 && rank <= 5 },
+    })
+}
+
+/**
+ * Get all rank configurations from contract (1-5)
+ * Returns: { configs: RankConfig[], isLoading: boolean }
+ */
+export function useAllRankConfigs() {
+    const calf = useRankConfig(1)
+    const bull = useRankConfig(2)
+    const leadBull = useRankConfig(3)
+    const kingBull = useRankConfig(4)
+    const titan = useRankConfig(5)
+
+    const isLoading = calf.isLoading || bull.isLoading || leadBull.isLoading || kingBull.isLoading || titan.isLoading
+
+    // Parse contract data to UI-friendly format
+    const parseConfig = (data: any, name: string) => {
+        if (!data) return { name, emiAmount: 0, fastBonus: 0, fastBonusDays: 0, selfPackageMin: 0, directsRequired: 0, teamTotalRequired: 0 }
+        return {
+            name,
+            selfPackageMin: Number(data[0] || BigInt(0)) / 1e18,
+            directsRequired: Number(data[1] || 0),
+            teamTotalRequired: Number(data[2] || BigInt(0)) / 1e18,
+            emiAmount: Number(data[3] || BigInt(0)) / 1e18,
+            fastBonusDays: Number(data[4] || BigInt(0)) / (24 * 60 * 60), // Convert seconds to days
+            fastBonus: Number(data[5] || BigInt(0)) / 1e18,
+        }
+    }
+
+    const configs = [
+        { name: 'None', emiAmount: 0, fastBonus: 0, fastBonusDays: 0, selfPackageMin: 0, directsRequired: 0, teamTotalRequired: 0 },
+        parseConfig(calf.data, 'Calf'),
+        parseConfig(bull.data, 'Bull'),
+        parseConfig(leadBull.data, 'Lead Bull'),
+        parseConfig(kingBull.data, 'King Bull'),
+        parseConfig(titan.data, 'Titan'),
+    ]
+
+    return { configs, isLoading }
+}
+
+/**
  * Withdraw available balance ($5 minimum)
  */
 export function useWithdraw() {

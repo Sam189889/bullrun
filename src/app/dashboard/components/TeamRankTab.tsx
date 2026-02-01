@@ -1,25 +1,13 @@
 'use client';
 
-import { ProgressBar } from '@/components/ui/ProgressBar';
 import { useState } from 'react';
 import { useAccount } from 'wagmi';
 import { formatUnits } from 'viem';
-import { useUserId, useUserInfo, useUserTeamVolume, useUserRankData, useClaimRankEmi, useClaimFastBonus, useDirectReferrals } from '@/hooks/useContracts';
+import { useUserId, useUserInfo, useUserTeamVolume, useUserRankData, useClaimRankEmi, useClaimFastBonus, useDirectReferrals, useAllRankConfigs } from '@/hooks/useContracts';
 import { useLevelCounts } from '@/hooks/useEvents';
 import { GiBull } from 'react-icons/gi';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import toast from 'react-hot-toast';
-
-// Rank configuration
-const RANK_CONFIGS = [
-    { name: 'None', emiAmount: 0, fastBonus: 0, totalEmis: 0, fastBonusDays: 0 },
-    { name: 'Calf', emiAmount: 50, fastBonus: 100, totalEmis: 6, fastBonusDays: 30 },
-    { name: 'Bull', emiAmount: 100, fastBonus: 200, totalEmis: 6, fastBonusDays: 60 },
-    { name: 'Lead Bull', emiAmount: 150, fastBonus: 300, totalEmis: 6, fastBonusDays: 90 },
-    { name: 'King Bull', emiAmount: 200, fastBonus: 400, totalEmis: 6, fastBonusDays: 120 },
-    { name: 'Titan', emiAmount: 500, fastBonus: 500, totalEmis: 6, fastBonusDays: 120 },
-];
 
 const EMI_INTERVAL_DAYS = 15;
 
@@ -43,30 +31,6 @@ interface UserInfo {
 }
 
 
-
-// Component to show user count with loading state - using events-based calculation
-function LevelUserCount({ level, userId, getLevelCount, isLoadingCounts }: {
-    level: number;
-    userId: bigint | undefined;
-    getLevelCount: (level: number) => number;
-    isLoadingCounts: boolean;
-}) {
-    const count = getLevelCount(level);
-
-    if (isLoadingCounts) {
-        return (
-            <span className="text-xs text-[#64748B]">
-                (Loading...)
-            </span>
-        );
-    }
-
-    return (
-        <span className="text-xs text-[#64748B]">
-            ({count} {count === 1 ? 'user' : 'users'})
-        </span>
-    );
-}
 
 // Component to fetch and display users at a specific level
 function LevelUsers({ userId, targetLevel, currentLevel = 1 }: { userId: bigint; targetLevel: number; currentLevel?: number }) {
@@ -155,118 +119,6 @@ function NetworkUserCard({ userId }: { userId: bigint }) {
 }
 
 // Network Node Component (Tree structure - keeping for future use)
-function NetworkNode({
-    userId,
-    level,
-    maxLevel = 30,
-    expandedUserId,
-    onToggle
-}: {
-    userId: bigint;
-    level: number;
-    maxLevel?: number;
-    expandedUserId?: bigint;
-    onToggle?: (userId: bigint | null) => void;
-}) {
-    const { data: userInfo } = useUserInfo(userId);
-    const { data: referrals } = useDirectReferrals(userId);
-
-    const user = userInfo as UserInfo | undefined;
-    const referralsList = referrals as readonly bigint[] | undefined;
-
-    const hasReferrals = user && user.directReferralsCount > BigInt(0);
-    const canExpand = hasReferrals && level < maxLevel;
-    const isExpanded = expandedUserId === userId;
-
-    const handleToggle = () => {
-        if (!canExpand) return;
-        onToggle?.(isExpanded ? null : userId);
-    };
-
-    // Get package name from parent RANK_CONFIGS or define locally
-    const PACKAGES = ['None', '$11', '$27.5', '$50', '$100', '$250', '$500', '$1000', '$2500', '$5000'];
-    const packageName = user?.packageLevel ? PACKAGES[Number(user.packageLevel)] : 'None';
-    const isActive = user?.isActive || false;
-    const totalInvested = user?.totalInvested ? `$${Number(formatUnits(user.totalInvested, 18)).toFixed(0)}` : '$0';
-
-    return (
-        <div className="relative">
-            {level > 1 && (
-                <div className="absolute left-[-20px] top-0 bottom-0 w-[2px] bg-[#334155]" />
-            )}
-
-            <div className={`mb-3 ${level === 1 ? '' : 'ml-4 sm:ml-6'}`}>
-                <div
-                    className="flex items-center gap-2 p-2 sm:p-3 bg-gradient-to-r from-[#1E293B] to-[#0F172A] border border-[#334155] rounded-lg hover:border-[#EC4899] transition-all cursor-pointer shadow-lg w-full sm:min-w-[500px]"
-                    onClick={handleToggle}
-                >
-                    <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center">
-                        {canExpand ? (
-                            isExpanded ? (
-                                <span className="text-lg text-[#EC4899]">▼</span>
-                            ) : (
-                                <span className="text-lg text-[#64748B]">▶</span>
-                            )
-                        ) : (
-                            <span className="text-[#334155]">●</span>
-                        )}
-                    </div>
-
-                    <div className="flex-1 flex items-center gap-2 sm:gap-3 min-w-0">
-                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-[#EC4899] to-[#8B5CF6] flex items-center justify-center shadow-lg flex-shrink-0">
-                            <span className="text-xs sm:text-sm font-bold text-white">
-                                {user?.usernameId.toString().slice(0, 2) || '??'}
-                            </span>
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1 sm:gap-2">
-                                <p className="text-xs sm:text-sm font-bold text-[#F8FAFC] truncate">
-                                    BULL{user?.usernameId.toString() || '...'}
-                                </p>
-                                <span className={`text-[10px] px-1 py-0.5 rounded flex-shrink-0 ${isActive ? 'bg-[#10B981]/20 text-[#10B981]' : 'bg-[#EF4444]/20 text-[#EF4444]'}`}>
-                                    {isActive ? '✅' : '❌'}
-                                </span>
-                            </div>
-                            <div className="flex items-center gap-1 sm:gap-2 text-[10px] sm:text-xs text-[#64748B] mt-0.5 flex-wrap">
-                                <span className="whitespace-nowrap">L{level}</span>
-                                <span className="hidden sm:inline">•</span>
-                                <span className="text-[#EC4899] whitespace-nowrap">{packageName}</span>
-                                <span className="hidden sm:inline">•</span>
-                                <span className="whitespace-nowrap">{user?.directReferralsCount.toString() || '0'} Dir</span>
-                                <span className="hidden sm:inline">•</span>
-                                <span className="text-[#10B981] whitespace-nowrap">{totalInvested}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                        <div className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-[#EC4899]/20 rounded text-[10px] font-bold text-[#EC4899] border border-[#EC4899]/30">
-                            L{level}
-                        </div>
-                    </div>
-                </div>
-
-                {isExpanded && referralsList && referralsList.length > 0 && (
-                    <div className="relative mt-2 pl-4 border-l-2 border-[#334155]">
-                        {referralsList.map((refId) => (
-                            <div key={refId.toString()} className="relative">
-                                <div className="absolute left-0 top-6 w-4 h-[2px] bg-[#334155]" />
-                                <NetworkNode
-                                    userId={refId}
-                                    level={level + 1}
-                                    maxLevel={maxLevel}
-                                    expandedUserId={expandedUserId}
-                                    onToggle={onToggle}
-                                />
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-}
 
 export function TeamRankTab() {
     const [activeSubTab, setActiveSubTab] = useState('overview');
@@ -308,8 +160,10 @@ export function TeamRankTab() {
     const { claimEmi, isPending: emiPending } = useClaimRankEmi();
     const { claimFastBonus, isPending: fastBonusPending } = useClaimFastBonus();
 
+    // Fetch rank configs from contract dynamically
+    const { configs: RANK_CONFIGS } = useAllRankConfigs();
+
     const info = userInfo as UserInfo | undefined;
-    const referralsList = referrals as readonly bigint[] | undefined;
     const isRegistered = typeof userId === 'bigint' && userId > BigInt(0);
 
     const subTabs = [
@@ -326,6 +180,14 @@ export function TeamRankTab() {
     };
 
     const directReferrals = info ? Number(info.directReferralsCount) : 0;
+
+    // User's package prices for progress calculation
+    const PACKAGE_PRICES = [0, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000];
+    const userPackagePrice = info?.packageLevel ? PACKAGE_PRICES[Number(info.packageLevel)] : 0;
+    const userTeamVol = teamVolume ? Number(formatUnits(teamVolume as bigint, 18)) : 0;
+
+    // Calculate progress percentage (capped at 100%)
+    const calcProgress = (current: number, required: number) => required > 0 ? Math.min((current / required) * 100, 100) : 0;
 
     const canClaimEmi = (rankData: RankData | undefined) => {
         if (!rankData?.achieved) return false;
@@ -442,20 +304,32 @@ export function TeamRankTab() {
                 <>
                     {/* Team Stats */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        {[
-                            { label: 'Direct Referrals', value: directReferrals, icon: '👥', color: 'text-white' },
-                            { label: 'Active Team', value: directReferrals, icon: '✅', color: 'text-[#10B981]' },
-                            { label: 'Team Volume', value: formatVolume(teamVolume as bigint), icon: '💰', color: 'text-[#EC4899]' },
-                            { label: 'My Rank', value: RANK_CONFIGS[Math.min(Number(info?.packageLevel || 0), RANK_CONFIGS.length - 1)]?.name || 'None', icon: '🏆', color: 'text-[#F59E0B]' }
-                        ].map((stat, i) => (
-                            <div key={i} className="bg-[#1E293B]/50 border border-[#334155] p-3 rounded-xl card-hover">
-                                <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-sm">{stat.icon}</span>
-                                    <span className="text-[10px] text-[#64748B] uppercase font-bold">{stat.label}</span>
+                        {(() => {
+                            // Calculate highest achieved rank from contract data
+                            let highestRank = 0;
+                            for (let i = 5; i >= 1; i--) {
+                                if (rankDataMap[i]?.achieved) {
+                                    highestRank = i;
+                                    break;
+                                }
+                            }
+                            const myRankName = RANK_CONFIGS[highestRank]?.name || 'None';
+
+                            return [
+                                { label: 'Direct Referrals', value: directReferrals, icon: '👥', color: 'text-white' },
+                                { label: 'Active Team', value: directReferrals, icon: '✅', color: 'text-[#10B981]' },
+                                { label: 'Team Volume', value: formatVolume(teamVolume as bigint), icon: '💰', color: 'text-[#EC4899]' },
+                                { label: 'My Rank', value: myRankName, icon: '🏆', color: 'text-[#F59E0B]' }
+                            ].map((stat, i) => (
+                                <div key={i} className="bg-[#1E293B]/50 border border-[#334155] p-3 rounded-xl card-hover">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <span className="text-sm">{stat.icon}</span>
+                                        <span className="text-[10px] text-[#64748B] uppercase font-bold">{stat.label}</span>
+                                    </div>
+                                    <p className={`text-xl font-bold ${stat.color}`}>{stat.value}</p>
                                 </div>
-                                <p className={`text-xl font-bold ${stat.color}`}>{stat.value}</p>
-                            </div>
-                        ))}
+                            ));
+                        })()}
                     </div>
 
                     {/* Rank Rewards Section */}
@@ -475,14 +349,75 @@ export function TeamRankTab() {
                                 const nextEmi = getNextEmiTime(rankData);
 
                                 return (
-                                    <Card key={rankIndex} variant={achieved ? 'glow' : 'default'} className={`p-4 transition-all ${!achieved ? 'opacity-60 saturate-50' : ''}`}>
-                                        <div className="flex justify-between items-center mb-4">
+                                    <Card key={rankIndex} variant={achieved ? 'glow' : 'default'} className={`p-4 transition-all ${!achieved ? 'opacity-70' : ''}`}>
+                                        <div className="flex justify-between items-center mb-3">
                                             <h3 className="font-bold text-[#F8FAFC] flex items-center gap-2">
                                                 {config.name}
                                                 {achieved && <span className="text-[#10B981]">✓</span>}
                                             </h3>
-                                            {!achieved && <span className="text-[10px] bg-slate-800 text-slate-500 px-2 py-0.5 rounded-full uppercase">Locked</span>}
+                                            {achieved ? (
+                                                <span className="text-[10px] bg-[#10B981]/20 text-[#10B981] px-2 py-0.5 rounded-full uppercase">Achieved</span>
+                                            ) : (
+                                                <span className="text-[10px] bg-slate-800 text-slate-500 px-2 py-0.5 rounded-full uppercase">
+                                                    {Math.round((calcProgress(userPackagePrice, config.selfPackageMin || 0) +
+                                                        calcProgress(directReferrals, config.directsRequired || 0) +
+                                                        calcProgress(userTeamVol, config.teamTotalRequired || 0)) / 3)}% Ready
+                                                </span>
+                                            )}
                                         </div>
+
+                                        {/* Progress Bars - Show for all ranks */}
+                                        {!achieved && (
+                                            <div className="space-y-2 mb-4 bg-[#0F172A]/50 rounded-lg p-2 border border-[#334155]">
+                                                {/* Self Package Progress */}
+                                                <div>
+                                                    <div className="flex justify-between text-[10px] mb-1">
+                                                        <span className="text-[#64748B]">Self Package</span>
+                                                        <span className={userPackagePrice >= (config.selfPackageMin || 0) ? 'text-[#10B981]' : 'text-[#F59E0B]'}>
+                                                            ${userPackagePrice} / ${config.selfPackageMin || 0}
+                                                        </span>
+                                                    </div>
+                                                    <div className="h-1.5 bg-[#1E293B] rounded-full overflow-hidden">
+                                                        <div
+                                                            className={`h-full rounded-full transition-all ${userPackagePrice >= (config.selfPackageMin || 0) ? 'bg-[#10B981]' : 'bg-[#F59E0B]'}`}
+                                                            style={{ width: `${calcProgress(userPackagePrice, config.selfPackageMin || 0)}%` }}
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                {/* Direct Referrals Progress */}
+                                                <div>
+                                                    <div className="flex justify-between text-[10px] mb-1">
+                                                        <span className="text-[#64748B]">Direct Referrals</span>
+                                                        <span className={directReferrals >= (config.directsRequired || 0) ? 'text-[#10B981]' : 'text-[#F59E0B]'}>
+                                                            {directReferrals} / {config.directsRequired || 0}
+                                                        </span>
+                                                    </div>
+                                                    <div className="h-1.5 bg-[#1E293B] rounded-full overflow-hidden">
+                                                        <div
+                                                            className={`h-full rounded-full transition-all ${directReferrals >= (config.directsRequired || 0) ? 'bg-[#10B981]' : 'bg-[#EC4899]'}`}
+                                                            style={{ width: `${calcProgress(directReferrals, config.directsRequired || 0)}%` }}
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                {/* Team Volume Progress */}
+                                                <div>
+                                                    <div className="flex justify-between text-[10px] mb-1">
+                                                        <span className="text-[#64748B]">Team Volume</span>
+                                                        <span className={userTeamVol >= (config.teamTotalRequired || 0) ? 'text-[#10B981]' : 'text-[#F59E0B]'}>
+                                                            ${userTeamVol.toFixed(0)} / ${(config.teamTotalRequired || 0).toLocaleString()}
+                                                        </span>
+                                                    </div>
+                                                    <div className="h-1.5 bg-[#1E293B] rounded-full overflow-hidden">
+                                                        <div
+                                                            className={`h-full rounded-full transition-all ${userTeamVol >= (config.teamTotalRequired || 0) ? 'bg-[#10B981]' : 'bg-[#8B5CF6]'}`}
+                                                            style={{ width: `${calcProgress(userTeamVol, config.teamTotalRequired || 0)}%` }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
 
                                         <div className="space-y-3">
                                             <div className="bg-[#0F172A]/80 rounded-lg p-2.5 flex justify-between items-center border border-[#334155]">
