@@ -41,26 +41,49 @@ export function NFTsTab() {
     const [showEditMode, setShowEditMode] = useState(false);
     const [showCreateMode, setShowCreateMode] = useState(false);
 
-    // Reads
+    // Reads - add refetch for all
     const { data: totalNFTs, refetch: refetchTotalNFTs } = useTotalNFTs();
-    const { data: threshold } = useNFTSplitThreshold();
-    const { data: count } = useNFTSplitCount();
-    const { data: appreciation } = useNFTAppreciationBps();
+    const { data: threshold, refetch: refetchThreshold } = useNFTSplitThreshold();
+    const { data: count, refetch: refetchCount } = useNFTSplitCount();
+    const { data: appreciation, refetch: refetchAppreciation } = useNFTAppreciationBps();
 
     // Writes - get isSuccess to know when tx is confirmed
     const { createNFT, isPending: creating, isConfirming: creatingConfirming, isSuccess: createSuccess } = useCreateNFT();
-    const { setSplitSettings, isPending: settingSplit } = useSetSplitSettings();
-    const { toggleFeatured, isPending: togglingFeatured } = useToggleNFTFeatured();
-    const { toggleHidden, isPending: togglingHidden } = useToggleNFTHidden();
-    const { setOrder, isPending: settingOrder } = useSetNFTDisplayOrder();
+    const { setSplitSettings, isPending: settingSplit, isSuccess: settingsSuccess } = useSetSplitSettings();
+    const { toggleFeatured, isPending: togglingFeatured, isSuccess: featuredSuccess } = useToggleNFTFeatured();
+    const { toggleHidden, isPending: togglingHidden, isSuccess: hiddenSuccess } = useToggleNFTHidden();
+    const { setOrder, isPending: settingOrder, isSuccess: orderSuccess } = useSetNFTDisplayOrder();
+
+    // Refetch all data function
+    const refetchAll = () => {
+        refetchTotalNFTs();
+        refetchThreshold();
+        refetchCount();
+        refetchAppreciation();
+    };
 
     // Refetch when NFT creation is confirmed
     useEffect(() => {
         if (createSuccess) {
             toast.success('NFT Created Successfully!');
-            refetchTotalNFTs();
+            refetchAll();
         }
-    }, [createSuccess, refetchTotalNFTs]);
+    }, [createSuccess]);
+
+    // Refetch when settings update is confirmed
+    useEffect(() => {
+        if (settingsSuccess) {
+            toast.success('Settings Updated Successfully!');
+            refetchAll();
+        }
+    }, [settingsSuccess]);
+
+    // Refetch when NFT actions are confirmed
+    useEffect(() => {
+        if (featuredSuccess || hiddenSuccess || orderSuccess) {
+            refetchAll();
+        }
+    }, [featuredSuccess, hiddenSuccess, orderSuccess]);
 
     const handleCreateNFT = async () => {
         try {

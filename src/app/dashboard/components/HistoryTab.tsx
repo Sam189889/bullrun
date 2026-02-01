@@ -8,6 +8,7 @@ import {
     usePackagePurchasedEvents,
     useNFTBuyEvents,
     useNFTSellEvents,
+    useNFTBurnedEvents,
 } from '@/hooks/useEvents';
 
 // Helper to truncate address
@@ -247,27 +248,22 @@ function TradingHistory({ userId, walletAddress }: TradingHistoryProps) {
     );
 }
 
-// Burning History - NFTs burned (sold at $200)
+// Burning History - NFTs burned (bought at $200 threshold)
 function BurningHistory({ userId, walletAddress }: TradingHistoryProps) {
-    const { events, isLoading } = useNFTSellEvents(userId);
-
-    // Filter burns (sales at $200 threshold)
-    const burnEvents = events.filter(e =>
-        Number(formatUnits(e.price, 18)) >= 199
-    );
+    // Use NFTBurned events - these fire when user BUYS at $200 threshold
+    const { events, isLoading } = useNFTBurnedEvents(userId);
 
     if (isLoading) return <LoadingState />;
-    if (!burnEvents.length) return <EmptyState message="No burning history" />;
+    if (!events.length) return <EmptyState message="No burning history" />;
 
     return (
         <div className="space-y-3">
-            {burnEvents.map((event, i) => (
+            {events.map((event, i) => (
                 <BurnCard
                     key={i}
                     nftId={event.nftId}
-                    price={event.price}
-                    sellerId={event.sellerId}
-                    sellerUsernameId={event.sellerUsernameId}
+                    price={event.finalPrice}
+                    buyerId={event.buyerId}
                     txHash={event.transactionHash}
                 />
             ))}
@@ -391,16 +387,19 @@ function TradingCard({ type, nftId, price, appreciation, sellerId, buyerId, sell
 }
 
 // Burn Card (for NFT Burn events)
-function BurnCard({ nftId, price, sellerId, sellerUsernameId, txHash }: {
+function BurnCard({ nftId, price, buyerId, txHash }: {
     nftId: bigint;
     price: bigint;
-    sellerId: bigint;
-    sellerUsernameId: bigint;
+    buyerId: bigint;
     txHash: `0x${string}`;
 }) {
-    // Fetch seller wallet address
-    const { data: sellerWallet } = useUserWallet(sellerId);
+    // Fetch buyer wallet address and info
+    const { data: buyerWallet } = useUserWallet(buyerId);
+    const { data: buyerInfo } = useUserInfo(buyerId);
     const priceStr = `$${Number(formatUnits(price, 18)).toFixed(2)}`;
+
+    // Get username from user info
+    const buyerUsernameId = (buyerInfo as any)?.usernameId;
 
     return (
         <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] border border-[#EF4444]/30 rounded-xl p-3 sm:p-4 transition-all">
@@ -413,14 +412,14 @@ function BurnCard({ nftId, price, sellerId, sellerUsernameId, txHash }: {
                         </p>
                         <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-1">
                             <span className="text-[10px] sm:text-xs text-[#EC4899] font-semibold">
-                                {formatBullName(sellerUsernameId)}
+                                {formatBullName(buyerUsernameId)}
                             </span>
                             <span className="text-[10px] sm:text-xs text-[#64748B] font-mono">
-                                ({truncateAddress(sellerWallet as string)})
+                                ({truncateAddress(buyerWallet as string)})
                             </span>
                         </div>
                         <p className="text-[10px] text-[#F59E0B] mt-1">
-                            25% → Owner • 75% → Buffer
+                            Splits into 20 NFTs @ $10 each
                         </p>
                     </div>
                 </div>

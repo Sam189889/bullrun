@@ -86,7 +86,16 @@ export interface PackagePurchasedEvent {
     transactionHash: `0x${string}`
 }
 
+export interface NFTBurnedEvent {
+    nftId: bigint
+    buyerId: bigint
+    finalPrice: bigint
+    blockNumber: bigint
+    transactionHash: `0x${string}`
+}
+
 // ============ INCOME EVENTS ============
+
 
 /**
  * Get all income received by a user (DIRECT_SPONSOR, LEVEL_INCOME, TRADING_LEVEL, NFT_SELLER)
@@ -247,6 +256,56 @@ export function useNFTSellEvents(sellerId: bigint | undefined) {
             setIsLoading(false)
         }
     }, [sellerId, publicClient])
+
+    useEffect(() => {
+        fetchEvents()
+    }, [fetchEvents])
+
+    return { events, isLoading, error, refetch: fetchEvents }
+}
+
+/**
+ * Get NFT burned events for a user (as buyer of $200 NFT)
+ */
+export function useNFTBurnedEvents(buyerId: bigint | undefined) {
+    const publicClient = usePublicClient()
+    const [events, setEvents] = useState<NFTBurnedEvent[]>([])
+    const [isLoading, setIsLoading] = useState(false)
+    const [error, setError] = useState<Error | null>(null)
+
+    const fetchEvents = useCallback(async () => {
+        if (!buyerId || !publicClient) return
+
+        setIsLoading(true)
+        setError(null)
+        try {
+            const logs = await getContractEvents(publicClient, {
+                address: CONTRACTS.BULL_RUN,
+                abi: BullRunMainLogicABI,
+                eventName: 'NFTBurned',
+                args: { buyerId },
+                fromBlock: DEPLOY_BLOCK,
+                toBlock: 'latest',
+            })
+
+            const parsed: NFTBurnedEvent[] = logs.map(log => {
+                const args = (log as any).args
+                return {
+                    nftId: args.nftId as bigint,
+                    buyerId: args.buyerId as bigint,
+                    finalPrice: args.finalPrice as bigint,
+                    blockNumber: log.blockNumber,
+                    transactionHash: log.transactionHash,
+                }
+            })
+
+            setEvents(parsed.reverse())
+        } catch (err) {
+            setError(err as Error)
+        } finally {
+            setIsLoading(false)
+        }
+    }, [buyerId, publicClient])
 
     useEffect(() => {
         fetchEvents()
