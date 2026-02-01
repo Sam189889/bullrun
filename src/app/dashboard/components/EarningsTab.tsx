@@ -320,7 +320,7 @@ export function EarningsTab() {
                     }}
                 >
                     <div className="absolute top-1 right-1 sm:top-2 sm:right-2 text-xl sm:text-2xl opacity-20">�</div>
-                    <p className="text-[10px] sm:text-xs text-[#64748B]">Package</p>
+                    <p className="text-[10px] sm:text-xs text-[#64748B]">Package Income</p>
                     <p className="text-base sm:text-lg md:text-xl font-bold text-[#EC4899]">
                         {isLoading ? '...' : formatUSDT(packageTotal)}
                     </p>
@@ -335,7 +335,7 @@ export function EarningsTab() {
                     }}
                 >
                     <div className="absolute top-1 right-1 sm:top-2 sm:right-2 text-xl sm:text-2xl opacity-20">💹</div>
-                    <p className="text-[10px] sm:text-xs text-[#64748B]">Trading</p>
+                    <p className="text-[10px] sm:text-xs text-[#64748B]">Trading Income</p>
                     <p className="text-base sm:text-lg md:text-xl font-bold text-[#F59E0B]">
                         {isTradingLoading ? '...' : formatUSDT(tradingTotal)}
                     </p>
