@@ -75,7 +75,7 @@ export function useUserBalance(userId: bigint | undefined) {
 }
 
 /**
- * Get user team volume
+ * Get user team volume (raw total)
  */
 export function useUserTeamVolume(userId: bigint | undefined) {
     return useReadContract({
@@ -83,6 +83,21 @@ export function useUserTeamVolume(userId: bigint | undefined) {
         abi: BullRunMainLogicABI,
         functionName: 'userTeamVolume',
         args: userId ? [userId] : undefined,
+        query: { enabled: !!userId && userId > BigInt(0) },
+    })
+}
+
+/**
+ * Get qualifying team volume with 60:40 rule applied
+ * @param userId User ID
+ * @param requiredVolume Required volume for the rank (used for 60:40 cap calculation)
+ */
+export function useQualifyingVolume(userId: bigint | undefined, requiredVolume: bigint) {
+    return useReadContract({
+        address: contracts.bullRun,
+        abi: BullRunMainLogicABI,
+        functionName: 'getQualifyingVolume',
+        args: userId ? [userId, requiredVolume] : undefined,
         query: { enabled: !!userId && userId > BigInt(0) },
     })
 }

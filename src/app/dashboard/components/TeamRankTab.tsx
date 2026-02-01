@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useAccount } from 'wagmi';
 import { formatUnits } from 'viem';
-import { useUserId, useUserInfo, useUserTeamVolume, useUserRankData, useClaimRankEmi, useClaimFastBonus, useDirectReferrals, useAllRankConfigs } from '@/hooks/useContracts';
+import { useUserId, useUserInfo, useUserTeamVolume, useUserRankData, useClaimRankEmi, useClaimFastBonus, useDirectReferrals, useAllRankConfigs, useQualifyingVolume } from '@/hooks/useContracts';
 import { useLevelCounts } from '@/hooks/useEvents';
 import { GiBull } from 'react-icons/gi';
 import { Button } from '@/components/ui/Button';
@@ -131,6 +131,22 @@ export function TeamRankTab() {
     const { data: teamVolume } = useUserTeamVolume(userId as bigint);
     const { data: referrals } = useDirectReferrals(userId as bigint);
 
+    // Qualifying volume with 60:40 rule for each rank
+    // Rank requirements: Calf=$300, Bull=$2000, LeadBull=$10000, KingBull=$50000, Titan=$100000
+    const { data: qualifyingVolCalf } = useQualifyingVolume(userId as bigint, BigInt(300e18));
+    const { data: qualifyingVolBull } = useQualifyingVolume(userId as bigint, BigInt(2000e18));
+    const { data: qualifyingVolLeadBull } = useQualifyingVolume(userId as bigint, BigInt(10000e18));
+    const { data: qualifyingVolKingBull } = useQualifyingVolume(userId as bigint, BigInt(50000e18));
+    const { data: qualifyingVolTitan } = useQualifyingVolume(userId as bigint, BigInt(100000e18));
+
+    const qualifyingVolumeMap: Record<number, bigint | undefined> = {
+        1: qualifyingVolCalf as bigint | undefined,
+        2: qualifyingVolBull as bigint | undefined,
+        3: qualifyingVolLeadBull as bigint | undefined,
+        4: qualifyingVolKingBull as bigint | undefined,
+        5: qualifyingVolTitan as bigint | undefined,
+    };
+
     // Level counts from events (for network tree)
     const { getLevelCount, totalTeam, isLoading: levelCountsLoading } = useLevelCounts(userId as bigint);
 
@@ -201,7 +217,6 @@ export function TeamRankTab() {
     // User's package prices for progress calculation
     const PACKAGE_PRICES = [0, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000];
     const userPackagePrice = info?.packageLevel ? PACKAGE_PRICES[Number(info.packageLevel)] : 0;
-    const userTeamVol = teamVolume ? Number(formatUnits(teamVolume as bigint, 18)) : 0;
 
     // Calculate progress percentage (capped at 100%)
     const calcProgress = (current: number, required: number) => required > 0 ? Math.min((current / required) * 100, 100) : 0;
@@ -376,9 +391,13 @@ export function TeamRankTab() {
                                                 <span className="text-[10px] bg-[#10B981]/20 text-[#10B981] px-2 py-0.5 rounded-full uppercase">Achieved</span>
                                             ) : (
                                                 <span className="text-[10px] bg-slate-800 text-slate-500 px-2 py-0.5 rounded-full uppercase">
-                                                    {Math.round((calcProgress(userPackagePrice, config.selfPackageMin || 0) +
-                                                        calcProgress(directReferrals, config.directsRequired || 0) +
-                                                        calcProgress(userTeamVol, config.teamTotalRequired || 0)) / 3)}% Ready
+                                                    {(() => {
+                                                        const qualVol = qualifyingVolumeMap[rankIndex];
+                                                        const qualVolNum = qualVol ? Number(formatUnits(qualVol, 18)) : 0;
+                                                        return Math.round((calcProgress(userPackagePrice, config.selfPackageMin || 0) +
+                                                            calcProgress(directReferrals, config.directsRequired || 0) +
+                                                            calcProgress(qualVolNum, config.teamTotalRequired || 0)) / 3);
+                                                    })()}% Ready
                                                 </span>
                                             )}
                                         </div>
@@ -418,19 +437,33 @@ export function TeamRankTab() {
                                                     </div>
                                                 </div>
 
-                                                {/* Team Volume Progress */}
+                                                {/* Team Volume Progress (60:40 rule applied) */}
                                                 <div>
                                                     <div className="flex justify-between text-[10px] mb-1">
-                                                        <span className="text-[#64748B]">Team Volume</span>
-                                                        <span className={userTeamVol >= (config.teamTotalRequired || 0) ? 'text-[#10B981]' : 'text-[#F59E0B]'}>
-                                                            ${userTeamVol.toFixed(0)} / ${(config.teamTotalRequired || 0).toLocaleString()}
-                                                        </span>
+                                                        <span className="text-[#64748B]">Team Volume (60:40)</span>
+                                                        {(() => {
+                                                            const qualVol = qualifyingVolumeMap[rankIndex];
+                                                            const qualVolNum = qualVol ? Number(formatUnits(qualVol, 18)) : 0;
+                                                            const required = config.teamTotalRequired || 0;
+                                                            return (
+                                                                <span className={qualVolNum >= required ? 'text-[#10B981]' : 'text-[#F59E0B]'}>
+                                                                    ${qualVolNum.toFixed(0)} / ${required.toLocaleString()}
+                                                                </span>
+                                                            );
+                                                        })()}
                                                     </div>
                                                     <div className="h-1.5 bg-[#1E293B] rounded-full overflow-hidden">
-                                                        <div
-                                                            className={`h-full rounded-full transition-all ${userTeamVol >= (config.teamTotalRequired || 0) ? 'bg-[#10B981]' : 'bg-[#8B5CF6]'}`}
-                                                            style={{ width: `${calcProgress(userTeamVol, config.teamTotalRequired || 0)}%` }}
-                                                        />
+                                                        {(() => {
+                                                            const qualVol = qualifyingVolumeMap[rankIndex];
+                                                            const qualVolNum = qualVol ? Number(formatUnits(qualVol, 18)) : 0;
+                                                            const required = config.teamTotalRequired || 0;
+                                                            return (
+                                                                <div
+                                                                    className={`h-full rounded-full transition-all ${qualVolNum >= required ? 'bg-[#10B981]' : 'bg-[#8B5CF6]'}`}
+                                                                    style={{ width: `${calcProgress(qualVolNum, required)}%` }}
+                                                                />
+                                                            );
+                                                        })()}
                                                     </div>
                                                 </div>
                                             </div>

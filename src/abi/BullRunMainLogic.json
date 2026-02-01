@@ -449,6 +449,30 @@
   },
   {
     "type": "function",
+    "name": "getQualifyingVolume",
+    "inputs": [
+      {
+        "name": "_userId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "_requiredVolume",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "getUserAvailableLimit",
     "inputs": [
       {
