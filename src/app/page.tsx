@@ -56,7 +56,7 @@ export default function HomePage() {
         <BurningSection />
       </div> */}
 
-      <HowItWorksSection />
+      {/* <HowItWorksSection /> */}
 
       {/* Footer CTA */}
       <FooterCTASection />

@@ -1,16 +1,15 @@
-// Contract Addresses - opBNB Testnet
+// Contract Addresses - opBNB MAINNET
 export const CONTRACTS = {
-    USDT: '0x9907964f13E7d6433Af61135E126326c4f6786b0' as `0x${string}`,  // Existing USDT
-    // Fresh Deploy (2026-02-02 1:37 PM) - Correct split threshold
-    BULL_RUN: '0xebe002fd383a77f43b69d6d54faa61aa605ee62c' as `0x${string}`,
-    PROXY_ADMIN: '0xAdc4587f4fDcFd732d3768906Df40f4277272F57' as `0x${string}`,
-    // RevenueSplitter (2026-01-31 1:42 PM) - Creator wallet splitter
-    REVENUE_SPLITTER: '0x0A65d031a15453aC392098C8386dA874CFF6C7A5' as `0x${string}`,
+    USDT: '0x9e5AAC1Ba1a2e6aEd6b32689DFcF62A509Ca96f3' as `0x${string}`,  // Official opBNB USDT
+    // Mainnet Deploy (2026-02-02)
+    BULL_RUN: '0x31b8e2e95ee6bce2f2e139d76d25c53ceeeb1f2b' as `0x${string}`,
+    PROXY_ADMIN: '0xbb959AE86fCaa0A226181F1AcDd4251298031F0C' as `0x${string}`,
+    // RevenueSplitter (2026-02-03)
+    REVENUE_SPLITTER: '0x5B72922F40bfD64Ce319eC26f1C2244A690b063A' as `0x${string}`,
 } as const
 
-// Contract deployment block - used for efficient event queries
-// Updated for 2026-02-01 9:13 PM deployment
-export const DEPLOY_BLOCK = BigInt(124000000)
+// Contract deployment block - for efficient event queries
+export const DEPLOY_BLOCK = BigInt(0)
 
 // Admin Wallet Addresses
 export const ADMIN_WALLETS: `0x${string}`[] = [
@@ -26,15 +25,15 @@ export function isAdmin(address: string | undefined): boolean {
     )
 }
 
-// Network Configuration
+// Network Configuration - opBNB MAINNET
 export const NETWORK = {
-    chainId: 5611,
-    name: 'opBNB Testnet',
-    rpcUrl: 'https://opbnb-testnet-rpc.bnbchain.org',
-    explorerUrl: 'https://testnet.opbnbscan.com',
+    chainId: 204,
+    name: 'opBNB Mainnet',
+    rpcUrl: 'https://opbnb-mainnet-rpc.bnbchain.org',
+    explorerUrl: 'https://opbnbscan.com',
     currency: {
-        name: 'tBNB',
-        symbol: 'tBNB',
+        name: 'BNB',
+        symbol: 'BNB',
         decimals: 18,
     },
 } as const
