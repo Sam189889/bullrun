@@ -16,6 +16,7 @@ function OwnerUsername({ ownerId }: { ownerId: bigint }) {
     return <span className="font-mono text-[#EC4899]">BULL{user.usernameId.toString()}</span>;
 }
 
+// New NFT struct (10 fields) - matches contract
 interface NFTData {
     nftId: bigint;
     currentPrice: bigint;
@@ -25,11 +26,8 @@ interface NFTData {
     buyCount: bigint;
     createdAt: bigint;
     lastTradedAt: bigint;
-    displayOrder: bigint;
     isListed: boolean;
     isBurned: boolean;
-    isFeatured: boolean;
-    isHidden: boolean;
 }
 
 // Mobile Card Component
@@ -43,8 +41,9 @@ function NFTMobileCard({ nftIndex, userId }: { nftIndex: number; userId: bigint 
 
     if (!nftData || nftId === 0) return null;
 
+    // New 10-field struct
     const nftArray = nftData as unknown as readonly [
-        bigint, bigint, bigint, bigint, bigint, bigint, bigint, bigint, bigint, boolean, boolean, boolean, boolean
+        bigint, bigint, bigint, bigint, bigint, bigint, bigint, bigint, boolean, boolean
     ];
 
     const nft: NFTData = {
@@ -56,11 +55,8 @@ function NFTMobileCard({ nftIndex, userId }: { nftIndex: number; userId: bigint 
         buyCount: nftArray[5],
         createdAt: nftArray[6],
         lastTradedAt: nftArray[7],
-        displayOrder: nftArray[8],
-        isListed: nftArray[9],
-        isBurned: nftArray[10],
-        isFeatured: nftArray[11],
-        isHidden: nftArray[12],
+        isListed: nftArray[8],
+        isBurned: nftArray[9],
     };
 
     const formatUSD = (value: bigint) => `$${Number(formatUnits(value, 18)).toFixed(2)}`;
@@ -91,11 +87,6 @@ function NFTMobileCard({ nftIndex, userId }: { nftIndex: number; userId: bigint 
                     ) : (
                         <span className="px-2 py-0.5 rounded-full text-[8px] font-bold bg-[#3B82F6]/20 text-[#3B82F6] border border-[#3B82F6]/50">
                             📦 Queue
-                        </span>
-                    )}
-                    {nft.isFeatured && (
-                        <span className="px-2 py-0.5 rounded-full text-[8px] font-bold bg-[#F59E0B]/20 text-[#F59E0B] border border-[#F59E0B]/50">
-                            ⭐ Featured
                         </span>
                     )}
                 </div>
@@ -188,7 +179,7 @@ function NFTTableRow({ nftIndex, userId }: { nftIndex: number; userId: bigint })
 
     if (!nftData || nftId === 0) return null;
 
-    // Parse array format from Solidity struct
+    // Parse array format from Solidity struct (10 fields)
     const nftArray = nftData as unknown as readonly [
         bigint, // nftId [0]
         bigint, // currentPrice [1]
@@ -198,11 +189,8 @@ function NFTTableRow({ nftIndex, userId }: { nftIndex: number; userId: bigint })
         bigint, // buyCount [5]
         bigint, // createdAt [6]
         bigint, // lastTradedAt [7]
-        bigint, // displayOrder [8]
-        boolean, // isListed [9]
-        boolean, // isBurned [10]
-        boolean, // isFeatured [11]
-        boolean  // isHidden [12]
+        boolean, // isListed [8]
+        boolean  // isBurned [9]
     ];
 
     const nft: NFTData = {
@@ -214,11 +202,8 @@ function NFTTableRow({ nftIndex, userId }: { nftIndex: number; userId: bigint })
         buyCount: nftArray[5],
         createdAt: nftArray[6],
         lastTradedAt: nftArray[7],
-        displayOrder: nftArray[8],
-        isListed: nftArray[9],
-        isBurned: nftArray[10],
-        isFeatured: nftArray[11],
-        isHidden: nftArray[12],
+        isListed: nftArray[8],
+        isBurned: nftArray[9],
     };
 
     const formatUSD = (value: bigint) => `$${Number(formatUnits(value, 18)).toFixed(2)}`;
@@ -250,11 +235,6 @@ function NFTTableRow({ nftIndex, userId }: { nftIndex: number; userId: bigint })
                     ) : (
                         <span className="px-2 py-0.5 rounded-full text-[8px] font-bold bg-[#3B82F6]/20 text-[#3B82F6] border border-[#3B82F6]/50 w-fit">
                             📦 Queue
-                        </span>
-                    )}
-                    {nft.isFeatured && (
-                        <span className="px-2 py-0.5 rounded-full text-[8px] font-bold bg-[#F59E0B]/20 text-[#F59E0B] border border-[#F59E0B]/50 w-fit">
-                            ⭐ Featured
                         </span>
                     )}
                 </div>

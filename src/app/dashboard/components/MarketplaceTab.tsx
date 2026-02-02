@@ -98,10 +98,11 @@ function useIsValidNFT(nftId: number, userId: bigint | undefined): { isValid: bo
     const nftArr = nftData as any[];
     if (!nftArr || nftArr[0] === BigInt(0)) return { isValid: false, nftData: null };
 
-    const [, , , , ownerId, , , , , isListed, isBurned, , isHidden] = nftArr;
+    // New struct: [nftId, currentPrice, basePrice, lastPurchasePrice, ownerId, buyCount, createdAt, lastTradedAt, isListed, isBurned]
+    const [, , , , ownerId, , , , isListed, isBurned] = nftArr;
 
-    // Skip if burned, hidden, or not listed
-    if (isBurned || isHidden || !isListed) return { isValid: false, nftData: null };
+    // Skip if burned or not listed
+    if (isBurned || !isListed) return { isValid: false, nftData: null };
 
     // Hide own NFTs from marketplace
     const isOwnNFT = !!(userId && userId > BigInt(0) && ownerId === userId);
@@ -119,11 +120,11 @@ function NFTCard({ nftId, userId, onSelect }: { nftId: number; userId: bigint | 
     const nftArr = nftData as any[];
     if (!nftArr || nftArr[0] === BigInt(0)) return null;
 
-    // Destructure: [nftId, currentPrice, basePrice, lastPurchasePrice, ownerId, buyCount, createdAt, lastTradedAt, displayOrder, isListed, isBurned, isFeatured, isHidden]
-    const [, currentPrice, , , ownerId, buyCount, , , , isListed, isBurned, isFeatured, isHidden] = nftArr;
+    // New struct: [nftId, currentPrice, basePrice, lastPurchasePrice, ownerId, buyCount, createdAt, lastTradedAt, isListed, isBurned]
+    const [, currentPrice, , , ownerId, buyCount, , , isListed, isBurned] = nftArr;
 
-    // Skip if burned, hidden, or not listed
-    if (isBurned || isHidden || !isListed) return null;
+    // Skip if burned or not listed
+    if (isBurned || !isListed) return null;
 
     // Hide own NFTs from marketplace
     const isOwnNFT = !!(userId && userId > BigInt(0) && ownerId === userId);
