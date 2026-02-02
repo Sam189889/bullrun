@@ -16,6 +16,7 @@ import {
     useUSDTBalance
 } from '@/hooks/useContracts';
 import { useApproveUSDT, useDayStartTimestamp, useDayLength, useCurrentDay } from '@/hooks/useAdminContracts';
+import { useMarketplaceConfig } from '@/hooks/useMarketplaceConfig';
 
 interface NFTData {
     nftId: bigint;
@@ -90,7 +91,7 @@ function ResetTimer({ dayStart, dayLengthSeconds }: { dayStart: bigint | undefin
 }
 
 // Hook to check if NFT is valid for display
-function useIsValidNFT(nftId: number, userId: bigint | undefined): { isValid: boolean; nftData: any } {
+function useIsValidNFT(nftId: number, userId: bigint | undefined, config: any): { isValid: boolean; nftData: any } {
     const { data: nftData } = useNFT(BigInt(nftId));
 
     if (!nftData) return { isValid: false, nftData: null };
@@ -101,17 +102,26 @@ function useIsValidNFT(nftId: number, userId: bigint | undefined): { isValid: bo
     // New struct: [nftId, currentPrice, basePrice, lastPurchasePrice, ownerId, buyCount, createdAt, lastTradedAt, isListed, isBurned]
     const [, , , , ownerId, , , , isListed, isBurned] = nftArr;
 
-    // Skip if burned or not listed
-    if (isBurned || !isListed) return { isValid: false, nftData: null };
+    // Skip if burned (always hide burned)
+    if (isBurned) return { isValid: false, nftData: null };
+
+    // Skip if not listed
+    if (!isListed) return { isValid: false, nftData: null };
 
     // Hide own NFTs from marketplace
     const isOwnNFT = !!(userId && userId > BigInt(0) && ownerId === userId);
     if (isOwnNFT) return { isValid: false, nftData: null };
 
+    // Apply admin config filters
+    if (config) {
+        // Hide admin (userId 1) NFTs if enabled
+        if (config.hideAdminNFTs && Number(ownerId) === 1) return { isValid: false, nftData: null };
+    }
+
     return { isValid: true, nftData };
 }
 
-function NFTCard({ nftId, userId, onSelect }: { nftId: number; userId: bigint | undefined; onSelect: (nft: SelectedNFT) => void }) {
+function NFTCard({ nftId, userId, onSelect, config }: { nftId: number; userId: bigint | undefined; onSelect: (nft: SelectedNFT) => void; config: any }) {
     const { data: nftData } = useNFT(BigInt(nftId));
 
     if (!nftData) return null;
@@ -123,15 +133,26 @@ function NFTCard({ nftId, userId, onSelect }: { nftId: number; userId: bigint | 
     // New struct: [nftId, currentPrice, basePrice, lastPurchasePrice, ownerId, buyCount, createdAt, lastTradedAt, isListed, isBurned]
     const [, currentPrice, , , ownerId, buyCount, , , isListed, isBurned] = nftArr;
 
-    // Skip if burned or not listed
-    if (isBurned || !isListed) return null;
+    // Skip if burned
+    if (isBurned) return null;
+
+    // Skip if not listed (marketplace only shows listed)
+    if (!isListed) return null;
 
     // Hide own NFTs from marketplace
     const isOwnNFT = !!(userId && userId > BigInt(0) && ownerId === userId);
     if (isOwnNFT) return null;
 
-    const formatUSD = (value: bigint) => `$${Number(formatUnits(value, 18)).toFixed(2)}`;
+    // Define helper variables
     const buyCountNum = Number(buyCount);
+    const formatUSD = (value: bigint) => `$${Number(formatUnits(value, 18)).toFixed(2)}`;
+
+    // Apply admin config filters
+    if (config && config.hideUserId1) {
+        const ownerIdNum = Number(ownerId);
+        // Hide User ID 1's NFTs if enabled
+        if (ownerIdNum === 1) return null;
+    }
 
     // Select bull image (1-11) based on NFT ID, cycling
     const bullImageNum = ((nftId - 1) % 11) + 1;
@@ -197,6 +218,7 @@ export function MarketplaceTab() {
     const { data: allowance, refetch: refetchAllowance } = useUSDTAllowance(address);
     const { data: availableLimit, refetch: refetchLimit } = useUserAvailableLimit(userId as bigint);
     const { data: dailyLimitData, refetch: refetchDailyLimitData } = useUserDailyLimitData(userId as bigint);
+    const { config: marketplaceConfig } = useMarketplaceConfig();
 
     // Calculate actual remaining limit (totalLimit - usedLimit)
     const actualRemainingLimit = dailyLimitData
@@ -538,6 +560,7 @@ export function MarketplaceTab() {
                             nftId={id}
                             userId={userId as bigint}
                             onSelect={handleSelectNFT}
+                            config={marketplaceConfig}
                         />
                     ))}
                 </div>

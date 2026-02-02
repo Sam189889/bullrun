@@ -5,11 +5,12 @@ import { formatUnits } from 'viem';
 import {
     useWeeklyPoolBalance,
     useTotalWeeklyShares,
-    useCurrentWeek,
+    useGetCurrentWeek,
     useDistributeWeeklyPool,
     useLuckyDrawPool,
     useDrawLuckyWinner,
-    useGetWeeklyShareholders
+    useGetWeeklyShareholders,
+    useWeekStartTimestamp
 } from '@/hooks/useAdminContracts';
 import { useLuckyDrawEntryEvents, useAllLuckyDrawWinners } from '@/hooks/useEvents';
 import { Card } from '@/components/ui/Card';
@@ -19,8 +20,44 @@ import toast from 'react-hot-toast';
 export function WeeklyPoolTab() {
     const { data: weeklyBalance, refetch: refetchBalance } = useWeeklyPoolBalance();
     const { data: totalShares, refetch: refetchShares } = useTotalWeeklyShares();
-    const { data: currentWeek, refetch: refetchWeek } = useCurrentWeek();
+    const { data: currentWeek, refetch: refetchWeek } = useGetCurrentWeek();
     const { data: luckyDrawPoolData, refetch: refetchLuckyDraw } = useLuckyDrawPool();
+    const { data: weekStartTimestamp } = useWeekStartTimestamp();
+
+    // Countdown timer state
+    const [countdown, setCountdown] = useState('');
+    const [canDistribute, setCanDistribute] = useState(false);
+
+    // Calculate countdown to week end
+    useEffect(() => {
+        if (!weekStartTimestamp) return;
+
+        const weekStart = Number(weekStartTimestamp);
+        const weekLength = 7 * 24 * 60 * 60; // 7 days in seconds
+        const currentWeekNum = currentWeek ? Number(currentWeek) : 0;
+        const weekEndTime = weekStart + (currentWeekNum * weekLength);
+
+        const updateCountdown = () => {
+            const now = Math.floor(Date.now() / 1000);
+            const remaining = weekEndTime - now;
+
+            if (remaining <= 0) {
+                setCountdown('Week ended - Ready to distribute!');
+                setCanDistribute(true);
+            } else {
+                const days = Math.floor(remaining / (24 * 60 * 60));
+                const hours = Math.floor((remaining % (24 * 60 * 60)) / (60 * 60));
+                const minutes = Math.floor((remaining % (60 * 60)) / 60);
+                const seconds = remaining % 60;
+                setCountdown(`${days}d ${hours}h ${minutes}m ${seconds}s`);
+                setCanDistribute(false);
+            }
+        };
+
+        updateCountdown();
+        const interval = setInterval(updateCountdown, 1000);
+        return () => clearInterval(interval);
+    }, [weekStartTimestamp, currentWeek]);
 
     const formatUSDT = (value: bigint | undefined) => {
         if (!value) return '$0';
@@ -76,17 +113,39 @@ export function WeeklyPoolTab() {
                 </Card>
             </div>
 
+            {/* Week Countdown Timer */}
+            <div className={`rounded-xl p-4 border ${canDistribute ? 'bg-gradient-to-r from-[#10B981]/20 to-[#0F172A] border-[#10B981]/50' : 'bg-gradient-to-r from-[#F59E0B]/10 to-[#0F172A] border-[#F59E0B]/30'}`}>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${canDistribute ? 'bg-[#10B981]/20' : 'bg-[#F59E0B]/20'}`}>
+                            <span className="text-2xl">{canDistribute ? '✅' : '⏱️'}</span>
+                        </div>
+                        <div>
+                            <p className="text-xs text-[#64748B] uppercase tracking-wide">Week {currentWeek ? Number(currentWeek) : 0} {canDistribute ? 'Ended' : 'Ends In'}</p>
+                            <p className={`text-xl sm:text-2xl font-bold font-mono ${canDistribute ? 'text-[#10B981]' : 'text-[#F59E0B]'}`}>
+                                {countdown || 'Loading...'}
+                            </p>
+                        </div>
+                    </div>
+                    {canDistribute && (
+                        <span className="px-4 py-2 bg-[#10B981]/20 text-[#10B981] text-sm font-bold rounded-full animate-pulse border border-[#10B981]/30">
+                            🚀 Ready to Distribute
+                        </span>
+                    )}
+                </div>
+            </div>
+
             {/* Share Pool & Lucky Draw - Side by Side */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <DistributeCard onSuccess={refetchAll} currentWeek={currentWeek ? BigInt(currentWeek.toString()) : undefined} />
-                <LuckyDrawSection currentWeek={currentWeek ? BigInt(currentWeek.toString()) : undefined} onSuccess={refetchAll} />
+                <DistributeCard onSuccess={refetchAll} currentWeek={currentWeek ? BigInt(currentWeek.toString()) : undefined} canDistribute={canDistribute} />
+                <LuckyDrawSection currentWeek={currentWeek ? BigInt(currentWeek.toString()) : undefined} onSuccess={refetchAll} canDistribute={canDistribute} />
             </div>
         </div>
     );
 }
 
 // Distribute Card (Share Pool)
-function DistributeCard({ onSuccess, currentWeek }: { onSuccess: () => void; currentWeek: bigint | undefined }) {
+function DistributeCard({ onSuccess, currentWeek, canDistribute }: { onSuccess: () => void; currentWeek: bigint | undefined; canDistribute: boolean }) {
     const toastShown = useRef(false);
     const [showList, setShowList] = useState(false);
 
@@ -126,9 +185,9 @@ function DistributeCard({ onSuccess, currentWeek }: { onSuccess: () => void; cur
                     variant="primary"
                     size="sm"
                     onClick={handleDistribute}
-                    disabled={isPending || isConfirming || shareholderCount === 0}
+                    disabled={isPending || isConfirming || shareholderCount === 0 || !canDistribute}
                 >
-                    {isPending || isConfirming ? 'Distributing...' : '💸 Distribute'}
+                    {!canDistribute ? '⏳ Wait for week end' : isPending || isConfirming ? 'Distributing...' : '💸 Distribute'}
                 </Button>
             </div>
 
@@ -178,7 +237,7 @@ function DistributeCard({ onSuccess, currentWeek }: { onSuccess: () => void; cur
 
 
 // Lucky Draw Section
-function LuckyDrawSection({ currentWeek, onSuccess }: { currentWeek: bigint | undefined; onSuccess: () => void }) {
+function LuckyDrawSection({ currentWeek, onSuccess, canDistribute }: { currentWeek: bigint | undefined; onSuccess: () => void; canDistribute: boolean }) {
     const [showEntries, setShowEntries] = useState(false);
     const toastShown = useRef(false);
 
@@ -223,9 +282,9 @@ function LuckyDrawSection({ currentWeek, onSuccess }: { currentWeek: bigint | un
                     variant="primary"
                     size="sm"
                     onClick={handleDrawWinner}
-                    disabled={isPending || isConfirming || entries.length === 0}
+                    disabled={isPending || isConfirming || entries.length === 0 || !canDistribute}
                 >
-                    {isPending || isConfirming ? 'Drawing...' : '🎲 Draw Winner'}
+                    {!canDistribute ? '⏳ Wait for week end' : isPending || isConfirming ? 'Drawing...' : '🎲 Draw Winner'}
                 </Button>
             </div>
 

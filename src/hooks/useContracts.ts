@@ -489,6 +489,17 @@ export function useCurrentWeek() {
 }
 
 /**
+ * Get week start timestamp for countdown calculations
+ */
+export function useWeekStartTimestamp() {
+    return useReadContract({
+        address: contracts.bullRun,
+        abi: BullRunMainLogicABI,
+        functionName: 'weekStartTimestamp',
+    })
+}
+
+/**
  * Get user's shares for a specific week
  */
 export function useUserWeeklyShares(userId: bigint | undefined, weekNumber: number) {

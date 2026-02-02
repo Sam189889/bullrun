@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAccount, useWaitForTransactionReceipt } from 'wagmi';
 import { formatUnits, parseUnits } from 'viem';
-import { useUserId, useUserEarnings, useUserTradingEarnings, useUserBalance, useWithdraw, useLuckyDrawPool, useUserLuckyDrawEntries, useTotalLuckyDrawEntries, useLuckyDrawThreshold, useCurrentWeek, useUserWeeklyShares, useTotalWeeklyShares, useWeeklyPoolBalance, useTradingShareThreshold, useTradingSharesPerThreshold, useUserNftRefunds, useUserPoolEarnings } from '@/hooks/useContracts';
+import { useUserId, useUserEarnings, useUserTradingEarnings, useUserBalance, useWithdraw, useLuckyDrawPool, useUserLuckyDrawEntries, useTotalLuckyDrawEntries, useLuckyDrawThreshold, useCurrentWeek, useUserWeeklyShares, useTotalWeeklyShares, useWeeklyPoolBalance, useTradingShareThreshold, useTradingSharesPerThreshold, useUserNftRefunds, useUserPoolEarnings, useWeekStartTimestamp } from '@/hooks/useContracts';
 import { Button } from '@/components/ui/Button';
 import { IncomeHistoryModal } from './IncomeHistoryModal';
 import { useLookupUser } from '@/contexts/LookupContext';
@@ -103,7 +103,40 @@ export function EarningsTab() {
 
     // Get current week first (used by both Lucky Draw and Share Pool)
     const { data: currentWeek } = useCurrentWeek();
+    const { data: weekStartTimestamp } = useWeekStartTimestamp();
     const weekNumber = currentWeek ? Number(currentWeek) : 0;
+
+    // Countdown timer state
+    const [countdown, setCountdown] = useState('');
+
+    // Calculate countdown to week end
+    useEffect(() => {
+        if (!weekStartTimestamp) return;
+
+        const weekStart = Number(weekStartTimestamp);
+        const weekLength = 7 * 24 * 60 * 60; // 7 days in seconds
+        const currentWeekNum = currentWeek ? Number(currentWeek) : 0;
+        const weekEndTime = weekStart + (currentWeekNum * weekLength);
+
+        const updateCountdown = () => {
+            const now = Math.floor(Date.now() / 1000);
+            const remaining = weekEndTime - now;
+
+            if (remaining <= 0) {
+                setCountdown('Distribution pending...');
+            } else {
+                const days = Math.floor(remaining / (24 * 60 * 60));
+                const hours = Math.floor((remaining % (24 * 60 * 60)) / (60 * 60));
+                const minutes = Math.floor((remaining % (60 * 60)) / 60);
+                const seconds = remaining % 60;
+                setCountdown(`${days}d ${hours}h ${minutes}m ${seconds}s`);
+            }
+        };
+
+        updateCountdown();
+        const interval = setInterval(updateCountdown, 1000);
+        return () => clearInterval(interval);
+    }, [weekStartTimestamp, currentWeek]);
 
     // Lucky Draw Data
     const { data: luckyDrawPool } = useLuckyDrawPool();
@@ -252,7 +285,7 @@ export function EarningsTab() {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div className="grid grid-cols-2 gap-3 mb-3">
                         <div className="bg-[#0F172A] p-2.5 rounded-lg border border-[#334155]">
                             <p className="text-[10px] text-[#64748B] uppercase">My Entries</p>
                             <p className="text-sm font-bold text-[#EC4899]">{myEntries} 🎫</p>
@@ -261,6 +294,15 @@ export function EarningsTab() {
                             <p className="text-[10px] text-[#64748B] uppercase">Win Chance</p>
                             <p className="text-sm font-bold text-[#3B82F6]">{winChance}% 🔥</p>
                         </div>
+                    </div>
+
+                    {/* Countdown Timer */}
+                    <div className="flex items-center justify-between bg-gradient-to-r from-[#F59E0B]/10 to-transparent rounded-lg p-2.5 border border-[#F59E0B]/20 mb-3">
+                        <div className="flex items-center gap-2">
+                            <span className="text-lg">⏱️</span>
+                            <span className="text-xs text-[#64748B]">Week ends in:</span>
+                        </div>
+                        <span className="text-sm font-bold text-[#F59E0B] font-mono">{countdown || 'Loading...'}</span>
                     </div>
 
                     <div className="bg-[#10B981]/10 rounded-lg p-2.5 border border-[#10B981]/20">
@@ -288,7 +330,7 @@ export function EarningsTab() {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div className="grid grid-cols-2 gap-3 mb-3">
                         <div className="bg-[#0F172A] p-2.5 rounded-lg border border-[#334155]">
                             <p className="text-[10px] text-[#64748B] uppercase">My Shares</p>
                             <p className="text-sm font-bold text-[#EC4899]">{myShares} ⭐</p>
@@ -297,6 +339,15 @@ export function EarningsTab() {
                             <p className="text-[10px] text-[#64748B] uppercase">My Share %</p>
                             <p className="text-sm font-bold text-[#3B82F6]">{sharePercentage}% 🎯</p>
                         </div>
+                    </div>
+
+                    {/* Countdown Timer */}
+                    <div className="flex items-center justify-between bg-gradient-to-r from-[#F59E0B]/10 to-transparent rounded-lg p-2.5 border border-[#F59E0B]/20 mb-3">
+                        <div className="flex items-center gap-2">
+                            <span className="text-lg">⏱️</span>
+                            <span className="text-xs text-[#64748B]">Week ends in:</span>
+                        </div>
+                        <span className="text-sm font-bold text-[#F59E0B] font-mono">{countdown || 'Loading...'}</span>
                     </div>
 
                     <div className="bg-[#10B981]/10 rounded-lg p-2.5 border border-[#10B981]/20">
