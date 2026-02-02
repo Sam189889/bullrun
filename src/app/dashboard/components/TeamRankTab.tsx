@@ -5,9 +5,11 @@ import { useAccount } from 'wagmi';
 import { formatUnits } from 'viem';
 import { useUserId, useUserInfo, useUserTeamVolume, useUserRankData, useClaimRankEmi, useClaimFastBonus, useDirectReferrals, useAllRankConfigs, useQualifyingVolume } from '@/hooks/useContracts';
 import { useLevelCounts } from '@/hooks/useEvents';
+import { useLookupUser } from '@/contexts/LookupContext';
 import { GiBull } from 'react-icons/gi';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+
 
 const EMI_INTERVAL_DAYS = 15;
 
@@ -125,8 +127,13 @@ export function TeamRankTab() {
     const [selectedLevel, setSelectedLevel] = useState(1);
     const { address } = useAccount();
 
-    // Fetch user data
-    const { data: userId } = useUserId(address);
+    // Check if in lookup mode
+    const { targetUserId, isLookupMode } = useLookupUser();
+
+    // Fetch user data - use targetUserId in lookup mode
+    const { data: walletUserId } = useUserId(address);
+    const userId = isLookupMode ? targetUserId : (walletUserId as bigint);
+
     const { data: userInfo, isLoading: infoLoading } = useUserInfo(userId as bigint);
     const { data: teamVolume } = useUserTeamVolume(userId as bigint);
     const { data: referrals } = useDirectReferrals(userId as bigint);
@@ -138,6 +145,7 @@ export function TeamRankTab() {
     const { data: qualifyingVolLeadBull } = useQualifyingVolume(userId as bigint, BigInt(10000e18));
     const { data: qualifyingVolKingBull } = useQualifyingVolume(userId as bigint, BigInt(50000e18));
     const { data: qualifyingVolTitan } = useQualifyingVolume(userId as bigint, BigInt(100000e18));
+
 
     const qualifyingVolumeMap: Record<number, bigint | undefined> = {
         1: qualifyingVolCalf as bigint | undefined,

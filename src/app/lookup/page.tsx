@@ -8,7 +8,15 @@ import { CONTRACTS } from '@/config/constants';
 import { BullRunMainLogicABI } from '@/abi';
 import { Card, StatCard } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { LookupUserProvider } from '@/contexts/LookupContext';
 import Link from 'next/link';
+
+// Import actual dashboard components
+import { HomeTab } from '@/app/dashboard/components/HomeTab';
+import { EarningsTab } from '@/app/dashboard/components/EarningsTab';
+import { MyNFTsTab } from '@/app/dashboard/components/MyNFTsTab';
+import { TeamRankTab } from '@/app/dashboard/components/TeamRankTab';
+import { HistoryTab } from '@/app/dashboard/components/HistoryTab';
 
 // Wrapper component for Suspense
 export default function LookupPage() {
@@ -19,6 +27,15 @@ export default function LookupPage() {
     );
 }
 
+// Tab configuration
+const tabs = [
+    { id: 'home', label: 'Home', icon: '🏠' },
+    { id: 'earnings', label: 'Earnings', icon: '💰' },
+    { id: 'nfts', label: 'NFTs', icon: '🖼️' },
+    { id: 'team', label: 'Team & Ranks', icon: '👥' },
+    { id: 'history', label: 'History', icon: '📜' },
+];
+
 function LookupContent() {
     const searchParams = useSearchParams();
     const urlId = searchParams.get('id');
@@ -27,6 +44,7 @@ function LookupContent() {
     const [searchType, setSearchType] = useState<'id' | 'wallet'>('id');
     const [userId, setUserId] = useState<bigint | null>(urlId ? BigInt(urlId) : null);
     const [searchedWallet, setSearchedWallet] = useState<string | null>(null);
+    const [activeTab, setActiveTab] = useState('home');
 
     // Auto-load from URL param
     useEffect(() => {
@@ -63,24 +81,6 @@ function LookupContent() {
         query: { enabled: !!userId && userId > BigInt(0) }
     });
 
-    // Get user earnings
-    const { data: earningsData } = useReadContract({
-        address: CONTRACTS.BULL_RUN,
-        abi: BullRunMainLogicABI,
-        functionName: 'packageEarnings',
-        args: userId ? [userId] : undefined,
-        query: { enabled: !!userId && userId > BigInt(0) }
-    });
-
-    // Get user balance
-    const { data: balanceData } = useReadContract({
-        address: CONTRACTS.BULL_RUN,
-        abi: BullRunMainLogicABI,
-        functionName: 'userBalances',
-        args: userId ? [userId] : undefined,
-        query: { enabled: !!userId && userId > BigInt(0) }
-    });
-
     // Update userId when wallet lookup returns
     useEffect(() => {
         if (walletUserId && Number(walletUserId) > 0) {
@@ -89,14 +89,7 @@ function LookupContent() {
     }, [walletUserId]);
 
     // Parse user data
-    const user = userData as readonly [bigint, bigint, bigint, bigint, boolean, bigint, bigint] | undefined;
-    const earnings = earningsData as readonly [bigint, bigint, bigint, bigint] | undefined;
-    const balance = balanceData as readonly [bigint, bigint, bigint] | undefined;
-
-    const formatUSDT = (value: bigint | undefined) => {
-        if (!value) return '$0';
-        return `$${Number(formatUnits(value, 18)).toLocaleString()}`;
-    };
+    const user = userData as readonly [bigint, bigint, bigint, bigint, boolean, bigint, bigint, bigint] | undefined;
 
     const handleSearch = () => {
         if (!searchInput.trim()) return;
@@ -108,7 +101,6 @@ function LookupContent() {
                 setSearchedWallet(null);
             }
         } else {
-            // Wallet search
             if (searchInput.startsWith('0x') && searchInput.length === 42) {
                 setSearchedWallet(searchInput);
                 setUserId(null);
@@ -131,17 +123,22 @@ function LookupContent() {
                                 Bull Run
                             </span>
                         </Link>
-                        <Link href="/" className="text-sm text-[#64748B] hover:text-[#F8FAFC]">
-                            ← Back to Home
-                        </Link>
+                        <div className="flex items-center gap-4">
+                            <Link href="/admin" className="text-sm text-[#EC4899] hover:text-[#D946EF]">
+                                Admin Panel
+                            </Link>
+                            <Link href="/" className="text-sm text-[#64748B] hover:text-[#F8FAFC]">
+                                ← Home
+                            </Link>
+                        </div>
                     </div>
                 </div>
             </header>
 
             {/* Main Content */}
-            <main className="container mx-auto px-4 py-8 max-w-4xl">
+            <main className="container mx-auto px-4 py-6 max-w-6xl">
                 <h1 className="text-2xl font-bold text-[#F8FAFC] mb-2">🔍 User Lookup</h1>
-                <p className="text-sm text-[#64748B] mb-6">Search for any user by ID or wallet address</p>
+                <p className="text-sm text-[#64748B] mb-6">View any user's complete dashboard (read-only)</p>
 
                 {/* Search Box */}
                 <Card variant="glow" className="mb-6">
@@ -201,105 +198,59 @@ function LookupContent() {
                     </Card>
                 )}
 
-                {/* User Data */}
+                {/* User Data - Wrapped in LookupUserProvider */}
                 {userFound && user && (
-                    <div className="space-y-6">
-                        {/* User Header */}
-                        <Card variant="glow">
-                            <div className="flex items-center gap-4">
-                                <div className="w-16 h-16 rounded-full bg-gradient-to-r from-[#EC4899] to-[#D946EF] flex items-center justify-center text-2xl">
-                                    👤
+                    <LookupUserProvider userId={userId} wallet={userWallet as string || null}>
+                        <div className="space-y-6">
+                            {/* User Header */}
+                            <Card variant="glow">
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                                    <div className="w-16 h-16 rounded-full bg-gradient-to-r from-[#EC4899] to-[#D946EF] flex items-center justify-center text-2xl shrink-0">
+                                        🐂
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-3 flex-wrap">
+                                            <p className="text-xl font-bold text-[#EC4899]">BULL{user[7]?.toString()}</p>
+                                            <span className="text-sm text-[#64748B]">ID: {userId.toString()}</span>
+                                            <span className={`px-3 py-1 rounded-full text-xs ${user[4] ? 'bg-[#10B981]/20 text-[#10B981]' : 'bg-[#EF4444]/20 text-[#EF4444]'}`}>
+                                                {user[4] ? '✅ Active' : '⏳ Inactive'}
+                                            </span>
+                                        </div>
+                                        <p className="text-xs text-[#64748B] font-mono truncate mt-1">{userWallet as string || '0x...'}</p>
+                                    </div>
+                                    <div className="px-3 py-1 rounded-full bg-[#3B82F6]/20 text-[#3B82F6] text-xs font-medium">
+                                        👁️ View Only
+                                    </div>
                                 </div>
-                                <div className="flex-1">
-                                    <p className="text-2xl font-bold text-[#EC4899]">User #{userId.toString()}</p>
-                                    <p className="text-sm text-[#64748B] font-mono">{userWallet as string || '0x...'}</p>
-                                </div>
-                                <span className={`px-3 py-1 rounded-full text-sm ${user[4] ? 'bg-[#10B981]/20 text-[#10B981]' : 'bg-[#EF4444]/20 text-[#EF4444]'
-                                    }`}>
-                                    {user[4] ? '✅ Active' : '⏳ Inactive'}
-                                </span>
+                            </Card>
+
+                            {/* Tab Navigation */}
+                            <div className="flex gap-2 overflow-x-auto pb-2">
+                                {tabs.map((tab) => (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => setActiveTab(tab.id)}
+                                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === tab.id
+                                            ? 'bg-[#EC4899] text-white shadow-lg shadow-[#EC4899]/20'
+                                            : 'bg-[#1E293B] text-[#64748B] hover:text-[#F8FAFC] hover:bg-[#334155]'
+                                            }`}
+                                    >
+                                        <span className="mr-2">{tab.icon}</span>
+                                        {tab.label}
+                                    </button>
+                                ))}
                             </div>
-                        </Card>
 
-                        {/* Stats Grid */}
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                            <StatCard
-                                icon="📦"
-                                label="Package Level"
-                                value={`Pkg ${Number(user[1])}`}
-                            />
-                            <StatCard
-                                icon="💰"
-                                label="Total Invested"
-                                value={formatUSDT(user[2])}
-                            />
-                            <StatCard
-                                icon="🎯"
-                                label="Earning Cap"
-                                value={formatUSDT(user[3])}
-                            />
-                            <StatCard
-                                icon="👥"
-                                label="Direct Referrals"
-                                value={Number(user[6]).toString()}
-                            />
+                            {/* Tab Content - Using ACTUAL Dashboard Components */}
+                            <div className="min-h-[400px]">
+                                {activeTab === 'home' && <HomeTab />}
+                                {activeTab === 'earnings' && <EarningsTab />}
+                                {activeTab === 'nfts' && <MyNFTsTab />}
+                                {activeTab === 'team' && <TeamRankTab />}
+                                {activeTab === 'history' && <HistoryTab />}
+                            </div>
                         </div>
-
-                        {/* Earnings Breakdown */}
-                        {earnings && (
-                            <Card variant="stat">
-                                <h3 className="text-sm font-semibold text-[#F8FAFC] mb-4">📈 Earnings Breakdown</h3>
-                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                                    <div className="bg-[#0F172A] rounded-lg p-3">
-                                        <p className="text-xs text-[#64748B]">Direct Sponsor</p>
-                                        <p className="text-lg font-bold text-[#EC4899]">{formatUSDT(earnings[0])}</p>
-                                    </div>
-                                    <div className="bg-[#0F172A] rounded-lg p-3">
-                                        <p className="text-xs text-[#64748B]">Level Income</p>
-                                        <p className="text-lg font-bold text-[#3B82F6]">{formatUSDT(earnings[1])}</p>
-                                    </div>
-                                    <div className="bg-[#0F172A] rounded-lg p-3">
-                                        <p className="text-xs text-[#64748B]">Rank EMI</p>
-                                        <p className="text-lg font-bold text-[#10B981]">{formatUSDT(earnings[2])}</p>
-                                    </div>
-                                    <div className="bg-[#0F172A] rounded-lg p-3">
-                                        <p className="text-xs text-[#64748B]">Fast Bonus</p>
-                                        <p className="text-lg font-bold text-[#D946EF]">{formatUSDT(earnings[3])}</p>
-                                    </div>
-                                </div>
-                            </Card>
-                        )}
-
-                        {/* Balance Info */}
-                        {balance && (
-                            <Card variant="stat">
-                                <h3 className="text-sm font-semibold text-[#F8FAFC] mb-4">💰 Balance Summary</h3>
-                                <div className="grid grid-cols-3 gap-4">
-                                    <div className="bg-[#0F172A] rounded-lg p-3 text-center">
-                                        <p className="text-xs text-[#64748B]">Total Earned</p>
-                                        <p className="text-xl font-bold text-[#10B981]">{formatUSDT(balance[0])}</p>
-                                    </div>
-                                    <div className="bg-[#0F172A] rounded-lg p-3 text-center">
-                                        <p className="text-xs text-[#64748B]">Available</p>
-                                        <p className="text-xl font-bold text-[#EC4899]">{formatUSDT(balance[1])}</p>
-                                    </div>
-                                    <div className="bg-[#0F172A] rounded-lg p-3 text-center">
-                                        <p className="text-xs text-[#64748B]">Withdrawn</p>
-                                        <p className="text-xl font-bold text-[#64748B]">{formatUSDT(balance[2])}</p>
-                                    </div>
-                                </div>
-                            </Card>
-                        )}
-
-                        {/* Referrer Info */}
-                        {user[0] > BigInt(0) && (
-                            <Card variant="stat">
-                                <p className="text-sm text-[#64748B]">
-                                    Referred by: <span className="text-[#EC4899] font-bold">User #{Number(user[0])}</span>
-                                </p>
-                            </Card>
-                        )}
-                    </div>
+                    </LookupUserProvider>
                 )}
             </main>
         </div>

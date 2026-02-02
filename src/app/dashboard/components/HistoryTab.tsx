@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useAccount } from 'wagmi';
 import { formatUnits } from 'viem';
 import { useUserId, useUserInfo, useUserWallet } from '@/hooks/useContracts';
+import { useLookupUser } from '@/contexts/LookupContext';
 import {
     usePackagePurchasedEvents,
     useNFTBuyEvents,
@@ -52,9 +53,16 @@ interface UserInfoData {
 
 export function HistoryTab() {
     const { address } = useAccount();
-    const { data: userId } = useUserId(address);
-    const { data: userInfoData } = useUserInfo(userId as bigint);
     const [activeSubTab, setActiveSubTab] = useState<SubTab>('activation');
+
+    // Check if in lookup mode
+    const { targetUserId, isLookupMode } = useLookupUser();
+
+    // Fetch user data - use targetUserId in lookup mode
+    const { data: walletUserId } = useUserId(address);
+    const userId = isLookupMode ? targetUserId : (walletUserId as bigint);
+
+    const { data: userInfoData } = useUserInfo(userId as bigint);
 
     // Parse user info
     const userInfo = userInfoData as UserInfoData | undefined;

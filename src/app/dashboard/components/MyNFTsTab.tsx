@@ -3,6 +3,7 @@
 import { useAccount } from 'wagmi';
 import { formatUnits } from 'viem';
 import { useUserId, useUserNFTCount, useUserNFT, useNFT, useUserInfo } from '@/hooks/useContracts';
+import { useLookupUser } from '@/contexts/LookupContext';
 
 // Helper component to display owner username
 function OwnerUsername({ ownerId }: { ownerId: bigint }) {
@@ -269,10 +270,16 @@ function useNFTStatus(userId: bigint, nftIndex: number) {
 
 export function MyNFTsTab() {
     const { address } = useAccount();
-    const { data: userId } = useUserId(address);
+
+    // Check if in lookup mode
+    const { targetUserId, isLookupMode } = useLookupUser();
+
+    const { data: walletUserId } = useUserId(address);
+    const userId = isLookupMode ? targetUserId : (walletUserId as bigint);
     const { data: userNFTCount } = useUserNFTCount(userId as bigint);
 
     const isRegistered = typeof userId === 'bigint' && userId > BigInt(0);
+
     const nftCount = Number(userNFTCount || 0);
 
     // Fetch user's NFT IDs from userNFTs array (indices 0 to nftCount-1)

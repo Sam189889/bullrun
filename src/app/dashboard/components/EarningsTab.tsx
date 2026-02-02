@@ -6,6 +6,7 @@ import { formatUnits, parseUnits } from 'viem';
 import { useUserId, useUserEarnings, useUserTradingEarnings, useUserBalance, useWithdraw, useLuckyDrawPool, useUserLuckyDrawEntries, useTotalLuckyDrawEntries, useLuckyDrawThreshold, useCurrentWeek, useUserWeeklyShares, useTotalWeeklyShares, useWeeklyPoolBalance, useTradingShareThreshold, useTradingSharesPerThreshold, useUserNftRefunds } from '@/hooks/useContracts';
 import { Button } from '@/components/ui/Button';
 import { IncomeHistoryModal } from './IncomeHistoryModal';
+import { useLookupUser } from '@/contexts/LookupContext';
 import toast from 'react-hot-toast';
 
 const MIN_CLAIM = parseUnits('5', 18); // $5 minimum
@@ -69,6 +70,9 @@ export function EarningsTab() {
     const [selectedIncome, setSelectedIncome] = useState<{ type: string; icon: string; color: string } | null>(null);
     const { address } = useAccount();
 
+    // Check if in lookup mode
+    const { targetUserId, isLookupMode } = useLookupUser();
+
     const openModal = (type: string, icon: string, color: string) => {
         setSelectedIncome({ type, icon, color });
         setModalOpen(true);
@@ -79,12 +83,15 @@ export function EarningsTab() {
         setSelectedIncome(null);
     };
 
-    // Fetch user data
-    const { data: userId } = useUserId(address);
+    // Fetch user data - use targetUserId in lookup mode
+    const { data: walletUserId } = useUserId(address);
+    const userId = isLookupMode ? targetUserId : (walletUserId as bigint);
+
     const { data: earnings, isLoading } = useUserEarnings(userId as bigint);
     const { data: tradingEarnings, isLoading: isTradingLoading } = useUserTradingEarnings(userId as bigint);
     const { data: nftRefundsData } = useUserNftRefunds(userId as bigint);
     const { data: balanceData, refetch: refetchBalance } = useUserBalance(userId as bigint);
+
 
     // Claim hook
     const { withdraw, isPending: isClaiming, data: claimHash } = useWithdraw();
@@ -387,41 +394,43 @@ export function EarningsTab() {
                 </div>
             </div>
 
-            {/* Claim Section */}
-            <div className="bg-gradient-to-r from-[#1E293B] to-[#0F172A] rounded-xl p-4 border border-[#334155] animate-slide-up" style={{ animationDelay: '0.25s' }}>
-                <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-semibold text-[#F8FAFC]">💰 Claim</h3>
-                    <span className="text-xs text-[#64748B]">Min: $5</span>
-                </div>
-                <div className="flex gap-2">
-                    <div className="relative flex-1">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#64748B]">$</span>
-                        <input
-                            type="number"
-                            value={claimAmount}
-                            onChange={(e) => setClaimAmount(e.target.value)}
-                            placeholder="0.00"
-                            className="w-full bg-[#0F172A] border border-[#334155] rounded-lg pl-7 pr-14 py-2 text-[#F8FAFC] text-sm focus:border-[#EC4899] outline-none"
-                        />
-                        <button
-                            type="button"
-                            onClick={handleMaxClaim}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-[#EC4899] hover:text-[#D946EF]"
-                        >
-                            MAX
-                        </button>
+            {/* Claim Section - Hidden in Lookup Mode */}
+            {!isLookupMode && (
+                <div className="bg-gradient-to-r from-[#1E293B] to-[#0F172A] rounded-xl p-4 border border-[#334155] animate-slide-up" style={{ animationDelay: '0.25s' }}>
+                    <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-sm font-semibold text-[#F8FAFC]">💰 Claim</h3>
+                        <span className="text-xs text-[#64748B]">Min: $5</span>
                     </div>
-                    <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={handleClaim}
-                        disabled={isClaiming || isConfirming || !claimAmount}
-                        className="px-4"
-                    >
-                        {isClaiming || isConfirming ? '...' : 'Claim'}
-                    </Button>
+                    <div className="flex gap-2">
+                        <div className="relative flex-1">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#64748B]">$</span>
+                            <input
+                                type="number"
+                                value={claimAmount}
+                                onChange={(e) => setClaimAmount(e.target.value)}
+                                placeholder="0.00"
+                                className="w-full bg-[#0F172A] border border-[#334155] rounded-lg pl-7 pr-14 py-2 text-[#F8FAFC] text-sm focus:border-[#EC4899] outline-none"
+                            />
+                            <button
+                                type="button"
+                                onClick={handleMaxClaim}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-[#EC4899] hover:text-[#D946EF]"
+                            >
+                                MAX
+                            </button>
+                        </div>
+                        <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={handleClaim}
+                            disabled={isClaiming || isConfirming || !claimAmount}
+                            className="px-4"
+                        >
+                            {isClaiming || isConfirming ? '...' : 'Claim'}
+                        </Button>
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* Filter Tabs */}
             <div className="flex gap-1.5 sm:gap-2 overflow-x-auto pb-2 animate-slide-up" style={{ animationDelay: '0.3s' }}>

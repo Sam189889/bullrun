@@ -5,6 +5,7 @@ import { useAccount } from 'wagmi';
 import { formatUnits } from 'viem';
 import { useUserId, useUserInfo, useUserEarnings, useUserTradingEarnings, useUserBalance, useUserDailyLimitData, useUserAvailableLimit } from '@/hooks/useContracts';
 import { useDayStartTimestamp, useDayLength } from '@/hooks/useAdminContracts';
+import { useLookupUser } from '@/contexts/LookupContext';
 import { SmartPackageCard } from './SmartPackageCard';
 
 // Define types for contract returns
@@ -82,8 +83,13 @@ export function HomeTab() {
     const { address, isConnected } = useAccount();
     const [copied, setCopied] = useState(false);
 
-    // Fetch user data from contract
-    const { data: userId } = useUserId(address);
+    // Check if in lookup mode
+    const { targetUserId, isLookupMode } = useLookupUser();
+
+    // Fetch user data from contract - use targetUserId in lookup mode
+    const { data: walletUserId } = useUserId(address);
+    const userId = isLookupMode ? targetUserId : (walletUserId as bigint);
+
     const { data: userInfo, isLoading: infoLoading } = useUserInfo(userId as bigint);
     const { data: earnings, isLoading: earningsLoading } = useUserEarnings(userId as bigint);
     const { data: tradingEarnings, isLoading: tradingLoading } = useUserTradingEarnings(userId as bigint);
@@ -94,6 +100,7 @@ export function HomeTab() {
     // Day settings for timer
     const { data: dayStart } = useDayStartTimestamp();
     const { data: dayLength } = useDayLength();
+
 
     // Calculate daily trade limit - USE availableLimit from contract (handles day reset)
     const dailyLimit = dailyLimitData as readonly [bigint, bigint, bigint] | undefined;
