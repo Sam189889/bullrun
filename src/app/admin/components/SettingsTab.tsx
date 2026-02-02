@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { formatUnits } from 'viem';
-import { useSetCreatorWallet, useApproveUSDT, useCreatorWallet, useAllPoolBalances, useAddToPool, useWithdrawFromAnyPool, PoolType, useSetFirstUser, useFirstUser, useNFTSplitCount, useNFTQueueCount, useSetSplitCount, useSetQueueCount } from '@/hooks/useAdminContracts';
+import { useSetCreatorWallet, useApproveUSDT, useCreatorWallet, useAllPoolBalances, useAddToPool, useWithdrawFromAnyPool, PoolType, useSetFirstUser, useFirstUser, useNFTSplitCount, useNFTSplitThreshold, useNFTQueueCount, useSetSplitCount, useSetQueueCount } from '@/hooks/useAdminContracts';
 import {
     useGetAllShareholders,
     usePendingBalance,
@@ -37,9 +37,6 @@ export function SettingsTab() {
 
             {/* Day Settings */}
             <DaySettings />
-
-            {/* NFT Settings */}
-            <NFTSettings />
 
             {/* First User Settings */}
             <FirstUserSettings />
@@ -721,6 +718,7 @@ function NFTSettings() {
     const toastShownQueue = useRef(false);
 
     // Read current values
+    const { data: currentSplitThreshold } = useNFTSplitThreshold();
     const { data: currentSplitCount } = useNFTSplitCount();
     const { data: currentQueueCount } = useNFTQueueCount();
 
@@ -771,16 +769,21 @@ function NFTSettings() {
             <p className="text-xs text-[#64748B] mb-4">Configure NFT split and queue behavior</p>
 
             {/* Current Values */}
-            <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-3 gap-3 mb-4">
                 <div className="p-3 bg-[#1E293B] rounded-lg">
-                    <p className="text-[10px] text-[#64748B]">Current Split Count</p>
-                    <p className="text-lg font-bold text-[#EC4899]">{currentSplitCount?.toString() || '0'}</p>
-                    <p className="text-[8px] text-[#64748B]">NFTs created on split</p>
+                    <p className="text-[10px] text-[#64748B]">Split Threshold</p>
+                    <p className="text-lg font-bold text-[#F59E0B]">${currentSplitThreshold ? Number(formatUnits(currentSplitThreshold as bigint, 18)).toFixed(0) : '0'}</p>
+                    <p className="text-[8px] text-[#64748B]">Fixed (read-only)</p>
                 </div>
                 <div className="p-3 bg-[#1E293B] rounded-lg">
-                    <p className="text-[10px] text-[#64748B]">Current Queue Count</p>
+                    <p className="text-[10px] text-[#64748B]">Split Count</p>
+                    <p className="text-lg font-bold text-[#EC4899]">{currentSplitCount?.toString() || '0'}</p>
+                    <p className="text-[8px] text-[#64748B]">NFTs on split</p>
+                </div>
+                <div className="p-3 bg-[#1E293B] rounded-lg">
+                    <p className="text-[10px] text-[#64748B]">Queue Count</p>
                     <p className="text-lg font-bold text-[#8B5CF6]">{currentQueueCount?.toString() || '0'}</p>
-                    <p className="text-[8px] text-[#64748B]">Max unlisted per user</p>
+                    <p className="text-[8px] text-[#64748B]">Max unlisted</p>
                 </div>
             </div>
 

@@ -8,9 +8,11 @@ import {
     useNFT,
     useNFTSplitThreshold,
     useNFTSplitCount,
+    useNFTQueueCount,
     useNFTAppreciationBps,
     useCreateNFT,
-    useSetSplitCount
+    useSetSplitCount,
+    useSetQueueCount
 } from '@/hooks/useAdminContracts';
 
 import { useUserInfo } from '@/hooks/useContracts';
@@ -32,28 +34,32 @@ function OwnerUsername({ ownerId }: { ownerId: bigint }) {
 export function NFTsTab() {
     const [basePrice, setBasePrice] = useState('10');
     const [nftCount, setNftCount] = useState('1');
-    const [splitThreshold, setSplitThreshold] = useState('100');
     const [splitCount, setSplitCount] = useState('2');
     const [selectedNftId, setSelectedNftId] = useState<string>('');
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [showEditMode, setShowEditMode] = useState(false);
     const [showCreateMode, setShowCreateMode] = useState(false);
+    const [queueCountInput, setQueueCountInput] = useState('');
+    const [showQueueEdit, setShowQueueEdit] = useState(false);
 
     // Reads - add refetch for all
     const { data: totalNFTs, refetch: refetchTotalNFTs } = useTotalNFTs();
     const { data: threshold, refetch: refetchThreshold } = useNFTSplitThreshold();
     const { data: count, refetch: refetchCount } = useNFTSplitCount();
+    const { data: queueCount, refetch: refetchQueueCount } = useNFTQueueCount();
     const { data: appreciation, refetch: refetchAppreciation } = useNFTAppreciationBps();
 
     // Writes - get isSuccess to know when tx is confirmed
     const { createNFT, isPending: creating, isConfirming: creatingConfirming, isSuccess: createSuccess } = useCreateNFT();
     const { setSplitCount: updateSplitCount, isPending: settingSplit, isSuccess: settingsSuccess } = useSetSplitCount();
+    const { setQueueCount: updateQueueCount, isPending: settingQueue, isSuccess: queueSuccess } = useSetQueueCount();
 
     // Refetch all data function
     const refetchAll = () => {
         refetchTotalNFTs();
         refetchThreshold();
         refetchCount();
+        refetchQueueCount();
         refetchAppreciation();
     };
 
@@ -73,6 +79,15 @@ export function NFTsTab() {
         }
     }, [settingsSuccess]);
 
+    // Refetch when queue update is confirmed
+    useEffect(() => {
+        if (queueSuccess) {
+            toast.success('Queue Count Updated!');
+            setShowQueueEdit(false);
+            setQueueCountInput('');
+            refetchAll();
+        }
+    }, [queueSuccess]);
 
     const handleCreateNFT = async () => {
         try {
@@ -256,43 +271,33 @@ export function NFTsTab() {
                         </Button>
                     ) : (
                         <>
-                            {/* Warning Box */}
-                            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 mb-4">
-                                <p className="text-red-400 text-sm font-semibold mb-1">⚠️ CRITICAL WARNING</p>
+                            {/* Info Box */}
+                            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 mb-4">
+                                <p className="text-amber-400 text-sm font-semibold mb-1">ℹ️ Note</p>
                                 <p className="text-slate-300 text-xs">
-                                    Changes affect ALL future NFT splits. E.g., $10 threshold = $0.50 NFTs.
-                                    <span className="text-red-400 font-bold"> Double-check!</span>
+                                    Split threshold is fixed at <span className="text-amber-400 font-bold">${threshold ? Number(formatUnits(threshold as bigint, 18)).toFixed(0) : '200'}</span>.
+                                    Only split count can be changed.
                                 </p>
                             </div>
 
                             <div className="space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-400 mb-2">New Threshold ($)</label>
-                                        <input
-                                            type="number"
-                                            value={splitThreshold}
-                                            onChange={(e) => setSplitThreshold(e.target.value)}
-                                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-400 mb-2">New Split Count</label>
-                                        <input
-                                            type="number"
-                                            value={splitCount}
-                                            onChange={(e) => setSplitCount(e.target.value)}
-                                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50"
-                                        />
-                                    </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-400 mb-2">New Split Count</label>
+                                    <input
+                                        type="number"
+                                        value={splitCount}
+                                        onChange={(e) => setSplitCount(e.target.value)}
+                                        min="1"
+                                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                                    />
                                 </div>
 
                                 {/* Preview */}
-                                {splitThreshold && splitCount && (
+                                {!!threshold && splitCount && (
                                     <div className="bg-slate-800/50 rounded-lg p-3 text-sm">
                                         <span className="text-slate-400">New Base Price/NFT: </span>
                                         <span className="text-yellow-400 font-bold">
-                                            ${(Number(splitThreshold) / Number(splitCount)).toFixed(2)}
+                                            ${(Number(formatUnits(threshold as bigint, 18)) / Number(splitCount)).toFixed(2)}
                                         </span>
                                     </div>
                                 )}
@@ -306,10 +311,10 @@ export function NFTsTab() {
                                     </Button>
                                     <Button
                                         onClick={handleUpdateSettings}
-                                        disabled={settingSplit}
-                                        className="w-full bg-orange-600 hover:bg-orange-500 py-3 rounded-xl font-semibold"
+                                        disabled={settingSplit || !splitCount}
+                                        className="w-full bg-purple-600 hover:bg-purple-500 py-3 rounded-xl font-semibold"
                                     >
-                                        {settingSplit ? 'Updating...' : '⚠️ Confirm'}
+                                        {settingSplit ? 'Updating...' : '✓ Update Split Count'}
                                     </Button>
                                 </div>
                             </div>
@@ -325,9 +330,9 @@ export function NFTsTab() {
 
                             <div className="bg-slate-800 rounded-xl p-4 mb-4 space-y-3">
                                 <div className="flex justify-between">
-                                    <span className="text-slate-400">Current → New Threshold:</span>
-                                    <span className="text-white font-bold">
-                                        ${threshold ? formatUnits(threshold as bigint, 18) : '0'} → ${splitThreshold}
+                                    <span className="text-slate-400">Split Threshold (Fixed):</span>
+                                    <span className="text-amber-400 font-bold">
+                                        ${threshold ? Number(formatUnits(threshold as bigint, 18)).toFixed(0) : '200'}
                                     </span>
                                 </div>
                                 <div className="flex justify-between">
@@ -339,13 +344,13 @@ export function NFTsTab() {
                                 <div className="flex justify-between border-t border-slate-700 pt-3">
                                     <span className="text-slate-400">New Base Price/NFT:</span>
                                     <span className="text-yellow-400 font-bold text-lg">
-                                        ${(Number(splitThreshold) / Number(splitCount)).toFixed(2)}
+                                        ${threshold ? (Number(formatUnits(threshold as bigint, 18)) / Number(splitCount)).toFixed(2) : '0'}
                                     </span>
                                 </div>
                             </div>
 
-                            <p className="text-red-300 text-sm mb-6">
-                                Are you ABSOLUTELY SURE? This will affect all future NFT splits!
+                            <p className="text-purple-300 text-sm mb-6">
+                                Confirm split count change?
                             </p>
 
                             <div className="grid grid-cols-2 gap-4">
@@ -369,28 +374,72 @@ export function NFTsTab() {
                 )}
             </div>
 
-            {/* Quick Actions for Individual NFT */}
+            {/* Queue Settings */}
             <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl shadow-xl">
-                <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                    <span className="p-2 bg-emerald-500/20 text-emerald-400 rounded-lg">🖼️</span>
-                    NFT Quick Management
+                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <span className="p-2 bg-amber-500/20 text-amber-400 rounded-lg">📦</span>
+                    Queue Settings
                 </h3>
-                <div className="space-y-6">
-                    <div className="flex flex-col md:flex-row gap-4">
-                        <input
-                            type="number"
-                            value={selectedNftId}
-                            onChange={(e) => setSelectedNftId(e.target.value)}
-                            className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
-                            placeholder="Enter NFT ID (e.g. 1)"
-                        />
-                    </div>
 
-                    {selectedNftId && selectedNftId.trim() !== '' && (
-                        <NFTDetailsCard nftId={BigInt(selectedNftId)} />
-                    )}
+                {/* Current Value Display */}
+                <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 mb-4">
+                    <p className="text-amber-400 text-sm font-semibold mb-2">📊 Current Queue Count</p>
+                    <p className="text-2xl font-bold text-white">{(queueCount as bigint)?.toString() || '0'}</p>
+                    <p className="text-slate-400 text-xs mt-1">Maximum unlisted NFTs per user</p>
                 </div>
+
+                {!showQueueEdit ? (
+                    <Button
+                        onClick={() => setShowQueueEdit(true)}
+                        className="w-full bg-amber-600 hover:bg-amber-500 py-4 rounded-xl text-lg font-semibold"
+                    >
+                        ✏️ Update Queue Count
+                    </Button>
+                ) : (
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-slate-400 mb-2">New Queue Count (1-10)</label>
+                            <input
+                                type="number"
+                                value={queueCountInput}
+                                onChange={(e) => setQueueCountInput(e.target.value)}
+                                min="1"
+                                max="10"
+                                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                                placeholder="Enter value 1-10"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <Button
+                                onClick={() => {
+                                    setShowQueueEdit(false);
+                                    setQueueCountInput('');
+                                }}
+                                className="w-full bg-slate-700 hover:bg-slate-600 py-3 rounded-xl font-semibold"
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={() => {
+                                    if (!queueCountInput) return;
+                                    const val = parseInt(queueCountInput);
+                                    if (val < 1 || val > 10) {
+                                        toast.error('Queue count must be 1-10');
+                                        return;
+                                    }
+                                    updateQueueCount(BigInt(val));
+                                }}
+                                disabled={settingQueue || !queueCountInput}
+                                className="w-full bg-amber-600 hover:bg-amber-500 py-3 rounded-xl font-semibold"
+                            >
+                                {settingQueue ? 'Updating...' : '✓ Update'}
+                            </Button>
+                        </div>
+                    </div>
+                )}
             </div>
+
 
             {/* All NFTs List */}
             <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl shadow-xl">

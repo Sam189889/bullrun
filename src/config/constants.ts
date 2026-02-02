@@ -1,8 +1,8 @@
 // Contract Addresses - opBNB Testnet
 export const CONTRACTS = {
     USDT: '0x9907964f13E7d6433Af61135E126326c4f6786b0' as `0x${string}`,  // Existing USDT
-    // Fresh Deploy (2026-02-01) - Queue configurable, pool management combined, trip reward
-    BULL_RUN: '0x580940b8be6bdbd04f68090bba5e58fa9ddd7c13' as `0x${string}`,
+    // Fresh Deploy (2026-02-02 1:37 PM) - Correct split threshold
+    BULL_RUN: '0xebe002fd383a77f43b69d6d54faa61aa605ee62c' as `0x${string}`,
     PROXY_ADMIN: '0xAdc4587f4fDcFd732d3768906Df40f4277272F57' as `0x${string}`,
     // RevenueSplitter (2026-01-31 1:42 PM) - Creator wallet splitter
     REVENUE_SPLITTER: '0x0A65d031a15453aC392098C8386dA874CFF6C7A5' as `0x${string}`,
