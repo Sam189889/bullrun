@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { formatUnits } from 'viem';
-import { useSetCreatorWallet, useApproveUSDT, useCreatorWallet, useAllPoolBalances, useAddToPool, useWithdrawFromAnyPool, PoolType, useSetFirstUser, useFirstUser } from '@/hooks/useAdminContracts';
+import { useSetCreatorWallet, useApproveUSDT, useCreatorWallet, useAllPoolBalances, useAddToPool, useWithdrawFromAnyPool, PoolType, useSetFirstUser, useFirstUser, useNFTSplitCount, useNFTQueueCount, useSetSplitCount, useSetQueueCount } from '@/hooks/useAdminContracts';
 import {
     useGetAllShareholders,
     usePendingBalance,
@@ -37,6 +37,9 @@ export function SettingsTab() {
 
             {/* Day Settings */}
             <DaySettings />
+
+            {/* NFT Settings */}
+            <NFTSettings />
 
             {/* First User Settings */}
             <FirstUserSettings />
@@ -703,6 +706,127 @@ function RevenueSplitterSection() {
                         className="w-full mt-2"
                     >
                         {batchPending || batchConfirming ? 'Configuring...' : '🚀 Configure All'}
+                    </Button>
+                </div>
+            </div>
+        </Card>
+    );
+}
+
+// NFT Settings Component - Split Count and Queue Count
+function NFTSettings() {
+    const [splitCount, setSplitCountVal] = useState('');
+    const [queueCount, setQueueCountVal] = useState('');
+    const toastShownSplit = useRef(false);
+    const toastShownQueue = useRef(false);
+
+    // Read current values
+    const { data: currentSplitCount } = useNFTSplitCount();
+    const { data: currentQueueCount } = useNFTQueueCount();
+
+    // Write hooks
+    const { setSplitCount, isPending: splitPending, isConfirming: splitConfirming, isSuccess: splitSuccess, error: splitError } = useSetSplitCount();
+    const { setQueueCount, isPending: queuePending, isConfirming: queueConfirming, isSuccess: queueSuccess, error: queueError } = useSetQueueCount();
+
+    // Toast notifications
+    useEffect(() => {
+        if (splitSuccess && !toastShownSplit.current) {
+            toastShownSplit.current = true;
+            toast.success('Split count updated!');
+            setSplitCountVal('');
+        }
+        if (splitError && !toastShownSplit.current) {
+            toastShownSplit.current = true;
+            toast.error('Failed to update split count');
+        }
+    }, [splitSuccess, splitError]);
+
+    useEffect(() => {
+        if (queueSuccess && !toastShownQueue.current) {
+            toastShownQueue.current = true;
+            toast.success('Queue count updated!');
+            setQueueCountVal('');
+        }
+        if (queueError && !toastShownQueue.current) {
+            toastShownQueue.current = true;
+            toast.error('Failed to update queue count');
+        }
+    }, [queueSuccess, queueError]);
+
+    const handleSetSplitCount = () => {
+        if (!splitCount) return;
+        toastShownSplit.current = false;
+        setSplitCount(BigInt(splitCount));
+    };
+
+    const handleSetQueueCount = () => {
+        if (!queueCount) return;
+        toastShownQueue.current = false;
+        setQueueCount(BigInt(queueCount));
+    };
+
+    return (
+        <Card variant="default">
+            <h3 className="text-sm font-semibold text-[#F8FAFC] mb-3">🎨 NFT Settings</h3>
+            <p className="text-xs text-[#64748B] mb-4">Configure NFT split and queue behavior</p>
+
+            {/* Current Values */}
+            <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="p-3 bg-[#1E293B] rounded-lg">
+                    <p className="text-[10px] text-[#64748B]">Current Split Count</p>
+                    <p className="text-lg font-bold text-[#EC4899]">{currentSplitCount?.toString() || '0'}</p>
+                    <p className="text-[8px] text-[#64748B]">NFTs created on split</p>
+                </div>
+                <div className="p-3 bg-[#1E293B] rounded-lg">
+                    <p className="text-[10px] text-[#64748B]">Current Queue Count</p>
+                    <p className="text-lg font-bold text-[#8B5CF6]">{currentQueueCount?.toString() || '0'}</p>
+                    <p className="text-[8px] text-[#64748B]">Max unlisted per user</p>
+                </div>
+            </div>
+
+            {/* Split Count Input */}
+            <div className="mb-4">
+                <label className="text-xs text-[#94A3B8] block mb-1">Set Split Count</label>
+                <div className="flex gap-2">
+                    <input
+                        type="number"
+                        value={splitCount}
+                        onChange={(e) => setSplitCountVal(e.target.value)}
+                        placeholder="e.g., 2"
+                        min="1"
+                        className="flex-1 px-3 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-white text-sm focus:border-[#EC4899] outline-none"
+                    />
+                    <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={handleSetSplitCount}
+                        disabled={splitPending || splitConfirming || !splitCount}
+                    >
+                        {splitPending || splitConfirming ? '...' : 'Set'}
+                    </Button>
+                </div>
+            </div>
+
+            {/* Queue Count Input */}
+            <div>
+                <label className="text-xs text-[#94A3B8] block mb-1">Set Queue Count (1-10)</label>
+                <div className="flex gap-2">
+                    <input
+                        type="number"
+                        value={queueCount}
+                        onChange={(e) => setQueueCountVal(e.target.value)}
+                        placeholder="e.g., 1"
+                        min="1"
+                        max="10"
+                        className="flex-1 px-3 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-white text-sm focus:border-[#8B5CF6] outline-none"
+                    />
+                    <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={handleSetQueueCount}
+                        disabled={queuePending || queueConfirming || !queueCount}
+                    >
+                        {queuePending || queueConfirming ? '...' : 'Set'}
                     </Button>
                 </div>
             </div>

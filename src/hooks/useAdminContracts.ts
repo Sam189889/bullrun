@@ -436,6 +436,36 @@ export function useSetSplitCount() {
 }
 
 /**
+ * Set NFT queue count (admin only)
+ */
+export function useSetQueueCount() {
+    const { writeContract, data: hash, isPending, error } = useWriteContract()
+    const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
+
+    const setQueueCount = (count: bigint) => {
+        writeContract({
+            address: CONTRACTS.BULL_RUN,
+            abi: BullRunMainLogicABI,
+            functionName: 'setQueueCount',
+            args: [count],
+        })
+    }
+
+    return { setQueueCount, hash, isPending, isConfirming, isSuccess, error }
+}
+
+/**
+ * Get NFT queue count
+ */
+export function useNFTQueueCount() {
+    return useReadContract({
+        address: CONTRACTS.BULL_RUN,
+        abi: BullRunMainLogicABI,
+        functionName: 'nftQueueCount',
+    })
+}
+
+/**
  * Draw lucky winner (admin only)
  */
 export function useDrawLuckyWinner() {
