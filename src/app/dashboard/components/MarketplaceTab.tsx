@@ -156,7 +156,8 @@ function NFTCard({ nftId, userId, onSelect, config }: { nftId: number; userId: b
 
     // Select bull image (1-11) based on NFT ID, cycling
     const bullImageNum = ((nftId - 1) % 11) + 1;
-    const bullImage = `/bulls/bull${bullImageNum}.png`;
+    const bullImageExt = bullImageNum >= 10 ? 'jpg' : 'png';
+    const bullImage = `/bulls/bull${bullImageNum}.${bullImageExt}`;
 
     return (
         <div className={`
@@ -169,17 +170,17 @@ function NFTCard({ nftId, userId, onSelect, config }: { nftId: number; userId: b
             <div className="absolute inset-0 bg-gradient-to-r from-[#EC4899]/0 via-[#EC4899]/10 to-[#EC4899]/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
             {/* NFT Visual - Bull Image */}
-            <div className="h-28 bg-gradient-to-br from-[#EC4899]/10 via-[#0F172A] to-[#EF4444]/10 flex items-center justify-center relative overflow-hidden">
+            <div className="aspect-square bg-gradient-to-br from-[#EC4899]/10 via-[#0F172A] to-[#EF4444]/10 flex items-center justify-center relative overflow-hidden">
                 {/* Animated background */}
                 <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-20 h-20 rounded-full bg-gradient-to-r from-[#EC4899]/20 to-[#EF4444]/20 blur-2xl animate-pulse" />
+                    <div className="w-24 h-24 rounded-full bg-gradient-to-r from-[#EC4899]/20 to-[#EF4444]/20 blur-2xl animate-pulse" />
                 </div>
 
-                {/* Bull Image - Zoomed */}
+                {/* Bull Image - Covers full area */}
                 <img
                     src={bullImage}
                     alt={`Bull NFT #${nftId}`}
-                    className="relative w-24 h-24 sm:w-28 sm:h-28 object-contain group-hover:scale-110 transition-transform duration-500 drop-shadow-[0_0_15px_rgba(236,72,153,0.4)]"
+                    className="relative w-full h-full object-cover scale-125 group-hover:scale-140 transition-transform duration-500 drop-shadow-[0_0_15px_rgba(236,72,153,0.4)]"
                 />
             </div>
 
@@ -591,12 +592,12 @@ export function MarketplaceTab() {
 
                         {/* NFT Image */}
                         <div className="mb-4 flex justify-center">
-                            <div className="relative">
+                            <div className="relative w-40 h-40 rounded-xl overflow-hidden border-2 border-[#EC4899]/30">
                                 <div className="absolute inset-0 bg-gradient-to-r from-[#EC4899]/30 to-[#EF4444]/30 blur-3xl" />
                                 <img
-                                    src={`/bulls/bull${((selectedNFT.nftId - 1) % 11) + 1}.png`}
+                                    src={`/bulls/bull${((selectedNFT.nftId - 1) % 11) + 1}.${((selectedNFT.nftId - 1) % 11) + 1 >= 10 ? 'jpg' : 'png'}`}
                                     alt={`Bull NFT #${selectedNFT.nftId}`}
-                                    className="relative w-32 h-32 object-contain drop-shadow-[0_0_30px_rgba(236,72,153,0.6)]"
+                                    className="relative w-full h-full object-cover scale-110 drop-shadow-[0_0_30px_rgba(236,72,153,0.6)]"
                                 />
                             </div>
                         </div>

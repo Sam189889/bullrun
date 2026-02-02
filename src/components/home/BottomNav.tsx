@@ -2,11 +2,11 @@
 
 const navItems = [
     { icon: '🏠', label: 'Home', target: 'hero' },
-    { icon: '⭐', label: 'Features', target: 'features' },
-    { icon: '💰', label: 'Packages', target: 'packages' },
-    { icon: '📈', label: 'Levels', target: 'levels' },
-    { icon: '👥', label: 'Team', target: 'team' },
-    { icon: '🔥', label: 'Burn', target: 'burn' },
+    { icon: '🐂', label: 'About', target: 'titans' },
+    { icon: '⚡', label: 'Tech', target: 'crofuer' },
+    { icon: '✨', label: 'Features', target: 'features' },
+    { icon: '�️', label: 'Roadmap', target: 'roadmap' },
+    { icon: '🎯', label: 'Join', target: 'join' },
 ];
 
 export function BottomNav() {

@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { Button } from '../ui/Button';
+import { PhoneMockup } from '../sections/PhoneMockup';
 
 export function HeroSection() {
     return (
@@ -40,36 +40,28 @@ export function HeroSection() {
 
                     {/* 3D Bull Image with Title */}
                     <div className="animate-slide-up-delay-1 flex flex-col lg:flex-row items-center justify-center gap-4 lg:gap-8 mb-4 sm:mb-6">
-                        {/* 3D Bull Image */}
-                        <div className="relative w-52 h-52 sm:w-60 sm:h-60 md:w-72 md:h-72 lg:w-80 lg:h-80 float-slow">
-                            <Image
-                                src="/bull-3d.png"
-                                alt="3D Golden Bull"
-                                fill
-                                className="object-contain drop-shadow-[0_0_40px_rgba(236,72,153,0.5)]"
-                                priority
-                            />
-                            {/* Glow effect behind bull */}
-                            <div className="absolute inset-0 bg-gradient-radial from-[#EC4899]/30 via-transparent to-transparent blur-2xl -z-10" />
+                        {/* Phone Mockup with Video */}
+                        <div className="w-full sm:w-auto">
+                            <PhoneMockup videoSrc="/video/intro.mp4" />
                         </div>
 
                         {/* Main Heading */}
-                        <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-extrabold leading-tight">
-                            <span className="bg-gradient-to-r from-[#EC4899] via-[#F472B6] to-[#D946EF] bg-clip-text text-transparent drop-shadow-[0_0_30px_rgba(255,215,0,0.3)]">
-                                BULL RUN NFT
-                            </span>
-                            <br />
-                            <span className="text-[#F8FAFC] text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl">
-                                TRADING PLATFORM
-                            </span>
-                        </h1>
+                        <div>
+                            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-extrabold leading-tight">
+                                <span className="bg-gradient-to-r from-[#EC4899] via-[#F472B6] to-[#D946EF] bg-clip-text text-transparent drop-shadow-[0_0_30px_rgba(255,215,0,0.3)]">
+                                    BULL RUN NFT
+                                </span>
+                            </h1>
+                            <p className="text-lg sm:text-xl md:text-2xl text-[#F59E0B] font-semibold mt-2">
+                                Own a Legend. Ride the Bull Run.
+                            </p>
+                        </div>
                     </div>
 
-                    {/* Subtitle */}
+                    {/* Tagline */}
                     <p className="animate-slide-up-delay-2 text-base sm:text-lg md:text-xl lg:text-2xl text-[#94A3B8] mb-8 sm:mb-12 max-w-2xl mx-auto leading-relaxed px-2">
-                        Community-Driven NFT Trading with
-                        <span className="text-[#EC4899] font-semibold"> Multi-Level Rewards</span> &
-                        <span className="text-[#D946EF] font-semibold"> Burning Mechanism</span>
+                        <span className="text-[#EC4899] font-semibold">Unique Digital Bulls</span> Charging the Blockchain with{" "}
+                        <span className="text-[#D946EF] font-semibold">Crofuer Technology</span>
                     </p>
 
                     {/* CTA Buttons */}
