@@ -487,7 +487,7 @@ export function TeamRankTab() {
                                                     size="sm"
                                                     disabled={!canEmi || emiPending}
                                                     onClick={() => {
-                                                        claimEmi(rankIndex);
+                                                        claimEmi(userId as bigint, rankIndex);
                                                         setTimeout(() => refetchMap[rankIndex](), 2000);
                                                     }}
                                                     className="h-8 text-[10px]"

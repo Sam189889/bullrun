@@ -243,12 +243,12 @@ export function usePurchasePackage() {
 export function useClaimRankEmi() {
     const { writeContract, ...rest } = useWriteContract()
 
-    const claimEmi = (rank: number) => {
+    const claimEmi = (userId: bigint, rank: number) => {
         writeContract({
             address: contracts.bullRun,
             abi: BullRunMainLogicABI,
             functionName: 'claimRankEmi',
-            args: [rank],
+            args: [userId, rank],
         })
     }
 
