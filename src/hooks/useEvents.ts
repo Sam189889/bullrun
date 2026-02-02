@@ -78,6 +78,15 @@ export interface LuckyDrawWinnerEvent {
     transactionHash: `0x${string}`
 }
 
+export interface WeeklyPoolPaidEvent {
+    userId: bigint
+    week: bigint
+    amount: bigint
+    shares: bigint
+    blockNumber: bigint
+    transactionHash: `0x${string}`
+}
+
 export interface PackagePurchasedEvent {
     userId: bigint
     packageLevel: bigint
@@ -576,6 +585,58 @@ export function useSharesAwardedEvents(userId: bigint | undefined) {
             })
 
             setEvents(parsed.reverse())
+        } catch (err) {
+            setError(err as Error)
+        } finally {
+            setIsLoading(false)
+        }
+    }, [userId, publicClient])
+
+    useEffect(() => {
+        fetchEvents()
+    }, [fetchEvents])
+
+    return { events, isLoading, error, refetch: fetchEvents }
+}
+
+/**
+ * Get weekly pool payouts received by a user
+ */
+export function useWeeklyPoolPaidEvents(userId: bigint | undefined) {
+    const publicClient = usePublicClient()
+    const [events, setEvents] = useState<WeeklyPoolPaidEvent[]>([])
+    const [isLoading, setIsLoading] = useState(false)
+    const [error, setError] = useState<Error | null>(null)
+
+    const fetchEvents = useCallback(async () => {
+        if (!userId || !publicClient) return
+        setIsLoading(true)
+        setError(null)
+
+        try {
+            const logs = await getContractEvents(publicClient, {
+                address: CONTRACTS.BULL_RUN,
+                abi: BullRunMainLogicABI,
+                eventName: 'WeeklyPoolPaid',
+                args: { userId },
+                fromBlock: DEPLOY_BLOCK,
+                toBlock: 'latest',
+            })
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const formattedEvents: WeeklyPoolPaidEvent[] = logs.map((log: any) => {
+                const args = log.args;
+                return {
+                    userId: args.userId as bigint,
+                    week: args.week as bigint,
+                    amount: args.amount as bigint,
+                    shares: args.shares as bigint,
+                    blockNumber: log.blockNumber,
+                    transactionHash: log.transactionHash,
+                };
+            })
+
+            setEvents(formattedEvents)
         } catch (err) {
             setError(err as Error)
         } finally {

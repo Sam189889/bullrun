@@ -445,6 +445,19 @@ export function useUserTradingEarnings(userId: bigint | undefined) {
 }
 
 /**
+ * Get user's pool earnings (weeklyPool)
+ */
+export function useUserPoolEarnings(userId: bigint | undefined) {
+    return useReadContract({
+        address: contracts.bullRun,
+        abi: BullRunMainLogicABI,
+        functionName: 'userPoolEarnings',
+        args: userId ? [userId] : undefined,
+        query: { enabled: !!userId && userId > BigInt(0) },
+    })
+}
+
+/**
  * Buy NFT
  */
 export function useBuyNFT() {

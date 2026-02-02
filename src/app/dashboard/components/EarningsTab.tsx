@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAccount, useWaitForTransactionReceipt } from 'wagmi';
 import { formatUnits, parseUnits } from 'viem';
-import { useUserId, useUserEarnings, useUserTradingEarnings, useUserBalance, useWithdraw, useLuckyDrawPool, useUserLuckyDrawEntries, useTotalLuckyDrawEntries, useLuckyDrawThreshold, useCurrentWeek, useUserWeeklyShares, useTotalWeeklyShares, useWeeklyPoolBalance, useTradingShareThreshold, useTradingSharesPerThreshold, useUserNftRefunds } from '@/hooks/useContracts';
+import { useUserId, useUserEarnings, useUserTradingEarnings, useUserBalance, useWithdraw, useLuckyDrawPool, useUserLuckyDrawEntries, useTotalLuckyDrawEntries, useLuckyDrawThreshold, useCurrentWeek, useUserWeeklyShares, useTotalWeeklyShares, useWeeklyPoolBalance, useTradingShareThreshold, useTradingSharesPerThreshold, useUserNftRefunds, useUserPoolEarnings } from '@/hooks/useContracts';
 import { Button } from '@/components/ui/Button';
 import { IncomeHistoryModal } from './IncomeHistoryModal';
 import { useLookupUser } from '@/contexts/LookupContext';
@@ -90,6 +90,7 @@ export function EarningsTab() {
     const { data: earnings, isLoading } = useUserEarnings(userId as bigint);
     const { data: tradingEarnings, isLoading: isTradingLoading } = useUserTradingEarnings(userId as bigint);
     const { data: nftRefundsData } = useUserNftRefunds(userId as bigint);
+    const { data: poolEarningsData } = useUserPoolEarnings(userId as bigint);
     const { data: balanceData, refetch: refetchBalance } = useUserBalance(userId as bigint);
 
 
@@ -153,6 +154,10 @@ export function EarningsTab() {
     // NFT sale refunds (separate mapping, not in struct)
     const nftRefunds = nftRefundsData ? (nftRefundsData as bigint) : BigInt(0);
 
+    // Pool earnings (weeklyPool) - returned as struct with weeklyPool field
+    const poolEarningsTuple = poolEarningsData as readonly [bigint] | undefined;
+    const sharepoolEarnings = poolEarningsTuple ? poolEarningsTuple[0] : BigInt(0);
+
     // Format values
     const formatUSDT = (value: bigint | undefined) => {
         if (!value) return '$0';
@@ -161,7 +166,7 @@ export function EarningsTab() {
 
     // Calculate totals from both package and trading earnings
     const packageTotal = directSponsor + levelIncome + rankEmi + fastBonus;
-    const tradingTotal = tradingLevelBonus + nftProfit + luckyDrawWinnings + tripReward + nftRefunds;
+    const tradingTotal = tradingLevelBonus + nftProfit + luckyDrawWinnings + tripReward;
     const totalEarnings = packageTotal + tradingTotal;
 
     // Handle claim
@@ -210,7 +215,8 @@ export function EarningsTab() {
     const tradingEarningsData = [
         { type: 'Trading Level Bonus', amount: tradingLevelBonus, icon: '💹', color: '#F59E0B', category: 'trading' },
         { type: 'NFT Profit', amount: nftProfit, icon: '🎨', color: '#8B5CF6', category: 'trading' },
-        { type: 'Lucky Draw', amount: luckyDrawWinnings, icon: '🎰', color: '#06B6D4', category: 'trading' },
+        { type: 'Sharepool', amount: sharepoolEarnings, icon: '🏊', color: '#06B6D4', category: 'trading' },
+        { type: 'Lucky Draw', amount: luckyDrawWinnings, icon: '🎰', color: '#22D3EE', category: 'trading' },
         { type: 'Trip Reward', amount: tripReward, icon: '✈️', color: '#14B8A6', category: 'trading' },
     ];
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { formatUnits } from 'viem';
-import { useIncomeEvents, useRankEmiClaimedEvents, useFastBonusClaimedEvents, useNFTSellEvents, useTripRewardEvents, useLuckyDrawWinnerEvents } from '@/hooks/useEvents';
+import { useIncomeEvents, useRankEmiClaimedEvents, useFastBonusClaimedEvents, useNFTSellEvents, useTripRewardEvents, useLuckyDrawWinnerEvents, useWeeklyPoolPaidEvents } from '@/hooks/useEvents';
 
 interface IncomeHistoryModalProps {
     isOpen: boolean;
@@ -28,6 +28,7 @@ export function IncomeHistoryModal({ isOpen, onClose, type, userId, color, icon 
     const { events: nftSoldEvents, isLoading: nftLoading } = useNFTSellEvents(userId);
     const { events: tripRewardEvents, isLoading: tripLoading } = useTripRewardEvents(userId);
     const { events: luckyDrawEvents, isLoading: luckyLoading } = useLuckyDrawWinnerEvents(userId);
+    const { events: weeklyPoolEvents, isLoading: weeklyLoading } = useWeeklyPoolPaidEvents(userId);
 
     // Get rank name from enum value
     const getRankName = (rank: number) => {
@@ -111,13 +112,21 @@ export function IncomeHistoryModal({ isOpen, onClose, type, userId, color, icon 
                     txHash: e.transactionHash,
                 }));
 
+            case 'Sharepool':
+                return weeklyPoolEvents.map(e => ({
+                    amount: e.amount,
+                    details: `Week #${e.week} Pool Share`,
+                    subDetails: `${e.shares} shares earned`,
+                    txHash: e.transactionHash,
+                }));
+
             default:
                 return [];
         }
     };
 
     const filteredEvents = getFilteredEvents();
-    const isLoading = incomeLoading || emiLoading || fastBonusLoading || nftLoading || tripLoading || luckyLoading;
+    const isLoading = incomeLoading || emiLoading || fastBonusLoading || nftLoading || tripLoading || luckyLoading || weeklyLoading;
 
     const formatUSDT = (value: bigint) => `$${Number(formatUnits(value, 18)).toFixed(2)}`;
 
