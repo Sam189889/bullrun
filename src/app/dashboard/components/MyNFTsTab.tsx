@@ -60,6 +60,9 @@ function NFTMobileCard({ nftIndex, userId }: { nftIndex: number; userId: bigint 
         isBurned: nftArray[9],
     };
 
+    // Don't show burned NFTs in user's collection
+    if (nft.isBurned) return null;
+
     const formatUSD = (value: bigint) => `$${Number(formatUnits(value, 18)).toFixed(2)}`;
     const formatDateTime = (timestamp: bigint) => {
         const date = new Date(Number(timestamp) * 1000);
@@ -206,6 +209,9 @@ function NFTTableRow({ nftIndex, userId }: { nftIndex: number; userId: bigint })
         isListed: nftArray[8],
         isBurned: nftArray[9],
     };
+
+    // Don't show burned NFTs in user's collection
+    if (nft.isBurned) return null;
 
     const formatUSD = (value: bigint) => `$${Number(formatUnits(value, 18)).toFixed(2)}`;
     const formatDateTime = (timestamp: bigint) => {
