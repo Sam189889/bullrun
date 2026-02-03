@@ -203,21 +203,21 @@ export function HomeTab() {
                         <span className="text-xl sm:text-2xl">🔗</span>
                         <h3 className="text-sm sm:text-lg font-bold text-white">Your Referral Link</h3>
                     </div>
-                    {/* Always side-by-side */}
-                    <div className="flex flex-row gap-2 sm:gap-3">
-                        <div className="flex-1 bg-[#0F172A] border border-[#334155] rounded-lg px-4 py-3 sm:py-3.5">
-                            <p className="text-xs sm:text-sm text-[#94A3B8] font-mono">
-                                {displayLink}
+                    {/* Responsive layout - stack on mobile, side-by-side on larger */}
+                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                        <div className="flex-1 bg-[#0F172A] border border-[#334155] rounded-lg px-3 sm:px-4 py-2.5 sm:py-3 min-w-0 overflow-hidden">
+                            <p className="text-[10px] sm:text-sm text-[#94A3B8] font-mono truncate">
+                                {referralLink}
                             </p>
                         </div>
                         <button
                             onClick={copyLink}
-                            className="px-3 sm:px-5 py-2 sm:py-3 bg-gradient-to-r from-[#EC4899] to-[#D946EF] hover:from-[#D946EF] hover:to-[#EC4899] text-white text-xs sm:text-sm font-semibold rounded-lg transition-all duration-300 active:scale-95 shadow-lg hover:shadow-[0_0_20px_rgba(236,72,153,0.4)] whitespace-nowrap"
+                            className="w-full sm:w-auto px-4 sm:px-5 py-2.5 sm:py-3 bg-gradient-to-r from-[#EC4899] to-[#D946EF] hover:from-[#D946EF] hover:to-[#EC4899] text-white text-xs sm:text-sm font-semibold rounded-lg transition-all duration-300 active:scale-95 shadow-lg hover:shadow-[0_0_20px_rgba(236,72,153,0.4)] flex items-center justify-center gap-2"
                         >
-                            {copied ? '✓' : '📋'}
+                            {copied ? '✓ Copied!' : '📋 Copy Link'}
                         </button>
                     </div>
-                    <p className="text-xs text-[#64748B] mt-3">
+                    <p className="text-[10px] sm:text-xs text-[#64748B] mt-3">
                         Share this link to earn 15% direct sponsor income + level bonuses!
                     </p>
                 </div>
