@@ -12,7 +12,7 @@ import { usePackage, useUserId, useUSDTBalance, useUSDTAllowance, useRegister, u
 import { useApproveUSDT } from '@/hooks/useAdminContracts';
 import toast from 'react-hot-toast';
 
-// Minimum gas required for transactions (0.0003 tBNB)
+// Minimum gas required for transactions (0.0003 BNB)
 const MIN_GAS_REQUIRED = 0.0003;
 
 // Wrapper with Suspense for useSearchParams
@@ -296,7 +296,7 @@ function RegisterContent() {
                         ) : !hasEnoughGas ? (
                             <div className="text-center p-4 bg-[#F59E0B]/10 rounded-lg border border-[#F59E0B]/30">
                                 <p className="text-sm text-[#F59E0B]">⛽ Insufficient gas</p>
-                                <p className="text-xs text-[#64748B] mt-1">You need at least {MIN_GAS_REQUIRED} tBNB for transactions</p>
+                                <p className="text-xs text-[#64748B] mt-1">You need at least {MIN_GAS_REQUIRED} BNB for transactions</p>
                             </div>
                         ) : !hasEnoughBalance ? (
                             <div className="text-center p-4 bg-[#EF4444]/10 rounded-lg border border-[#EF4444]/30">

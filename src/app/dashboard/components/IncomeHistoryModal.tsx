@@ -215,7 +215,7 @@ export function IncomeHistoryModal({ isOpen, onClose, type, userId, color, icon 
                                                 Transaction #{idx + 1}
                                             </span>
                                             <a
-                                                href={`https://testnet.opbnbscan.com/tx/${event.txHash}`}
+                                                href={`https://opbnbscan.com/tx/${event.txHash}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="text-xs text-[#EC4899] hover:text-[#D946EF] flex items-center gap-1 transition-colors"

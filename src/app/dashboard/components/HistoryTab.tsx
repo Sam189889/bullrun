@@ -313,7 +313,7 @@ function WithdrawalHistory({ userId, walletAddress }: TradingHistoryProps) {
                         <p className="text-sm sm:text-base font-bold text-[#10B981] flex-shrink-0">{formatAmount(event.amount)}</p>
                     </div>
                     <a
-                        href={`https://testnet.opbnbscan.com/tx/${event.transactionHash}`}
+                        href={`https://opbnbscan.com/tx/${event.transactionHash}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-[10px] text-[#3B82F6] hover:underline mt-2 inline-block"

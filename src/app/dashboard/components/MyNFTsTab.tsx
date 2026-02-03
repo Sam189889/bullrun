@@ -134,7 +134,7 @@ function NFTTransactionLink({ nftId, userId }: { nftId: number; userId: bigint }
 
     if (nftPurchaseEvent) {
         const txHash = nftPurchaseEvent.transactionHash;
-        const explorerUrl = `https://testnet.opbnbscan.com/tx/${txHash}`;
+        const explorerUrl = `https://opbnbscan.com/tx/${txHash}`;
         return (
             <a
                 href={explorerUrl}
@@ -155,7 +155,7 @@ function NFTTransactionLink({ nftId, userId }: { nftId: number; userId: bigint }
 
     if (splitEvent) {
         const txHash = splitEvent.transactionHash;
-        const explorerUrl = `https://testnet.opbnbscan.com/tx/${txHash}`;
+        const explorerUrl = `https://opbnbscan.com/tx/${txHash}`;
         return (
             <a
                 href={explorerUrl}
