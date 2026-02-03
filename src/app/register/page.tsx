@@ -240,9 +240,9 @@ function RegisterContent() {
                                 </span>
                             </div>
                             <div className="flex justify-between text-sm">
-                                <span className="text-[#64748B]">tBNB (Gas)</span>
+                                <span className="text-[#64748B]">BNB (Gas)</span>
                                 <span className={`font-mono ${hasEnoughGas ? 'text-[#10B981]' : 'text-[#EF4444]'}`}>
-                                    {nativeBalanceValue.toFixed(4)} tBNB
+                                    {nativeBalanceValue.toFixed(4)} BNB
                                 </span>
                             </div>
                         </div>
