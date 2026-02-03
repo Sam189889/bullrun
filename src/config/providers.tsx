@@ -7,6 +7,7 @@ import {
     walletConnectWallet,
     tokenPocketWallet,
     trustWallet,
+    safepalWallet,
 } from '@rainbow-me/rainbowkit/wallets'
 import { WagmiProvider, http, createStorage, cookieStorage } from 'wagmi'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -32,6 +33,7 @@ const getWagmiConfig = () => {
                         rainbowWallet,
                         tokenPocketWallet,
                         trustWallet,
+                        safepalWallet,
                         walletConnectWallet,
                     ],
                 },
