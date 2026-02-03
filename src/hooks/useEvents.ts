@@ -1,10 +1,56 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { usePublicClient } from 'wagmi'
+import { usePublicClient, useBlockNumber } from 'wagmi'
 import { getContractEvents } from 'viem/actions'
 import { CONTRACTS, DEPLOY_BLOCK } from '@/config/constants'
 import { BullRunMainLogicABI } from '@/abi'
+import { PublicClient, Log } from 'viem'
+
+// opBNB Mainnet has a 50k block range limit for eth_getLogs
+const MAX_BLOCK_RANGE = BigInt(45000)
+
+/**
+ * Fetch events in chunks of 45k blocks (opBNB mainnet limit is 50k)
+ * This enables fetching complete history without RPC errors
+ */
+async function fetchEventsInChunks(
+    publicClient: PublicClient,
+    params: {
+        address: `0x${string}`
+        abi: any  // Using any to avoid TypeScript ABI type issues
+        eventName: string
+        args?: Record<string, unknown>
+        fromBlock: bigint
+        toBlock: bigint
+    }
+): Promise<Log[]> {
+    const { fromBlock, toBlock, ...restParams } = params
+    const allLogs: Log[] = []
+
+    let currentFrom = fromBlock
+    while (currentFrom < toBlock) {
+        const currentTo = currentFrom + MAX_BLOCK_RANGE > toBlock
+            ? toBlock
+            : currentFrom + MAX_BLOCK_RANGE
+
+        try {
+            const logs = await getContractEvents(publicClient, {
+                ...restParams,
+                fromBlock: currentFrom,
+                toBlock: currentTo,
+            } as any)
+            allLogs.push(...(logs as Log[]))
+        } catch (err) {
+            console.warn(`[fetchEventsInChunks] Chunk ${currentFrom}-${currentTo} failed:`, err)
+            // Continue with next chunk
+        }
+
+        currentFrom = currentTo + BigInt(1)
+    }
+
+    return allLogs
+}
 
 // Event types for type safety
 export interface IncomeEvent {
@@ -119,26 +165,27 @@ export interface WithdrawnEvent {
  */
 export function useIncomeEvents(userId: bigint | undefined) {
     const publicClient = usePublicClient()
+    const { data: currentBlock } = useBlockNumber()
     const [events, setEvents] = useState<IncomeEvent[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<Error | null>(null)
 
     const fetchEvents = useCallback(async () => {
-        if (!userId || !publicClient) return
+        if (!userId || !publicClient || !currentBlock) return
 
         setIsLoading(true)
         setError(null)
         try {
-            console.log('[useIncomeEvents] Fetching for userId:', userId.toString())
-            const logs = await getContractEvents(publicClient, {
+            console.log('[useIncomeEvents] Fetching for userId:', userId.toString(), 'blocks:', DEPLOY_BLOCK.toString(), '-', currentBlock.toString())
+            const logs = await fetchEventsInChunks(publicClient as PublicClient, {
                 address: CONTRACTS.BULL_RUN,
                 abi: BullRunMainLogicABI,
                 eventName: 'IncomeDistributed',
                 args: { toUserId: userId },
                 fromBlock: DEPLOY_BLOCK,
-                toBlock: 'latest',
+                toBlock: currentBlock,
             })
-            console.log('[useIncomeEvents] Raw logs:', logs)
+            console.log('[useIncomeEvents] Found logs:', logs.length)
 
             const parsed: IncomeEvent[] = logs.map(log => {
                 const args = (log as any).args
@@ -149,11 +196,10 @@ export function useIncomeEvents(userId: bigint | undefined) {
                     amount: args.amount as bigint,
                     incomeType: args.incomeType as string,
                     level: args.level as bigint,
-                    blockNumber: log.blockNumber,
-                    transactionHash: log.transactionHash,
+                    blockNumber: log.blockNumber!,
+                    transactionHash: log.transactionHash!,
                 }
             })
-            console.log('[useIncomeEvents] Parsed:', parsed)
 
             setEvents(parsed.reverse())
         } catch (err) {
@@ -162,7 +208,7 @@ export function useIncomeEvents(userId: bigint | undefined) {
         } finally {
             setIsLoading(false)
         }
-    }, [userId, publicClient])
+    }, [userId, publicClient, currentBlock])
 
     useEffect(() => {
         fetchEvents()
@@ -178,23 +224,24 @@ export function useIncomeEvents(userId: bigint | undefined) {
  */
 export function useNFTBuyEvents(buyerId: bigint | undefined) {
     const publicClient = usePublicClient()
+    const { data: currentBlock } = useBlockNumber()
     const [events, setEvents] = useState<NFTSoldEvent[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<Error | null>(null)
 
     const fetchEvents = useCallback(async () => {
-        if (!buyerId || !publicClient) return
+        if (!buyerId || !publicClient || !currentBlock) return
 
         setIsLoading(true)
         setError(null)
         try {
-            const logs = await getContractEvents(publicClient, {
+            const logs = await fetchEventsInChunks(publicClient as PublicClient, {
                 address: CONTRACTS.BULL_RUN,
                 abi: BullRunMainLogicABI,
                 eventName: 'NFTSold',
                 args: { buyerId },
                 fromBlock: DEPLOY_BLOCK,
-                toBlock: 'latest',
+                toBlock: currentBlock,
             })
 
             const parsed: NFTSoldEvent[] = logs.map(log => {
@@ -207,8 +254,8 @@ export function useNFTBuyEvents(buyerId: bigint | undefined) {
                     buyerUsernameId: args.buyerUsernameId as bigint,
                     price: args.price as bigint,
                     appreciation: args.appreciation as bigint,
-                    blockNumber: log.blockNumber,
-                    transactionHash: log.transactionHash,
+                    blockNumber: log.blockNumber!,
+                    transactionHash: log.transactionHash!,
                 }
             })
 
@@ -218,7 +265,7 @@ export function useNFTBuyEvents(buyerId: bigint | undefined) {
         } finally {
             setIsLoading(false)
         }
-    }, [buyerId, publicClient])
+    }, [buyerId, publicClient, currentBlock])
 
     useEffect(() => {
         fetchEvents()
@@ -232,23 +279,24 @@ export function useNFTBuyEvents(buyerId: bigint | undefined) {
  */
 export function useNFTSellEvents(sellerId: bigint | undefined) {
     const publicClient = usePublicClient()
+    const { data: currentBlock } = useBlockNumber()
     const [events, setEvents] = useState<NFTSoldEvent[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<Error | null>(null)
 
     const fetchEvents = useCallback(async () => {
-        if (!sellerId || !publicClient) return
+        if (!sellerId || !publicClient || !currentBlock) return
 
         setIsLoading(true)
         setError(null)
         try {
-            const logs = await getContractEvents(publicClient, {
+            const logs = await fetchEventsInChunks(publicClient as PublicClient, {
                 address: CONTRACTS.BULL_RUN,
                 abi: BullRunMainLogicABI,
                 eventName: 'NFTSold',
                 args: { sellerId },
                 fromBlock: DEPLOY_BLOCK,
-                toBlock: 'latest',
+                toBlock: currentBlock,
             })
 
             const parsed: NFTSoldEvent[] = logs.map(log => {
@@ -261,8 +309,8 @@ export function useNFTSellEvents(sellerId: bigint | undefined) {
                     buyerUsernameId: args.buyerUsernameId as bigint,
                     price: args.price as bigint,
                     appreciation: args.appreciation as bigint,
-                    blockNumber: log.blockNumber,
-                    transactionHash: log.transactionHash,
+                    blockNumber: log.blockNumber!,
+                    transactionHash: log.transactionHash!,
                 }
             })
 
@@ -272,7 +320,7 @@ export function useNFTSellEvents(sellerId: bigint | undefined) {
         } finally {
             setIsLoading(false)
         }
-    }, [sellerId, publicClient])
+    }, [sellerId, publicClient, currentBlock])
 
     useEffect(() => {
         fetchEvents()
@@ -286,23 +334,24 @@ export function useNFTSellEvents(sellerId: bigint | undefined) {
  */
 export function useNFTBurnedEvents(buyerId: bigint | undefined) {
     const publicClient = usePublicClient()
+    const { data: currentBlock } = useBlockNumber()
     const [events, setEvents] = useState<NFTBurnedEvent[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<Error | null>(null)
 
     const fetchEvents = useCallback(async () => {
-        if (!buyerId || !publicClient) return
+        if (!buyerId || !publicClient || !currentBlock) return
 
         setIsLoading(true)
         setError(null)
         try {
-            const logs = await getContractEvents(publicClient, {
+            const logs = await fetchEventsInChunks(publicClient as PublicClient, {
                 address: CONTRACTS.BULL_RUN,
                 abi: BullRunMainLogicABI,
                 eventName: 'NFTBurned',
                 args: { buyerId },
                 fromBlock: DEPLOY_BLOCK,
-                toBlock: 'latest',
+                toBlock: currentBlock,
             })
 
             const parsed: NFTBurnedEvent[] = logs.map(log => {
@@ -311,8 +360,8 @@ export function useNFTBurnedEvents(buyerId: bigint | undefined) {
                     nftId: args.nftId as bigint,
                     buyerId: args.buyerId as bigint,
                     finalPrice: args.finalPrice as bigint,
-                    blockNumber: log.blockNumber,
-                    transactionHash: log.transactionHash,
+                    blockNumber: log.blockNumber!,
+                    transactionHash: log.transactionHash!,
                 }
             })
 
@@ -322,7 +371,7 @@ export function useNFTBurnedEvents(buyerId: bigint | undefined) {
         } finally {
             setIsLoading(false)
         }
-    }, [buyerId, publicClient])
+    }, [buyerId, publicClient, currentBlock])
 
     useEffect(() => {
         fetchEvents()
@@ -346,23 +395,24 @@ export interface NFTSplitEvent {
  */
 export function useNFTSplitEvents(buyerId: bigint | undefined) {
     const publicClient = usePublicClient()
+    const { data: currentBlock } = useBlockNumber()
     const [events, setEvents] = useState<NFTSplitEvent[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<Error | null>(null)
 
     const fetchEvents = useCallback(async () => {
-        if (!buyerId || !publicClient) return
+        if (!buyerId || !publicClient || !currentBlock) return
 
         setIsLoading(true)
         setError(null)
         try {
-            const logs = await getContractEvents(publicClient, {
+            const logs = await fetchEventsInChunks(publicClient as PublicClient, {
                 address: CONTRACTS.BULL_RUN,
                 abi: BullRunMainLogicABI,
                 eventName: 'NFTSplit',
                 args: { buyerId },
                 fromBlock: DEPLOY_BLOCK,
-                toBlock: 'latest',
+                toBlock: currentBlock,
             })
 
             const parsed: NFTSplitEvent[] = logs.map(log => {
@@ -372,8 +422,8 @@ export function useNFTSplitEvents(buyerId: bigint | undefined) {
                     buyerId: args.buyerId as bigint,
                     splitPrice: args.splitPrice as bigint,
                     newNftIds: args.newNftIds as bigint[],
-                    blockNumber: log.blockNumber,
-                    transactionHash: log.transactionHash,
+                    blockNumber: log.blockNumber!,
+                    transactionHash: log.transactionHash!,
                 }
             })
 
@@ -383,7 +433,7 @@ export function useNFTSplitEvents(buyerId: bigint | undefined) {
         } finally {
             setIsLoading(false)
         }
-    }, [buyerId, publicClient])
+    }, [buyerId, publicClient, currentBlock])
 
     useEffect(() => {
         fetchEvents()
@@ -399,23 +449,24 @@ export function useNFTSplitEvents(buyerId: bigint | undefined) {
  */
 export function useRankEmiClaimedEvents(userId: bigint | undefined) {
     const publicClient = usePublicClient()
+    const { data: currentBlock } = useBlockNumber()
     const [events, setEvents] = useState<RankEmiClaimedEvent[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<Error | null>(null)
 
     const fetchEvents = useCallback(async () => {
-        if (!userId || !publicClient) return
+        if (!userId || !publicClient || !currentBlock) return
 
         setIsLoading(true)
         setError(null)
         try {
-            const logs = await getContractEvents(publicClient, {
+            const logs = await fetchEventsInChunks(publicClient as PublicClient, {
                 address: CONTRACTS.BULL_RUN,
                 abi: BullRunMainLogicABI,
                 eventName: 'RankEmiClaimed',
                 args: { userId },
                 fromBlock: DEPLOY_BLOCK,
-                toBlock: 'latest',
+                toBlock: currentBlock,
             })
 
             const parsed: RankEmiClaimedEvent[] = logs.map(log => {
@@ -425,8 +476,8 @@ export function useRankEmiClaimedEvents(userId: bigint | undefined) {
                     rank: Number(args.rank),
                     emiNumber: args.emiNumber as bigint,
                     amount: args.amount as bigint,
-                    blockNumber: log.blockNumber,
-                    transactionHash: log.transactionHash,
+                    blockNumber: log.blockNumber!,
+                    transactionHash: log.transactionHash!,
                 }
             })
 
@@ -436,7 +487,7 @@ export function useRankEmiClaimedEvents(userId: bigint | undefined) {
         } finally {
             setIsLoading(false)
         }
-    }, [userId, publicClient])
+    }, [userId, publicClient, currentBlock])
 
     useEffect(() => {
         fetchEvents()
@@ -450,23 +501,24 @@ export function useRankEmiClaimedEvents(userId: bigint | undefined) {
  */
 export function useFastBonusClaimedEvents(userId: bigint | undefined) {
     const publicClient = usePublicClient()
+    const { data: currentBlock } = useBlockNumber()
     const [events, setEvents] = useState<FastBonusClaimedEvent[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<Error | null>(null)
 
     const fetchEvents = useCallback(async () => {
-        if (!userId || !publicClient) return
+        if (!userId || !publicClient || !currentBlock) return
 
         setIsLoading(true)
         setError(null)
         try {
-            const logs = await getContractEvents(publicClient, {
+            const logs = await fetchEventsInChunks(publicClient as PublicClient, {
                 address: CONTRACTS.BULL_RUN,
                 abi: BullRunMainLogicABI,
                 eventName: 'FastBonusClaimed',
                 args: { userId },
                 fromBlock: DEPLOY_BLOCK,
-                toBlock: 'latest',
+                toBlock: currentBlock,
             })
 
             const parsed: FastBonusClaimedEvent[] = logs.map(log => {
@@ -475,8 +527,8 @@ export function useFastBonusClaimedEvents(userId: bigint | undefined) {
                     userId: args.userId as bigint,
                     rank: Number(args.rank),
                     amount: args.amount as bigint,
-                    blockNumber: log.blockNumber,
-                    transactionHash: log.transactionHash,
+                    blockNumber: log.blockNumber!,
+                    transactionHash: log.transactionHash!,
                 }
             })
 
@@ -486,7 +538,7 @@ export function useFastBonusClaimedEvents(userId: bigint | undefined) {
         } finally {
             setIsLoading(false)
         }
-    }, [userId, publicClient])
+    }, [userId, publicClient, currentBlock])
 
     useEffect(() => {
         fetchEvents()
@@ -502,23 +554,24 @@ export function useFastBonusClaimedEvents(userId: bigint | undefined) {
  */
 export function useWithdrawnEvents(userId: bigint | undefined) {
     const publicClient = usePublicClient()
+    const { data: currentBlock } = useBlockNumber()
     const [events, setEvents] = useState<WithdrawnEvent[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<Error | null>(null)
 
     const fetchEvents = useCallback(async () => {
-        if (!userId || !publicClient) return
+        if (!userId || !publicClient || !currentBlock) return
 
         setIsLoading(true)
         setError(null)
         try {
-            const logs = await getContractEvents(publicClient, {
+            const logs = await fetchEventsInChunks(publicClient as PublicClient, {
                 address: CONTRACTS.BULL_RUN,
                 abi: BullRunMainLogicABI,
                 eventName: 'Withdrawn',
                 args: { userId },
                 fromBlock: DEPLOY_BLOCK,
-                toBlock: 'latest',
+                toBlock: currentBlock,
             })
 
             const parsed: WithdrawnEvent[] = logs.map(log => {
@@ -527,8 +580,8 @@ export function useWithdrawnEvents(userId: bigint | undefined) {
                     userId: args.userId as bigint,
                     wallet: args.wallet as `0x${string}`,
                     amount: args.amount as bigint,
-                    blockNumber: log.blockNumber,
-                    transactionHash: log.transactionHash,
+                    blockNumber: log.blockNumber!,
+                    transactionHash: log.transactionHash!,
                 }
             })
 
@@ -538,7 +591,7 @@ export function useWithdrawnEvents(userId: bigint | undefined) {
         } finally {
             setIsLoading(false)
         }
-    }, [userId, publicClient])
+    }, [userId, publicClient, currentBlock])
 
     useEffect(() => {
         fetchEvents()
@@ -554,23 +607,24 @@ export function useWithdrawnEvents(userId: bigint | undefined) {
  */
 export function useSharesAwardedEvents(userId: bigint | undefined) {
     const publicClient = usePublicClient()
+    const { data: currentBlock } = useBlockNumber()
     const [events, setEvents] = useState<SharesAwardedEvent[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<Error | null>(null)
 
     const fetchEvents = useCallback(async () => {
-        if (!userId || !publicClient) return
+        if (!userId || !publicClient || !currentBlock) return
 
         setIsLoading(true)
         setError(null)
         try {
-            const logs = await getContractEvents(publicClient, {
+            const logs = await fetchEventsInChunks(publicClient as PublicClient, {
                 address: CONTRACTS.BULL_RUN,
                 abi: BullRunMainLogicABI,
                 eventName: 'SharesAwarded',
                 args: { userId },
                 fromBlock: DEPLOY_BLOCK,
-                toBlock: 'latest',
+                toBlock: currentBlock,
             })
 
             const parsed: SharesAwardedEvent[] = logs.map(log => {
@@ -579,8 +633,8 @@ export function useSharesAwardedEvents(userId: bigint | undefined) {
                     userId: args.userId as bigint,
                     shares: args.shares as bigint,
                     reason: args.reason as string,
-                    blockNumber: log.blockNumber,
-                    transactionHash: log.transactionHash,
+                    blockNumber: log.blockNumber!,
+                    transactionHash: log.transactionHash!,
                 }
             })
 
@@ -590,7 +644,7 @@ export function useSharesAwardedEvents(userId: bigint | undefined) {
         } finally {
             setIsLoading(false)
         }
-    }, [userId, publicClient])
+    }, [userId, publicClient, currentBlock])
 
     useEffect(() => {
         fetchEvents()
@@ -604,23 +658,24 @@ export function useSharesAwardedEvents(userId: bigint | undefined) {
  */
 export function useWeeklyPoolPaidEvents(userId: bigint | undefined) {
     const publicClient = usePublicClient()
+    const { data: currentBlock } = useBlockNumber()
     const [events, setEvents] = useState<WeeklyPoolPaidEvent[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<Error | null>(null)
 
     const fetchEvents = useCallback(async () => {
-        if (!userId || !publicClient) return
+        if (!userId || !publicClient || !currentBlock) return
         setIsLoading(true)
         setError(null)
 
         try {
-            const logs = await getContractEvents(publicClient, {
+            const logs = await fetchEventsInChunks(publicClient as PublicClient, {
                 address: CONTRACTS.BULL_RUN,
                 abi: BullRunMainLogicABI,
                 eventName: 'WeeklyPoolPaid',
                 args: { userId },
                 fromBlock: DEPLOY_BLOCK,
-                toBlock: 'latest',
+                toBlock: currentBlock,
             })
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -631,8 +686,8 @@ export function useWeeklyPoolPaidEvents(userId: bigint | undefined) {
                     week: args.week as bigint,
                     amount: args.amount as bigint,
                     shares: args.shares as bigint,
-                    blockNumber: log.blockNumber,
-                    transactionHash: log.transactionHash,
+                    blockNumber: log.blockNumber!,
+                    transactionHash: log.transactionHash!,
                 };
             })
 
@@ -642,7 +697,7 @@ export function useWeeklyPoolPaidEvents(userId: bigint | undefined) {
         } finally {
             setIsLoading(false)
         }
-    }, [userId, publicClient])
+    }, [userId, publicClient, currentBlock])
 
     useEffect(() => {
         fetchEvents()
@@ -658,23 +713,24 @@ export function useWeeklyPoolPaidEvents(userId: bigint | undefined) {
  */
 export function useLuckyDrawWinnerEvents(userId: bigint | undefined) {
     const publicClient = usePublicClient()
+    const { data: currentBlock } = useBlockNumber()
     const [events, setEvents] = useState<LuckyDrawWinnerEvent[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<Error | null>(null)
 
     const fetchEvents = useCallback(async () => {
-        if (!userId || !publicClient) return
+        if (!userId || !publicClient || !currentBlock) return
 
         setIsLoading(true)
         setError(null)
         try {
-            const logs = await getContractEvents(publicClient, {
+            const logs = await fetchEventsInChunks(publicClient as PublicClient, {
                 address: CONTRACTS.BULL_RUN,
                 abi: BullRunMainLogicABI,
                 eventName: 'LuckyDrawWinner',
                 args: { userId },
                 fromBlock: DEPLOY_BLOCK,
-                toBlock: 'latest',
+                toBlock: currentBlock,
             })
 
             const parsed: LuckyDrawWinnerEvent[] = logs.map(log => {
@@ -683,8 +739,8 @@ export function useLuckyDrawWinnerEvents(userId: bigint | undefined) {
                     userId: args.userId as bigint,
                     week: args.week as bigint,
                     prize: args.prize as bigint,
-                    blockNumber: log.blockNumber,
-                    transactionHash: log.transactionHash,
+                    blockNumber: log.blockNumber!,
+                    transactionHash: log.transactionHash!,
                 }
             })
 
@@ -694,7 +750,7 @@ export function useLuckyDrawWinnerEvents(userId: bigint | undefined) {
         } finally {
             setIsLoading(false)
         }
-    }, [userId, publicClient])
+    }, [userId, publicClient, currentBlock])
 
     useEffect(() => {
         fetchEvents()
@@ -716,23 +772,24 @@ export interface LuckyDrawEntryEvent {
 
 export function useLuckyDrawEntryEvents(week: bigint | undefined) {
     const publicClient = usePublicClient()
+    const { data: currentBlock } = useBlockNumber()
     const [events, setEvents] = useState<LuckyDrawEntryEvent[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<Error | null>(null)
 
     const fetchEvents = useCallback(async () => {
-        if (!week || !publicClient) return
+        if (!week || !publicClient || !currentBlock) return
 
         setIsLoading(true)
         setError(null)
         try {
-            const logs = await getContractEvents(publicClient, {
+            const logs = await fetchEventsInChunks(publicClient as PublicClient, {
                 address: CONTRACTS.BULL_RUN,
                 abi: BullRunMainLogicABI,
                 eventName: 'LuckyDrawEntry',
                 args: { week },
                 fromBlock: DEPLOY_BLOCK,
-                toBlock: 'latest',
+                toBlock: currentBlock,
             })
 
             const parsed: LuckyDrawEntryEvent[] = logs.map(log => {
@@ -741,8 +798,8 @@ export function useLuckyDrawEntryEvents(week: bigint | undefined) {
                     userId: args.userId as bigint,
                     week: args.week as bigint,
                     entries: args.entries as bigint,
-                    blockNumber: log.blockNumber,
-                    transactionHash: log.transactionHash,
+                    blockNumber: log.blockNumber!,
+                    transactionHash: log.transactionHash!,
                 }
             })
 
@@ -766,7 +823,7 @@ export function useLuckyDrawEntryEvents(week: bigint | undefined) {
         } finally {
             setIsLoading(false)
         }
-    }, [week, publicClient])
+    }, [week, publicClient, currentBlock])
 
     useEffect(() => {
         fetchEvents()
@@ -780,22 +837,23 @@ export function useLuckyDrawEntryEvents(week: bigint | undefined) {
  */
 export function useAllLuckyDrawWinners() {
     const publicClient = usePublicClient()
+    const { data: currentBlock } = useBlockNumber()
     const [events, setEvents] = useState<LuckyDrawWinnerEvent[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<Error | null>(null)
 
     const fetchEvents = useCallback(async () => {
-        if (!publicClient) return
+        if (!publicClient || !currentBlock) return
 
         setIsLoading(true)
         setError(null)
         try {
-            const logs = await getContractEvents(publicClient, {
+            const logs = await fetchEventsInChunks(publicClient as PublicClient, {
                 address: CONTRACTS.BULL_RUN,
                 abi: BullRunMainLogicABI,
                 eventName: 'LuckyDrawWinner',
                 fromBlock: DEPLOY_BLOCK,
-                toBlock: 'latest',
+                toBlock: currentBlock,
             })
 
             const parsed: LuckyDrawWinnerEvent[] = logs.map(log => {
@@ -804,8 +862,8 @@ export function useAllLuckyDrawWinners() {
                     userId: args.userId as bigint,
                     week: args.week as bigint,
                     prize: args.prize as bigint,
-                    blockNumber: log.blockNumber,
-                    transactionHash: log.transactionHash,
+                    blockNumber: log.blockNumber!,
+                    transactionHash: log.transactionHash!,
                 }
             })
 
@@ -815,7 +873,7 @@ export function useAllLuckyDrawWinners() {
         } finally {
             setIsLoading(false)
         }
-    }, [publicClient])
+    }, [publicClient, currentBlock])
 
     useEffect(() => {
         fetchEvents()
@@ -832,23 +890,24 @@ export function useAllLuckyDrawWinners() {
  */
 export function usePackagePurchasedEvents(userId: bigint | undefined) {
     const publicClient = usePublicClient()
+    const { data: currentBlock } = useBlockNumber()
     const [events, setEvents] = useState<PackagePurchasedEvent[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<Error | null>(null)
 
     const fetchEvents = useCallback(async () => {
-        if (!userId || !publicClient) return
+        if (!userId || !publicClient || !currentBlock) return
 
         setIsLoading(true)
         setError(null)
         try {
-            const logs = await getContractEvents(publicClient, {
+            const logs = await fetchEventsInChunks(publicClient as PublicClient, {
                 address: CONTRACTS.BULL_RUN,
                 abi: BullRunMainLogicABI,
                 eventName: 'PackagePurchased',
                 args: { userId },
                 fromBlock: DEPLOY_BLOCK,
-                toBlock: 'latest',
+                toBlock: currentBlock,
             })
 
             const parsed: PackagePurchasedEvent[] = logs.map(log => {
@@ -857,8 +916,8 @@ export function usePackagePurchasedEvents(userId: bigint | undefined) {
                     userId: args.userId as bigint,
                     packageLevel: args.packageLevel as bigint,
                     price: args.price as bigint,
-                    blockNumber: log.blockNumber,
-                    transactionHash: log.transactionHash,
+                    blockNumber: log.blockNumber!,
+                    transactionHash: log.transactionHash!,
                 }
             })
 
@@ -868,7 +927,7 @@ export function usePackagePurchasedEvents(userId: bigint | undefined) {
         } finally {
             setIsLoading(false)
         }
-    }, [userId, publicClient])
+    }, [userId, publicClient, currentBlock])
 
     useEffect(() => {
         fetchEvents()
@@ -903,23 +962,24 @@ export interface HistoryEvent {
  */
 export function useTripRewardEvents(userId: bigint | undefined) {
     const publicClient = usePublicClient()
+    const { data: currentBlock } = useBlockNumber()
     const [events, setEvents] = useState<TripRewardEvent[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<Error | null>(null)
 
     const fetchEvents = useCallback(async () => {
-        if (!userId || !publicClient) return
+        if (!userId || !publicClient || !currentBlock) return
 
         setIsLoading(true)
         setError(null)
         try {
-            const logs = await getContractEvents(publicClient, {
+            const logs = await fetchEventsInChunks(publicClient as PublicClient, {
                 address: CONTRACTS.BULL_RUN,
                 abi: BullRunMainLogicABI,
                 eventName: 'TripRewardDistributed',
                 args: { userId },
                 fromBlock: DEPLOY_BLOCK,
-                toBlock: 'latest',
+                toBlock: currentBlock,
             })
 
             const parsed: TripRewardEvent[] = logs.map(log => {
@@ -927,8 +987,8 @@ export function useTripRewardEvents(userId: bigint | undefined) {
                 return {
                     userId: args.userId as bigint,
                     amount: args.amount as bigint,
-                    blockNumber: log.blockNumber,
-                    transactionHash: log.transactionHash,
+                    blockNumber: log.blockNumber!,
+                    transactionHash: log.transactionHash!,
                 }
             })
 
@@ -938,7 +998,7 @@ export function useTripRewardEvents(userId: bigint | undefined) {
         } finally {
             setIsLoading(false)
         }
-    }, [userId, publicClient])
+    }, [userId, publicClient, currentBlock])
 
     useEffect(() => {
         fetchEvents()
@@ -1053,23 +1113,24 @@ export interface UserRegisteredEvent {
  */
 export function useAllUserRegisteredEvents() {
     const publicClient = usePublicClient()
+    const { data: currentBlock } = useBlockNumber()
     const [events, setEvents] = useState<UserRegisteredEvent[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<Error | null>(null)
 
     const fetchEvents = useCallback(async () => {
-        if (!publicClient) return
+        if (!publicClient || !currentBlock) return
 
         setIsLoading(true)
         setError(null)
         try {
             console.log('[useAllUserRegisteredEvents] Fetching all registration events...')
-            const logs = await getContractEvents(publicClient, {
+            const logs = await fetchEventsInChunks(publicClient as PublicClient, {
                 address: CONTRACTS.BULL_RUN,
                 abi: BullRunMainLogicABI,
                 eventName: 'UserRegistered',
                 fromBlock: DEPLOY_BLOCK,
-                toBlock: 'latest',
+                toBlock: currentBlock,
             })
             console.log('[useAllUserRegisteredEvents] Found', logs.length, 'events')
 
@@ -1080,8 +1141,8 @@ export function useAllUserRegisteredEvents() {
                     wallet: args.wallet as `0x${string}`,
                     referrerId: args.referrerId as bigint,
                     usernameId: args.usernameId as bigint,
-                    blockNumber: log.blockNumber,
-                    transactionHash: log.transactionHash,
+                    blockNumber: log.blockNumber!,
+                    transactionHash: log.transactionHash!,
                 }
             })
 
@@ -1092,7 +1153,7 @@ export function useAllUserRegisteredEvents() {
         } finally {
             setIsLoading(false)
         }
-    }, [publicClient])
+    }, [publicClient, currentBlock])
 
     useEffect(() => {
         fetchEvents()
