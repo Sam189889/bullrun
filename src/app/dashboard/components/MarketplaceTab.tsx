@@ -221,10 +221,8 @@ export function MarketplaceTab() {
     const { data: dailyLimitData, refetch: refetchDailyLimitData } = useUserDailyLimitData(userId as bigint);
     const { config: marketplaceConfig } = useMarketplaceConfig();
 
-    // Calculate actual remaining limit (totalLimit - usedLimit)
-    const actualRemainingLimit = dailyLimitData
-        ? (dailyLimitData as readonly [bigint, bigint, bigint])[0] - (dailyLimitData as readonly [bigint, bigint, bigint])[1]
-        : BigInt(0);
+    // Use availableLimit from contract (handles day reset properly, same as HomeTab)
+    const actualRemainingLimit = availableLimit ? (availableLimit as bigint) : BigInt(0);
 
     // Fetch day settings for debugging
     const { data: dayStart } = useDayStartTimestamp();
