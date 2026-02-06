@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { formatUnits } from 'viem';
-import { useSetCreatorWallet, useApproveUSDT, useCreatorWallet, useAllPoolBalances, useAddToPool, useWithdrawFromAnyPool, PoolType, useSetFirstUser, useFirstUser, useNFTSplitCount, useNFTSplitThreshold, useNFTQueueCount, useSetSplitCount, useSetQueueCount } from '@/hooks/useAdminContracts';
+import { useSetCreatorWallet, useApproveUSDT, useCreatorWallet, useAllPoolBalances, useManagePool, PoolType, useSetFirstUser, useFirstUser, useNFTSplitCount, useNFTSplitThreshold, useNFTQueueCount, useSetSplitCount, useSetQueueCount } from '@/hooks/useAdminContracts';
 import {
     useGetAllShareholders,
     usePendingBalance,
@@ -298,7 +298,7 @@ function UnifiedDepositModal({ isOpen, onClose, poolType, onSuccess }: {
     const toastShown = useRef(false);
 
     const { approve, isPending: approvePending, isConfirming: approveConfirming, isSuccess: approveSuccess, error: approveError } = useApproveUSDT();
-    const { addToPool, isPending: depositPending, isConfirming: depositConfirming, isSuccess: depositSuccess, error: depositError } = useAddToPool();
+    const { managePool, isPending: depositPending, isConfirming: depositConfirming, isSuccess: depositSuccess, error: depositError } = useManagePool();
 
     useEffect(() => {
         if (approveSuccess && step === 'approve') {
@@ -343,7 +343,7 @@ function UnifiedDepositModal({ isOpen, onClose, poolType, onSuccess }: {
     const handleDeposit = () => {
         if (!amount) return;
         toastShown.current = false;
-        addToPool(poolType, amount);
+        managePool(poolType, amount, false);
     };
 
     return (
@@ -395,7 +395,7 @@ function UnifiedWithdrawModal({ isOpen, onClose, poolType, onSuccess }: {
     const [toAddress, setToAddress] = useState('');
     const toastShown = useRef(false);
 
-    const { withdrawFromAnyPool, isPending, isConfirming, isSuccess, error } = useWithdrawFromAnyPool();
+    const { managePool, isPending, isConfirming, isSuccess, error } = useManagePool();
 
     useEffect(() => {
         if (isSuccess && !toastShown.current) {
@@ -426,7 +426,7 @@ function UnifiedWithdrawModal({ isOpen, onClose, poolType, onSuccess }: {
             return;
         }
         toastShown.current = false;
-        withdrawFromAnyPool(poolType, amount, toAddress as `0x${string}`);
+        managePool(poolType, amount, true, toAddress as `0x${string}`);
     };
 
     return (

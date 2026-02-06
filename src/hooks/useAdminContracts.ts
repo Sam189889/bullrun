@@ -665,43 +665,29 @@ export function useAllPoolBalances() {
 }
 
 /**
- * Add funds to any pool (admin only)
+ * Unified pool management hook (add or withdraw funds)
+ * @param poolType - Type of pool to manage
+ * @param amount - Amount in USDT (string)
+ * @param isWithdraw - true for withdraw, false for deposit
+ * @param recipient - Recipient address (required for withdraw)
  */
-export function useAddToPool() {
+export function useManagePool() {
     const { writeContract, data: hash, isPending, error } = useWriteContract()
     const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
 
-    const addToPool = (poolType: PoolType, amount: string) => {
+    const managePool = (poolType: PoolType, amount: string, isWithdraw: boolean, recipient?: `0x${string}`) => {
         const amountWei = parseUnits(amount, 18)
+        const recipientAddress = recipient || '0x0000000000000000000000000000000000000000'
+        
         writeContract({
             address: CONTRACTS.BULL_RUN,
             abi: BullRunMainLogicABI,
-            functionName: 'addToPool',
-            args: [poolType, amountWei],
+            functionName: 'managePool',
+            args: [poolType, amountWei, isWithdraw, recipientAddress],
         })
     }
 
-    return { addToPool, hash, isPending, isConfirming, isSuccess, error }
-}
-
-/**
- * Withdraw funds from any pool (admin only)
- */
-export function useWithdrawFromAnyPool() {
-    const { writeContract, data: hash, isPending, error } = useWriteContract()
-    const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
-
-    const withdrawFromAnyPool = (poolType: PoolType, amount: string, recipient: `0x${string}`) => {
-        const amountWei = parseUnits(amount, 18)
-        writeContract({
-            address: CONTRACTS.BULL_RUN,
-            abi: BullRunMainLogicABI,
-            functionName: 'withdrawFromPool',
-            args: [poolType, amountWei, recipient],
-        })
-    }
-
-    return { withdrawFromAnyPool, hash, isPending, isConfirming, isSuccess, error }
+    return { managePool, hash, isPending, isConfirming, isSuccess, error }
 }
 
 
