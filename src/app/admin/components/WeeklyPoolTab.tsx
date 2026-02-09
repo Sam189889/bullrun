@@ -27,9 +27,10 @@ export function WeeklyPoolTab() {
 
     // Countdown timer state
     const [countdown, setCountdown] = useState('');
-    const [canDistribute, setCanDistribute] = useState(false);
+    // Can distribute anytime (distributing previous completed week, not current)
+    const canDistribute = true;
 
-    // Calculate countdown to week end
+    // Calculate countdown to CURRENT week end (just for display)
     useEffect(() => {
         if (!weekStartTimestamp) return;
 
@@ -43,15 +44,13 @@ export function WeeklyPoolTab() {
             const remaining = weekEndTime - now;
 
             if (remaining <= 0) {
-                setCountdown('Week ended - Ready to distribute!');
-                setCanDistribute(true);
+                setCountdown('Current week ended!');
             } else {
                 const days = Math.floor(remaining / (24 * 60 * 60));
                 const hours = Math.floor((remaining % (24 * 60 * 60)) / (60 * 60));
                 const minutes = Math.floor((remaining % (60 * 60)) / 60);
                 const seconds = remaining % 60;
                 setCountdown(`${days}d ${hours}h ${minutes}m ${seconds}s`);
-                setCanDistribute(false);
             }
         };
 
@@ -115,24 +114,22 @@ export function WeeklyPoolTab() {
             </div>
 
             {/* Week Countdown Timer */}
-            <div className={`rounded-xl p-4 border ${canDistribute ? 'bg-gradient-to-r from-[#10B981]/20 to-[#0F172A] border-[#10B981]/50' : 'bg-gradient-to-r from-[#F59E0B]/10 to-[#0F172A] border-[#F59E0B]/30'}`}>
+            <div className="rounded-xl p-4 border bg-gradient-to-r from-[#3B82F6]/10 to-[#0F172A] border-[#3B82F6]/30">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${canDistribute ? 'bg-[#10B981]/20' : 'bg-[#F59E0B]/20'}`}>
-                            <span className="text-2xl">{canDistribute ? '✅' : '⏱️'}</span>
+                        <div className="w-12 h-12 rounded-full flex items-center justify-center bg-[#3B82F6]/20">
+                            <span className="text-2xl">⏱️</span>
                         </div>
                         <div>
-                            <p className="text-xs text-[#64748B] uppercase tracking-wide">Week {currentWeek ? Number(currentWeek) : 0} {canDistribute ? 'Ended' : 'Ends In'}</p>
-                            <p className={`text-xl sm:text-2xl font-bold font-mono ${canDistribute ? 'text-[#10B981]' : 'text-[#F59E0B]'}`}>
+                            <p className="text-xs text-[#64748B] uppercase tracking-wide">Current Week {currentWeek ? Number(currentWeek) : 0} Ends In</p>
+                            <p className="text-xl sm:text-2xl font-bold font-mono text-[#3B82F6]">
                                 {countdown || 'Loading...'}
                             </p>
                         </div>
                     </div>
-                    {canDistribute && (
-                        <span className="px-4 py-2 bg-[#10B981]/20 text-[#10B981] text-sm font-bold rounded-full animate-pulse border border-[#10B981]/30">
-                            🚀 Ready to Distribute
-                        </span>
-                    )}
+                    <span className="px-4 py-2 bg-[#10B981]/20 text-[#10B981] text-sm font-bold rounded-full border border-[#10B981]/30">
+                        ✅ Previous week ready to distribute
+                    </span>
                 </div>
             </div>
 
@@ -153,8 +150,23 @@ export function WeeklyPoolTab() {
                 />
             </div>
 
-            {/* Lucky Draw */}
-            <LuckyDrawSection currentWeek={currentWeek ? BigInt(currentWeek.toString()) : undefined} onSuccess={refetchAll} canDistribute={canDistribute} />
+            {/* Lucky Draw - Current & Previous Week */}
+            <div>
+                <h3 className="text-lg font-bold text-[#F8FAFC] mb-4">🎰 Lucky Draw</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <LuckyDrawCard 
+                        week={currentWeek ? BigInt(currentWeek.toString()) : undefined}
+                        label="Current Week (Ongoing)"
+                        status="ongoing"
+                    />
+                    <LuckyDrawCard 
+                        week={currentWeek && Number(currentWeek) > 0 ? BigInt(Number(currentWeek) - 1) : undefined}
+                        label="Previous Week (Completed)"
+                        status="completed"
+                        onSuccess={refetchAll}
+                    />
+                </div>
+            </div>
         </div>
     );
 }
@@ -270,12 +282,17 @@ function WeekCard({ week, label, status, canDistribute, onSuccess }: {
     );
 }
 
-// Lucky Draw Section
-function LuckyDrawSection({ currentWeek, onSuccess, canDistribute }: { currentWeek: bigint | undefined; onSuccess: () => void; canDistribute: boolean }) {
+// Lucky Draw Card - Shows entries for a specific week and draw controls
+function LuckyDrawCard({ week, label, status, onSuccess }: { 
+    week: bigint | undefined; 
+    label: string;
+    status: 'ongoing' | 'completed';
+    onSuccess?: () => void;
+}) {
     const [showEntries, setShowEntries] = useState(false);
     const toastShown = useRef(false);
-
-    const { events: entries, isLoading: entriesLoading, refetch: refetchEntries } = useLuckyDrawEntryEvents(currentWeek);
+    
+    const { events: entries, isLoading: entriesLoading, refetch: refetchEntries } = useLuckyDrawEntryEvents(week);
     const { events: winners, isLoading: winnersLoading, refetch: refetchWinners } = useAllLuckyDrawWinners();
     const { drawWinner, isPending, isConfirming, isSuccess, error } = useDrawLuckyWinner();
 
@@ -283,7 +300,7 @@ function LuckyDrawSection({ currentWeek, onSuccess, canDistribute }: { currentWe
         if (isSuccess && !toastShown.current) {
             toastShown.current = true;
             toast.success('🎉 Lucky winner drawn!');
-            onSuccess();
+            if (onSuccess) onSuccess();
             refetchWinners();
         }
         if (error && !toastShown.current) {
@@ -302,6 +319,9 @@ function LuckyDrawSection({ currentWeek, onSuccess, canDistribute }: { currentWe
         drawWinner(participantIds);
     };
 
+    const statusColor = status === 'ongoing' ? '#3B82F6' : '#D946EF';
+    const statusIcon = status === 'ongoing' ? '🟢' : '✅';
+
     const formatUSDT = (value: bigint | undefined) => {
         if (!value) return '$0';
         return `$${Number(formatUnits(value, 18)).toLocaleString()}`;
@@ -311,27 +331,27 @@ function LuckyDrawSection({ currentWeek, onSuccess, canDistribute }: { currentWe
         <Card variant="glow">
             {/* Header */}
             <div className="flex justify-between items-center mb-4">
-                <h3 className="text-sm font-semibold text-[#F8FAFC]">🎰 Lucky Draw</h3>
-                <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={handleDrawWinner}
-                    disabled={isPending || isConfirming || entries.length === 0 || !canDistribute}
-                >
-                    {!canDistribute ? '⏳ Wait for week end' : isPending || isConfirming ? 'Drawing...' : '🎲 Draw Winner'}
-                </Button>
+                <div>
+                    <h3 className="text-sm font-semibold text-[#F8FAFC]">{statusIcon} {label}</h3>
+                    <p className="text-xs text-[#64748B]">Week #{week?.toString() || '0'}</p>
+                </div>
+                {status === 'completed' && (
+                    <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={handleDrawWinner}
+                        disabled={isPending || isConfirming || entries.length === 0}
+                    >
+                        {isPending || isConfirming ? 'Drawing...' : '🎲 Draw Winner'}
+                    </Button>
+                )}
             </div>
 
             {/* Stats Subcards */}
-            <div className="grid grid-cols-2 gap-3 mb-4">
-                <div className="p-3 bg-[#0F172A] rounded-lg text-center">
-                    <p className="text-[#64748B] text-xs mb-1">📅 Week</p>
-                    <p className="text-xl font-bold text-[#3B82F6] font-mono">{currentWeek?.toString() || '0'}</p>
-                </div>
-                <div className="p-3 bg-[#0F172A] rounded-lg text-center">
-                    <p className="text-[#64748B] text-xs mb-1">🎫 Participants</p>
-                    <p className="text-xl font-bold text-[#D946EF] font-mono">{entries.length}</p>
-                </div>
+            <div className="p-3 bg-[#0F172A] rounded-lg text-center mb-4">
+                <p className="text-[#64748B] text-xs mb-1">🎫 Participants</p>
+                <p className="text-xl font-bold text-[#D946EF] font-mono">{entries.length}</p>
+                <p className="text-xs text-[#64748B] mt-1">Total: {entries.length} users</p>
             </div>
 
             {/* Toggle Participants */}
