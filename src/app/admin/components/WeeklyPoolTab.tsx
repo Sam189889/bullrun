@@ -10,6 +10,7 @@ import {
     useLuckyDrawPool,
     useDrawLuckyWinner,
     useGetWeeklyShareholders,
+    useUserWeeklyShares,
     useWeekStartTimestamp
 } from '@/hooks/useAdminContracts';
 import { useLuckyDrawEntryEvents, useAllLuckyDrawWinners } from '@/hooks/useEvents';
@@ -144,6 +145,20 @@ export function WeeklyPoolTab() {
     );
 }
 
+// Shareholder Row Component - Shows user ID and their shares
+function ShareholderRow({ userId, week }: { userId: bigint; week: bigint | undefined }) {
+    const { data: shares } = useUserWeeklyShares(userId, week);
+    
+    return (
+        <div className="flex justify-between items-center text-xs p-2 bg-[#0F172A] rounded">
+            <span className="text-[#F8FAFC] font-medium">BULL#{userId.toString()}</span>
+            <span className="text-[#10B981] font-mono">
+                {shares ? Number(shares).toLocaleString() : '...'} shares
+            </span>
+        </div>
+    );
+}
+
 // Distribute Card (Share Pool)
 function DistributeCard({ onSuccess, currentWeek, canDistribute }: { onSuccess: () => void; currentWeek: bigint | undefined; canDistribute: boolean }) {
     const toastShown = useRef(false);
@@ -218,10 +233,7 @@ function DistributeCard({ onSuccess, currentWeek, canDistribute }: { onSuccess: 
                         <p className="text-xs text-[#64748B]">No shareholders this week</p>
                     ) : (
                         shareholderIds.map((userId, idx) => (
-                            <div key={idx} className="flex justify-between items-center text-xs p-2 bg-[#0F172A] rounded">
-                                <span className="text-[#F8FAFC] font-medium">BULL#{userId.toString()}</span>
-                                <span className="text-[#10B981] font-mono">Shareholder</span>
-                            </div>
+                            <ShareholderRow key={idx} userId={userId} week={currentWeek} />
                         ))
                     )}
                 </div>
@@ -234,7 +246,6 @@ function DistributeCard({ onSuccess, currentWeek, canDistribute }: { onSuccess: 
         </Card>
     );
 }
-
 
 // Lucky Draw Section
 function LuckyDrawSection({ currentWeek, onSuccess, canDistribute }: { currentWeek: bigint | undefined; onSuccess: () => void; canDistribute: boolean }) {

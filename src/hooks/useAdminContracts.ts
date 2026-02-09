@@ -370,6 +370,19 @@ export function useGetWeeklyShareholders(week: bigint | undefined) {
 }
 
 /**
+ * Get user's weekly shares for a specific week
+ */
+export function useUserWeeklyShares(userId: bigint | undefined, week: bigint | undefined) {
+    return useReadContract({
+        address: CONTRACTS.BULL_RUN,
+        abi: BullRunMainLogicABI,
+        functionName: 'userWeeklyShares',
+        args: userId && week ? [userId, week] : undefined,
+        query: { enabled: !!(userId && week) }
+    })
+}
+
+/**
  * Approve USDT for contract (needed before deposits)
  */
 export function useApproveUSDT() {
