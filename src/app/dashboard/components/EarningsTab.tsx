@@ -21,13 +21,16 @@ function IncomeCard({
     onOpenModal
 }: {
     type: string;
-    amount: bigint;
+    amount: bigint | undefined;
     icon: string;
     color: string;
     userId: bigint | undefined;
     onOpenModal: () => void;
 }) {
-    const formatUSDT = (value: bigint) => `$${Number(formatUnits(value, 18)).toFixed(2)}`;
+    const formatUSDT = (value: bigint | undefined) => {
+        if (!value || value === BigInt(0)) return '$0.00';
+        return `$${Number(formatUnits(value, 18)).toFixed(2)}`;
+    };
 
     return (
         <div className="border-b border-[#334155] last:border-b-0">
