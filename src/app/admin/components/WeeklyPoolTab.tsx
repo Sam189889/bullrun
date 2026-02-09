@@ -136,11 +136,25 @@ export function WeeklyPoolTab() {
                 </div>
             </div>
 
-            {/* Share Pool & Lucky Draw - Side by Side */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <DistributeCard onSuccess={refetchAll} currentWeek={currentWeek ? BigInt(currentWeek.toString()) : undefined} canDistribute={canDistribute} />
-                <LuckyDrawSection currentWeek={currentWeek ? BigInt(currentWeek.toString()) : undefined} onSuccess={refetchAll} canDistribute={canDistribute} />
+            {/* Current Week (Ongoing) & Previous Week (Completed) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <WeekCard 
+                    week={currentWeek ? BigInt(currentWeek.toString()) : undefined} 
+                    label="Current Week (Ongoing)" 
+                    status="ongoing"
+                    canDistribute={false}
+                />
+                <WeekCard 
+                    week={currentWeek && Number(currentWeek) > 0 ? BigInt(Number(currentWeek) - 1) : undefined}
+                    label="Previous Week (Completed)"
+                    status="completed"
+                    canDistribute={canDistribute}
+                    onSuccess={refetchAll}
+                />
             </div>
+
+            {/* Lucky Draw */}
+            <LuckyDrawSection currentWeek={currentWeek ? BigInt(currentWeek.toString()) : undefined} onSuccess={refetchAll} canDistribute={canDistribute} />
         </div>
     );
 }
@@ -159,13 +173,19 @@ function ShareholderRow({ userId, week }: { userId: bigint; week: bigint | undef
     );
 }
 
-// Distribute Card (Share Pool)
-function DistributeCard({ onSuccess, currentWeek, canDistribute }: { onSuccess: () => void; currentWeek: bigint | undefined; canDistribute: boolean }) {
+// Week Card - Shows week stats and distribution controls
+function WeekCard({ week, label, status, canDistribute, onSuccess }: { 
+    week: bigint | undefined; 
+    label: string;
+    status: 'ongoing' | 'completed';
+    canDistribute: boolean;
+    onSuccess?: () => void;
+}) {
     const toastShown = useRef(false);
     const [showList, setShowList] = useState(false);
 
     const { distribute, isPending, isConfirming, isSuccess, error } = useDistributeWeeklyPool();
-    const { data: shareholders } = useGetWeeklyShareholders(currentWeek);
+    const { data: shareholders } = useGetWeeklyShareholders(week);
 
     const shareholderIds = shareholders ? (shareholders as bigint[]) : [];
     const shareholderCount = shareholderIds.length;
@@ -174,7 +194,7 @@ function DistributeCard({ onSuccess, currentWeek, canDistribute }: { onSuccess: 
         if (isSuccess && !toastShown.current) {
             toastShown.current = true;
             toast.success('✅ Distribution complete!');
-            onSuccess();
+            if (onSuccess) onSuccess();
         }
         if (error && !toastShown.current) {
             toastShown.current = true;
@@ -191,31 +211,34 @@ function DistributeCard({ onSuccess, currentWeek, canDistribute }: { onSuccess: 
         distribute();
     };
 
+    const statusColor = status === 'ongoing' ? '#3B82F6' : '#10B981';
+    const statusIcon = status === 'ongoing' ? '🟢' : '✅';
+
     return (
         <Card variant="glow">
             {/* Header */}
             <div className="flex justify-between items-center mb-4">
-                <h3 className="text-sm font-semibold text-[#F8FAFC]">📊 Share Pool</h3>
-                <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={handleDistribute}
-                    disabled={isPending || isConfirming || shareholderCount === 0 || !canDistribute}
-                >
-                    {!canDistribute ? '⏳ Wait for week end' : isPending || isConfirming ? 'Distributing...' : '💸 Distribute'}
-                </Button>
+                <div>
+                    <h3 className="text-sm font-semibold text-[#F8FAFC]">{statusIcon} {label}</h3>
+                    <p className="text-xs text-[#64748B]">Week #{week?.toString() || '0'}</p>
+                </div>
+                {status === 'completed' && (
+                    <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={handleDistribute}
+                        disabled={isPending || isConfirming || shareholderCount === 0 || !canDistribute}
+                    >
+                        {isPending || isConfirming ? 'Distributing...' : '💸 Distribute'}
+                    </Button>
+                )}
             </div>
 
             {/* Stats Subcards */}
-            <div className="grid grid-cols-2 gap-3 mb-4">
-                <div className="p-3 bg-[#0F172A] rounded-lg text-center">
-                    <p className="text-[#64748B] text-xs mb-1">📅 Week</p>
-                    <p className="text-xl font-bold text-[#3B82F6] font-mono">{currentWeek?.toString() || '0'}</p>
-                </div>
-                <div className="p-3 bg-[#0F172A] rounded-lg text-center">
-                    <p className="text-[#64748B] text-xs mb-1">👥 Shareholders</p>
-                    <p className="text-xl font-bold text-[#10B981] font-mono">{shareholderCount}</p>
-                </div>
+            <div className="p-3 bg-[#0F172A] rounded-lg text-center mb-4">
+                <p className="text-[#64748B] text-xs mb-1">👥 Shareholders</p>
+                <p className="text-xl font-bold text-[#10B981] font-mono">{shareholderCount}</p>
+                <p className="text-xs text-[#64748B] mt-1">Total: {shareholderCount} users</p>
             </div>
 
             {/* Toggle Shareholders */}
@@ -233,7 +256,7 @@ function DistributeCard({ onSuccess, currentWeek, canDistribute }: { onSuccess: 
                         <p className="text-xs text-[#64748B]">No shareholders this week</p>
                     ) : (
                         shareholderIds.map((userId, idx) => (
-                            <ShareholderRow key={idx} userId={userId} week={currentWeek} />
+                            <ShareholderRow key={idx} userId={userId} week={week} />
                         ))
                     )}
                 </div>
