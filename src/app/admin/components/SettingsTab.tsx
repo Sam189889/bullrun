@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { formatUnits } from 'viem';
-import { useSetCreatorWallet, useApproveUSDT, useCreatorWallet, useAllPoolBalances, useManagePool, PoolType, useSetFirstUser, useFirstUser, useNFTSplitCount, useNFTSplitThreshold, useNFTQueueCount, useSetSplitCount, useSetQueueCount } from '@/hooks/useAdminContracts';
+import { useSetCreatorWallet, useApproveUSDT, useCreatorWallet, useAllPoolBalances, useManagePool, PoolType, useSetFirstUser, useFirstUser, useNFTSplitThreshold, useNFTSplitCount, useNFTQueueCount, useNFTAppreciationBps, useCreateNFT, useSetQueueCount } from '@/hooks/useAdminContracts';
 import {
     useGetAllShareholders,
     usePendingBalance,
@@ -710,11 +710,9 @@ function RevenueSplitterSection() {
     );
 }
 
-// NFT Settings Component - Split Count and Queue Count
+// NFT Settings Component - Just displays current values (editing done in NFTsTab)
 function NFTSettings() {
-    const [splitCount, setSplitCountVal] = useState('');
     const [queueCount, setQueueCountVal] = useState('');
-    const toastShownSplit = useRef(false);
     const toastShownQueue = useRef(false);
 
     // Read current values
@@ -723,21 +721,9 @@ function NFTSettings() {
     const { data: currentQueueCount } = useNFTQueueCount();
 
     // Write hooks
-    const { setSplitCount, isPending: splitPending, isConfirming: splitConfirming, isSuccess: splitSuccess, error: splitError } = useSetSplitCount();
     const { setQueueCount, isPending: queuePending, isConfirming: queueConfirming, isSuccess: queueSuccess, error: queueError } = useSetQueueCount();
 
     // Toast notifications
-    useEffect(() => {
-        if (splitSuccess && !toastShownSplit.current) {
-            toastShownSplit.current = true;
-            toast.success('Split count updated!');
-            setSplitCountVal('');
-        }
-        if (splitError && !toastShownSplit.current) {
-            toastShownSplit.current = true;
-            toast.error('Failed to update split count');
-        }
-    }, [splitSuccess, splitError]);
 
     useEffect(() => {
         if (queueSuccess && !toastShownQueue.current) {
@@ -750,12 +736,6 @@ function NFTSettings() {
             toast.error('Failed to update queue count');
         }
     }, [queueSuccess, queueError]);
-
-    const handleSetSplitCount = () => {
-        if (!splitCount) return;
-        toastShownSplit.current = false;
-        setSplitCount(BigInt(splitCount));
-    };
 
     const handleSetQueueCount = () => {
         if (!queueCount) return;
@@ -787,28 +767,6 @@ function NFTSettings() {
                 </div>
             </div>
 
-            {/* Split Count Input */}
-            <div className="mb-4">
-                <label className="text-xs text-[#94A3B8] block mb-1">Set Split Count</label>
-                <div className="flex gap-2">
-                    <input
-                        type="number"
-                        value={splitCount}
-                        onChange={(e) => setSplitCountVal(e.target.value)}
-                        placeholder="e.g., 2"
-                        min="1"
-                        className="flex-1 px-3 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-white text-sm focus:border-[#EC4899] outline-none"
-                    />
-                    <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={handleSetSplitCount}
-                        disabled={splitPending || splitConfirming || !splitCount}
-                    >
-                        {splitPending || splitConfirming ? '...' : 'Set'}
-                    </Button>
-                </div>
-            </div>
 
             {/* Queue Count Input */}
             <div>

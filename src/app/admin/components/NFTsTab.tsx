@@ -286,21 +286,32 @@ export function NFTsTab() {
 
                             <div className="space-y-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-400 mb-2">New Split Count</label>
-                                    <input
-                                        type="number"
-                                        value={splitCount}
-                                        onChange={(e) => setSplitCount(e.target.value)}
-                                        min="1"
-                                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50"
-                                    />
+                                    <label className="block text-sm font-medium text-slate-400 mb-2">Select Split Count</label>
+                                    <p className="text-xs text-slate-500 mb-3">Recommended: 5, 10, or 20 (reaches $185-$187 range)</p>
+                                    <div className="grid grid-cols-3 gap-3">
+                                        {[5, 10, 20].map((count) => (
+                                            <button
+                                                key={count}
+                                                onClick={() => setSplitCount(count.toString())}
+                                                disabled={settingSplit}
+                                                className={`px-4 py-4 rounded-xl font-semibold text-sm transition-all ${
+                                                    splitCount === count.toString()
+                                                        ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/50'
+                                                        : 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700 hover:border-purple-500/50'
+                                                } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                            >
+                                                <div className="text-2xl font-bold">{count}</div>
+                                                <div className="text-xs opacity-80">${(200 / count).toFixed(2)} each</div>
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
 
                                 {/* Preview */}
                                 {!!threshold && splitCount && (
-                                    <div className="bg-slate-800/50 rounded-lg p-3 text-sm">
-                                        <span className="text-slate-400">New Base Price/NFT: </span>
-                                        <span className="text-yellow-400 font-bold">
+                                    <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4 text-sm">
+                                        <span className="text-emerald-400 font-semibold">✓ New Base Price/NFT: </span>
+                                        <span className="text-white font-bold text-lg">
                                             ${(Number(formatUnits(threshold as bigint, 18)) / Number(splitCount)).toFixed(2)}
                                         </span>
                                     </div>
