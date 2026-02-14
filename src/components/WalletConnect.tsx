@@ -1,6 +1,7 @@
 "use client";
 
 import { ConnectButton } from "@rainbow-me/rainbowkit";
+import Image from "next/image";
 
 interface WalletConnectProps {
     showBalance?: boolean;
@@ -155,19 +156,15 @@ export function WalletConnect({
                                                 </span>
                                             )}
 
-                                            {/* Avatar */}
-                                            <div className="w-5 h-5 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
-                                                {account.ensAvatar ? (
-                                                    <img
-                                                        src={account.ensAvatar}
-                                                        alt="Avatar"
-                                                        className="w-5 h-5 rounded-full"
-                                                    />
-                                                ) : (
-                                                    <span className="text-[8px] text-white font-bold">
-                                                        {account.displayName.slice(0, 2)}
-                                                    </span>
-                                                )}
+                                            {/* Logo */}
+                                            <div className="w-5 h-5 flex items-center justify-center">
+                                                <Image 
+                                                    src="/logo.png" 
+                                                    alt="Bull Run NFT" 
+                                                    width={20} 
+                                                    height={20}
+                                                    className="w-5 h-5 object-contain"
+                                                />
                                             </div>
 
                                             {/* Address */}

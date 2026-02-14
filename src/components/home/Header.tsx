@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { Button } from '../ui/Button';
 
 export function Header() {
@@ -10,18 +11,15 @@ export function Header() {
                 <div className="container-app">
                     <div className="flex items-center justify-between h-16 sm:h-20">
                         {/* Logo */}
-                        <Link href="/" className="flex items-center gap-2 sm:gap-3 group">
-                            <div className="relative">
-                                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-[#EC4899] to-[#D946EF] flex items-center justify-center shadow-[0_0_20px_rgba(255,215,0,0.3)] group-hover:shadow-[0_0_30px_rgba(255,215,0,0.5)] transition-all duration-300">
-                                    <span className="text-xl sm:text-2xl">💰</span>
-                                </div>
-                            </div>
-                            <div>
-                                <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-[#EC4899] via-[#F472B6] to-[#D946EF] bg-clip-text text-transparent">
-                                    BULL RUN NFT
-                                </span>
-                                <p className="hidden sm:block text-[10px] text-[#64748B] tracking-[0.2em] uppercase">Trading Platform</p>
-                            </div>
+                        <Link href="/" className="flex items-center group">
+                            <Image 
+                                src="/logo.png" 
+                                alt="Bull Run NFT" 
+                                width={180} 
+                                height={50}
+                                className="h-10 sm:h-12 w-auto transition-all duration-300 group-hover:scale-105"
+                                priority
+                            />
                         </Link>
 
                         {/* Action Buttons */}

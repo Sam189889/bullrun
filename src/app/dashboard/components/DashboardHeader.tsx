@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { WalletConnect } from '@/components';
 
 export function DashboardHeader() {
@@ -10,15 +11,15 @@ export function DashboardHeader() {
                 <div className="container-app">
                     <div className="flex items-center justify-between h-14 sm:h-16">
                         {/* Logo */}
-                        <Link href="/" className="flex items-center gap-2 group">
-                            <div className="relative">
-                                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-[#EC4899] to-[#D946EF] flex items-center justify-center shadow-[0_0_20px_rgba(236,72,153,0.3)] group-hover:shadow-[0_0_30px_rgba(236,72,153,0.5)] transition-all duration-300">
-                                    <span className="text-base sm:text-lg">🐂</span>
-                                </div>
-                            </div>
-                            <span className="text-base sm:text-lg font-bold bg-gradient-to-r from-[#EC4899] to-[#D946EF] bg-clip-text text-transparent">
-                                BULL RUN
-                            </span>
+                        <Link href="/" className="flex items-center group">
+                            <Image 
+                                src="/logo.png" 
+                                alt="Bull Run NFT" 
+                                width={150} 
+                                height={40}
+                                className="h-8 sm:h-10 w-auto transition-all duration-300 group-hover:scale-105"
+                                priority
+                            />
                         </Link>
 
                         {/* Real Wallet Connect */}

@@ -1,6 +1,6 @@
 'use client'
 
-import { getDefaultConfig, RainbowKitProvider } from '@rainbow-me/rainbowkit'
+import { getDefaultConfig, RainbowKitProvider, AvatarComponent } from '@rainbow-me/rainbowkit'
 import {
     metaMaskWallet,
     rainbowWallet,
@@ -14,6 +14,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import '@rainbow-me/rainbowkit/styles.css'
 import { opBnbMainnet } from './wagmi'
 import { WALLETCONNECT_PROJECT_ID, RPC_URL } from './env'
+import Image from 'next/image'
 
 const projectId = WALLETCONNECT_PROJECT_ID
 
@@ -66,13 +67,36 @@ const getQueryClient = () => {
     return queryClientInstance;
 };
 
+// Custom Avatar Component with Logo
+const CustomAvatar: AvatarComponent = ({ address, ensImage, size }) => {
+    return (
+        <div 
+            style={{ width: size, height: size }} 
+            className="flex items-center justify-center rounded-full bg-gradient-to-br from-[#0F172A] to-[#1E293B] p-1"
+        >
+            <Image 
+                src="/logo.png" 
+                alt="Bull Run NFT" 
+                width={size - 8} 
+                height={size - 8}
+                className="object-contain"
+            />
+        </div>
+    );
+};
+
 export function Web3Provider({ children }: { children: React.ReactNode }) {
     const config = getWagmiConfig();
     const queryClient = getQueryClient();
     return (
         <WagmiProvider config={config}>
             <QueryClientProvider client={queryClient}>
-                <RainbowKitProvider coolMode modalSize="compact" initialChain={opBnbMainnet}>
+                <RainbowKitProvider 
+                    coolMode 
+                    modalSize="compact" 
+                    initialChain={opBnbMainnet}
+                    avatar={CustomAvatar}
+                >
                     {children}
                 </RainbowKitProvider>
             </QueryClientProvider>

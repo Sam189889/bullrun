@@ -525,7 +525,10 @@ export function useUserWeeklyShares(userId: bigint | undefined, weekNumber: numb
         abi: BullRunMainLogicABI,
         functionName: 'userWeeklyShares',
         args: userId ? [userId, BigInt(weekNumber)] : undefined,
-        query: { enabled: !!userId && userId > BigInt(0) && weekNumber > 0 },
+        query: { 
+            enabled: !!userId && userId > BigInt(0) && weekNumber > 0,
+            refetchInterval: 10000, // Refetch every 10 seconds
+        },
     })
 }
 

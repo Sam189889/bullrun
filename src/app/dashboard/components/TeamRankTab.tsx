@@ -343,19 +343,6 @@ export function TeamRankTab() {
             {/* Overview Tab Content */}
             {activeSubTab === 'overview' && (
                 <>
-                    {/* Check Ranks Button */}
-                    {!isLookupMode && (
-                        <div className="mb-4">
-                            <Button
-                                onClick={() => checkRanks?.()}
-                                disabled={rankCheckPending || !isRegistered}
-                                className="w-full bg-gradient-to-r from-[#EC4899] to-[#8B5CF6] hover:from-[#DB2777] hover:to-[#7C3AED] text-white font-semibold py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {rankCheckPending ? '⏳ Checking...' : '🔄 Check & Update Ranks'}
-                            </Button>
-                        </div>
-                    )}
-                    
                     {/* Team Stats */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         {(() => {
@@ -392,6 +379,17 @@ export function TeamRankTab() {
                             <span className="p-1.5 bg-[#F59E0B]/10 text-[#F59E0B] rounded-lg text-lg">🏆</span>
                             Rank Rewards
                         </h2>
+
+                        {/* Check Ranks Button */}
+                        <div className="mb-4">
+                            <Button
+                                onClick={() => checkRanks?.()}
+                                disabled={isLookupMode || rankCheckPending || !isRegistered}
+                                className="w-full bg-gradient-to-r from-[#EC4899] to-[#8B5CF6] hover:from-[#DB2777] hover:to-[#7C3AED] text-white font-semibold py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {rankCheckPending ? '⏳ Checking...' : isLookupMode ? '🔄 Check & Update Ranks (View Only)' : '🔄 Check & Update Ranks'}
+                            </Button>
+                        </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {RANK_CONFIGS.slice(1).map((config, idx) => {

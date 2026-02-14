@@ -10,6 +10,7 @@ import { Card, StatCard } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { LookupUserProvider } from '@/contexts/LookupContext';
 import Link from 'next/link';
+import Image from 'next/image';
 
 // Import actual dashboard components
 import { HomeTab } from '@/app/dashboard/components/HomeTab';
@@ -117,16 +118,17 @@ function LookupContent() {
             <header className="sticky top-0 z-50 bg-[#0F172A]/80 backdrop-blur-xl border-b border-[rgba(255,255,255,0.08)]">
                 <div className="container mx-auto px-4 py-4">
                     <div className="flex items-center justify-between">
-                        <Link href="/" className="flex items-center gap-2">
-                            <span className="text-2xl">🐂</span>
-                            <span className="text-xl font-bold bg-gradient-to-r from-[#EC4899] to-[#D946EF] bg-clip-text text-transparent">
-                                Bull Run
-                            </span>
+                        <Link href="/" className="flex items-center group">
+                            <Image 
+                                src="/logo.png" 
+                                alt="Bull Run NFT" 
+                                width={150} 
+                                height={40}
+                                className="h-10 w-auto transition-all duration-300 group-hover:scale-105"
+                                priority
+                            />
                         </Link>
                         <div className="flex items-center gap-4">
-                            <Link href="/admin" className="text-sm text-[#EC4899] hover:text-[#D946EF]">
-                                Admin Panel
-                            </Link>
                             <Link href="/" className="text-sm text-[#64748B] hover:text-[#F8FAFC]">
                                 ← Home
                             </Link>

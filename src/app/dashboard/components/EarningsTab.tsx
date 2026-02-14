@@ -190,9 +190,8 @@ export function EarningsTab() {
     // NFT sale refunds (separate mapping, not in struct)
     const nftRefunds = nftRefundsData ? (nftRefundsData as bigint) : BigInt(0);
 
-    // Pool earnings (weeklyPool) - returned as struct with weeklyPool field
-    const poolEarningsTuple = poolEarningsData as readonly [bigint] | undefined;
-    const sharepoolEarnings = poolEarningsTuple ? poolEarningsTuple[0] : BigInt(0);
+    // Pool earnings (weeklyPool) - returned as single uint256, not struct
+    const sharepoolEarnings = poolEarningsData ? (poolEarningsData as bigint) : BigInt(0);
 
     // Format values
     const formatUSDT = (value: bigint | undefined) => {
@@ -202,7 +201,7 @@ export function EarningsTab() {
 
     // Calculate totals from both package and trading earnings
     const packageTotal = directSponsor + levelIncome + rankEmi + fastBonus;
-    const tradingTotal = tradingLevelBonus + nftProfit + luckyDrawWinnings + tripReward;
+    const tradingTotal = tradingLevelBonus + nftProfit + sharepoolEarnings + luckyDrawWinnings + tripReward;
     const totalEarnings = packageTotal + tradingTotal;
 
     // Handle claim

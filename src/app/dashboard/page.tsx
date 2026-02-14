@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
+import Image from 'next/image';
 import { useUserId } from '@/hooks/useContracts';
 import { WalletConnect } from '@/components';
 import {
@@ -62,8 +63,14 @@ export default function DashboardPage() {
         return (
             <div className="min-h-screen bg-[#0F172A] flex items-center justify-center">
                 <div className="text-center">
-                    <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-[#EC4899] to-[#D946EF] flex items-center justify-center shadow-[0_0_40px_rgba(236,72,153,0.3)] animate-pulse">
-                        <span className="text-3xl">🐂</span>
+                    <div className="w-32 h-32 mx-auto mb-4 flex items-center justify-center animate-pulse">
+                        <Image 
+                            src="/logo.png" 
+                            alt="Bull Run NFT" 
+                            width={128} 
+                            height={128}
+                            className="w-full h-full object-contain"
+                        />
                     </div>
                     <p className="text-[#64748B]">Loading your data...</p>
                 </div>
