@@ -274,6 +274,23 @@ export function useClaimFastBonus() {
 }
 
 /**
+ * Check and achieve ranks manually
+ */
+export function useCheckAndAchieveRanks() {
+    const { writeContract, ...rest } = useWriteContract()
+
+    const checkRanks = () => {
+        writeContract({
+            address: contracts.bullRun,
+            abi: BullRunMainLogicABI,
+            functionName: 'checkAndAchieveRanks',
+        })
+    }
+
+    return { checkRanks, ...rest }
+}
+
+/**
  * Get user rank data for a specific rank
  */
 export function useUserRankData(userId: bigint | undefined, rank: number) {

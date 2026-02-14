@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
 import { formatUnits } from 'viem';
-import { useUserId, useUserInfo, useUserTeamVolume, useUserRankData, useClaimRankEmi, useClaimFastBonus, useDirectReferrals, useAllRankConfigs, useQualifyingVolume } from '@/hooks/useContracts';
+import { useUserId, useUserInfo, useUserTeamVolume, useUserRankData, useClaimRankEmi, useClaimFastBonus, useCheckAndAchieveRanks, useDirectReferrals, useAllRankConfigs, useQualifyingVolume } from '@/hooks/useContracts';
 import { useLevelCounts } from '@/hooks/useEvents';
 import { useLookupUser } from '@/contexts/LookupContext';
 import { GiBull } from 'react-icons/gi';
@@ -200,6 +200,7 @@ export function TeamRankTab() {
 
     const { claimEmi, isPending: emiPending } = useClaimRankEmi();
     const { claimFastBonus, isPending: fastBonusPending } = useClaimFastBonus();
+    const { checkRanks, isPending: rankCheckPending } = useCheckAndAchieveRanks();
 
     // Fetch rank configs from contract dynamically
     const { configs: RANK_CONFIGS } = useAllRankConfigs();
@@ -342,6 +343,19 @@ export function TeamRankTab() {
             {/* Overview Tab Content */}
             {activeSubTab === 'overview' && (
                 <>
+                    {/* Check Ranks Button */}
+                    {!isLookupMode && (
+                        <div className="mb-4">
+                            <Button
+                                onClick={() => checkRanks?.()}
+                                disabled={rankCheckPending || !isRegistered}
+                                className="w-full bg-gradient-to-r from-[#EC4899] to-[#8B5CF6] hover:from-[#DB2777] hover:to-[#7C3AED] text-white font-semibold py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {rankCheckPending ? '⏳ Checking...' : '🔄 Check & Update Ranks'}
+                            </Button>
+                        </div>
+                    )}
+                    
                     {/* Team Stats */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         {(() => {
