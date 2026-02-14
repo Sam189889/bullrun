@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
 import { formatUnits } from 'viem';
 import { useUserId, useUserInfo, useUserTeamVolume, useUserRankData, useClaimRankEmi, useClaimFastBonus, useDirectReferrals, useAllRankConfigs, useQualifyingVolume } from '@/hooks/useContracts';
