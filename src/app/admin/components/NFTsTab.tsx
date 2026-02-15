@@ -16,7 +16,7 @@ import {
 } from '@/hooks/useAdminContracts';
 
 import { useUserInfo } from '@/hooks/useContracts';
-import { useMarketplaceConfig } from '@/hooks/useMarketplaceConfig';
+import { useNFTControls } from '@/hooks/useNFTControls';
 import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
 
@@ -42,9 +42,10 @@ export function NFTsTab() {
     const [showCreateMode, setShowCreateMode] = useState(false);
     const [queueCountInput, setQueueCountInput] = useState('');
     const [showQueueEdit, setShowQueueEdit] = useState(false);
+    const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'last_traded_desc' | 'last_traded_asc'>('newest');
 
-    // Global marketplace config
-    const { config: marketplaceConfig } = useMarketplaceConfig();
+    // NFT Controls - shared across all cards
+    const nftControls = useNFTControls();
 
     // Reads - add refetch for all
     const { data: totalNFTs, refetch: refetchTotalNFTs } = useTotalNFTs();
@@ -455,9 +456,6 @@ export function NFTsTab() {
                 )}
             </div>
 
-            {/* NFT Display Config */}
-            <NFTDisplayConfigSection />
-
             {/* All NFTs List */}
             <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl shadow-xl">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
@@ -465,8 +463,17 @@ export function NFTsTab() {
                         <span className="p-2 bg-indigo-500/20 text-indigo-400 rounded-lg">📋</span>
                         All NFTs Inventory
                     </h3>
-                    <div className="flex items-center gap-2">
-                        <span className="text-xs text-slate-500">Sort: {marketplaceConfig?.defaultSort || 'newest'}</span>
+                    <div className="flex items-center gap-3">
+                        <select
+                            value={sortBy}
+                            onChange={(e) => setSortBy(e.target.value as any)}
+                            className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                        >
+                            <option value="newest">🆕 Newest First</option>
+                            <option value="oldest">⏰ Oldest First</option>
+                            <option value="last_traded_desc">📊 Last Traded: Recent</option>
+                            <option value="last_traded_asc">📊 Last Traded: Oldest</option>
+                        </select>
                         <div className="text-sm text-slate-400 bg-slate-800/50 px-3 py-1 rounded-full">
                             {totalNFTs?.toString() || '0'} NFTs
                         </div>
@@ -475,24 +482,7 @@ export function NFTsTab() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                     {totalNFTs && Number(totalNFTs) > 0 ? (
-                        (() => {
-                            const sort = marketplaceConfig?.defaultSort || 'newest';
-                            const count = Number(totalNFTs);
-                            let ids: number[] = [];
-
-                            if (sort === 'newest') {
-                                ids = Array.from({ length: count }, (_, i) => count - i);
-                            } else if (sort === 'oldest') {
-                                ids = Array.from({ length: count }, (_, i) => i + 1);
-                            } else {
-                                // Default to newest
-                                ids = Array.from({ length: count }, (_, i) => count - i);
-                            }
-
-                            return ids.map((id) => (
-                                <NFTCompactCard key={id} nftId={BigInt(id)} />
-                            ));
-                        })()
+                        <NFTGrid totalCount={Number(totalNFTs)} sortBy={sortBy} controls={nftControls} />
                     ) : (
                         <div className="col-span-full py-12 text-center bg-slate-950/50 rounded-2xl border border-slate-800 border-dashed">
                             <p className="text-slate-500">No NFTs minted yet. Use the form above to mint your first NFT.</p>
@@ -504,8 +494,120 @@ export function NFTsTab() {
     );
 }
 
-function NFTCompactCard({ nftId }: { nftId: bigint }) {
+// NFT Grid with Sorting
+function NFTGrid({ totalCount, sortBy, controls }: { 
+    totalCount: number; 
+    sortBy: 'newest' | 'oldest' | 'last_traded_desc' | 'last_traded_asc';
+    controls: ReturnType<typeof useNFTControls>;
+}) {
+    // For simple ID-based sorting
+    if (sortBy === 'newest' || sortBy === 'oldest') {
+        const ids = sortBy === 'newest' 
+            ? Array.from({ length: totalCount }, (_, i) => totalCount - i)
+            : Array.from({ length: totalCount }, (_, i) => i + 1);
+        
+        return (
+            <>
+                {ids.map((id) => (
+                    <NFTCompactCard key={id} nftId={BigInt(id)} controls={controls} />
+                ))}
+            </>
+        );
+    }
+
+    // For last traded sorting - use NFTGridWithFetch
+    return <NFTGridWithLastTradedSort totalCount={totalCount} sortBy={sortBy} controls={controls} />;
+}
+
+// For last traded sorting - collect data as cards load, then sort in UI
+function NFTGridWithLastTradedSort({ totalCount, sortBy, controls }: {
+    totalCount: number;
+    sortBy: 'last_traded_desc' | 'last_traded_asc';
+    controls: ReturnType<typeof useNFTControls>;
+}) {
+    const [nftData, setNftData] = useState<Map<number, bigint>>(new Map());
+    const [displayIds, setDisplayIds] = useState<number[]>(() => 
+        Array.from({ length: totalCount }, (_, i) => totalCount - i)
+    );
+
+    // Callback to receive loaded NFT data
+    const handleNFTLoaded = (id: number, lastTradedAt: bigint) => {
+        setNftData(prev => {
+            const newMap = new Map(prev);
+            newMap.set(id, lastTradedAt);
+            return newMap;
+        });
+    };
+
+    // Sort when enough data is loaded
+    useEffect(() => {
+        if (nftData.size > Math.min(50, totalCount)) { // Wait for at least 50 NFTs to load
+            const sorted = Array.from(nftData.entries())
+                .sort((a, b) => {
+                    if (sortBy === 'last_traded_desc') {
+                        return Number(b[1] - a[1]); // Recent first
+                    } else {
+                        return Number(a[1] - b[1]); // Oldest first
+                    }
+                })
+                .map(([id]) => id);
+            
+            // Add any remaining IDs that haven't loaded yet
+            const loadedIds = new Set(sorted);
+            const remaining = displayIds.filter(id => !loadedIds.has(id));
+            
+            setDisplayIds([...sorted, ...remaining]);
+        }
+    }, [nftData.size, sortBy, totalCount]);
+
+    return (
+        <>
+            {nftData.size > 0 && nftData.size < totalCount && (
+                <div className="col-span-full bg-blue-500/10 border border-blue-500/30 rounded-xl p-3 mb-4">
+                    <p className="text-blue-400 text-xs">
+                        📊 Loading and sorting... {nftData.size}/{totalCount} NFTs loaded
+                    </p>
+                </div>
+            )}
+            {displayIds.map((id) => (
+                <NFTCompactCardWithCallback 
+                    key={id} 
+                    nftId={BigInt(id)} 
+                    controls={controls}
+                    onLoaded={handleNFTLoaded}
+                />
+            ))}
+        </>
+    );
+}
+
+// Wrapper card that reports when loaded
+function NFTCompactCardWithCallback({ nftId, controls, onLoaded }: { 
+    nftId: bigint; 
+    controls: ReturnType<typeof useNFTControls>;
+    onLoaded: (id: number, lastTradedAt: bigint) => void;
+}) {
     const { data: nft, isLoading } = useNFT(nftId);
+    const [hasReported, setHasReported] = useState(false);
+
+    useEffect(() => {
+        if (!isLoading && nft && !hasReported) {
+            const nftData = nft as any[];
+            if (nftData && nftData.length > 7) {
+                const lastTradedAt = nftData[7] as bigint;
+                onLoaded(Number(nftId), lastTradedAt);
+                setHasReported(true);
+            }
+        }
+    }, [nft, isLoading, nftId, onLoaded, hasReported]);
+
+    return <NFTCompactCard nftId={nftId} controls={controls} />;
+}
+
+function NFTCompactCard({ nftId, controls }: { nftId: bigint; controls: ReturnType<typeof useNFTControls> }) {
+    const { data: nft, isLoading } = useNFT(nftId);
+    const { togglePin, toggleHide, isPinned, isHidden } = controls;
+    const [actionPending, setActionPending] = useState(false);
 
     if (isLoading) return (
         <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl animate-pulse h-40">
@@ -517,13 +619,58 @@ function NFTCompactCard({ nftId }: { nftId: bigint }) {
     if (!nftData || nftData[0] === BigInt(0)) return null;
 
     // Updated array: [nftId, currentPrice, basePrice, lastPurchasePrice, ownerId, buyCount, createdAt, lastTradedAt, isListed, isBurned]
-    const [id, currentPrice, basePrice, lastPurchasePrice, ownerId, , , , isListed, isBurned] = nftData;
+    const [id, currentPrice, basePrice, lastPurchasePrice, ownerId, , , lastTradedAt, isListed, isBurned] = nftData;
 
     // Hide burned NFTs from admin list by default
     if (isBurned) return null;
 
+    const nftIdNum = Number(id);
+    const pinned = isPinned(nftIdNum);
+    const hidden = isHidden(nftIdNum);
+
+    const handlePin = async () => {
+        setActionPending(true);
+        const success = await togglePin(nftIdNum);
+        if (success) toast.success(pinned ? 'Unpinned!' : 'Pinned to top!');
+        else toast.error('Failed');
+        setActionPending(false);
+    };
+
+    const handleHide = async () => {
+        setActionPending(true);
+        const success = await toggleHide(nftIdNum);
+        if (success) toast.success(hidden ? 'Visible in marketplace!' : 'Hidden from marketplace!');
+        else toast.error('Failed');
+        setActionPending(false);
+    };
+
     return (
         <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl hover:border-slate-700 transition-all group">
+            {/* Controls */}
+            <div className="flex gap-2 mb-3">
+                <button
+                    onClick={handlePin}
+                    disabled={actionPending}
+                    className={`flex-1 text-[10px] font-bold py-2 rounded-lg transition-colors ${
+                        pinned 
+                            ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' 
+                            : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                    } disabled:opacity-50`}
+                >
+                    {pinned ? '📌 Pinned' : '📍 Pin'}
+                </button>
+                <button
+                    onClick={handleHide}
+                    disabled={actionPending}
+                    className={`flex-1 text-[10px] font-bold py-2 rounded-lg transition-colors ${
+                        hidden 
+                            ? 'bg-red-500/20 text-red-400 border border-red-500/30' 
+                            : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                    } disabled:opacity-50`}
+                >
+                    {hidden ? '👁️ Hidden' : '🚫 Hide'}
+                </button>
+            </div>
             <div className="flex justify-between items-start mb-4">
                 <div className="flex items-center gap-3">
                     <div className="w-12 h-12 bg-indigo-500/10 rounded-lg flex items-center justify-center border border-indigo-500/20">
@@ -555,6 +702,15 @@ function NFTCompactCard({ nftId }: { nftId: bigint }) {
                     <p className="text-slate-500">Base Price</p>
                     <p className="text-white">${Number(formatUnits(basePrice, 18)).toFixed(2)}</p>
                 </div>
+                <div className="bg-slate-900/50 p-2 rounded-lg col-span-2">
+                    <p className="text-slate-500">Last Traded</p>
+                    <p className="text-white">
+                        {lastTradedAt > 0 
+                            ? new Date(Number(lastTradedAt) * 1000).toLocaleDateString() + ' ' + new Date(Number(lastTradedAt) * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                            : <span className="text-slate-500">Never</span>
+                        }
+                    </p>
+                </div>
             </div>
 
             <div className="flex gap-2">
@@ -564,151 +720,6 @@ function NFTCompactCard({ nftId }: { nftId: bigint }) {
                 <span className={`flex-1 text-center text-[10px] font-bold py-2 rounded-lg ${isBurned ? 'bg-red-500/20 text-red-400' : 'bg-slate-900 text-slate-500'}`}>
                     {isBurned ? 'Burned' : 'Active'}
                 </span>
-            </div>
-        </div>
-    );
-}
-
-function NFTDetailsCard({ nftId }: { nftId: bigint }) {
-    const { data: nft, isLoading } = useNFT(nftId);
-
-    if (isLoading) return <div className="p-4 text-slate-500">Loading NFT Details...</div>;
-    const nftData = nft as any[] | undefined;
-    if (!nftData || nftData[0] === BigInt(0)) return <div className="p-4 text-red-400 bg-red-900/20 rounded-xl border border-red-800">Invalid NFT ID or NFT not found</div>;
-
-    // Updated nft structure: [nftId, currentPrice, basePrice, lastPurchasePrice, ownerId, buyCount, createdAt, lastTradedAt, isListed, isBurned]
-    const [id, currentPrice, basePrice, lastPurchasePrice, ownerId, buyCount, createdAt, lastTradedAt, isListed, isBurned] = nftData;
-
-    return (
-        <div className="bg-slate-950 border border-slate-800 p-6 rounded-2xl grid md:grid-cols-2 gap-8 items-start animate-in zoom-in-95 duration-300">
-            <div className="space-y-4">
-                <div className="aspect-square bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-2xl flex items-center justify-center border border-slate-800 border-dashed">
-                    <span className="text-4xl font-bold text-white"># {id.toString()}</span>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                    {isListed && <span className="px-3 py-1 bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded-full border border-emerald-800">FOR SALE</span>}
-                    {isBurned && <span className="px-3 py-1 bg-slate-700 text-slate-400 text-xs font-bold rounded-full">BURNED</span>}
-                </div>
-            </div>
-
-            <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-y-4 text-sm">
-                    <p className="text-slate-500">Owner</p>
-                    <p className="text-white">
-                        {ownerId === BigInt(0) ? (
-                            <span className="text-slate-500">Contract</span>
-                        ) : (
-                            <OwnerUsername ownerId={ownerId} />
-                        )}
-                    </p>
-                    <p className="text-slate-500">Current Price</p>
-                    <p className="text-white font-bold">${Number(formatUnits(currentPrice, 18)).toFixed(2)}</p>
-                    <p className="text-slate-500">Base Price</p>
-                    <p className="text-white">${Number(formatUnits(basePrice, 18)).toFixed(2)}</p>
-                    <p className="text-slate-500">Buy Count</p>
-                    <p className="text-white">{buyCount.toString()}</p>
-                    <p className="text-slate-500">Created</p>
-                    <p className="text-white">{new Date(Number(createdAt) * 1000).toLocaleDateString()}</p>
-                    {lastTradedAt > 0 && (
-                        <>
-                            <p className="text-slate-500">Last Trade</p>
-                            <p className="text-white">{new Date(Number(lastTradedAt) * 1000).toLocaleDateString()}</p>
-                        </>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-}
-
-// Marketplace Config Section - Simple
-function NFTDisplayConfigSection() {
-    const { config, isLoading, updateConfig } = useMarketplaceConfig();
-    const [isSaving, setIsSaving] = useState(false);
-
-    const handleToggleUserId1 = async () => {
-        setIsSaving(true);
-        const success = await updateConfig({
-            hideUserId1: !config.hideUserId1,
-        });
-        if (success) toast.success('User ID 1 filter updated!');
-        else toast.error('Failed to update');
-        setIsSaving(false);
-    };
-
-    const handleSortChange = async (sortId: string) => {
-        setIsSaving(true);
-        const success = await updateConfig({
-            defaultSort: sortId
-        });
-        if (success) toast.success('Sort updated!');
-        else toast.error('Failed to update');
-        setIsSaving(false);
-    };
-
-    if (isLoading) return (
-        <div className="bg-slate-900/50 border border-slate-800 p-4 rounded-2xl animate-pulse">
-            <div className="h-6 bg-slate-800 rounded w-48"></div>
-        </div>
-    );
-
-    // Toggle button component
-    const Toggle = ({ checked, onChange, disabled }: { checked: boolean; onChange: () => void; disabled: boolean }) => (
-        <button
-            onClick={onChange}
-            disabled={disabled}
-            className={`relative w-12 h-6 rounded-full transition-colors ${checked ? 'bg-pink-500' : 'bg-slate-700'} ${disabled ? 'opacity-50' : ''}`}
-        >
-            <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${checked ? 'left-7' : 'left-1'}`} />
-        </button>
-    );
-
-    return (
-        <div className="bg-slate-900/50 border border-pink-500/20 p-6 rounded-2xl shadow-xl">
-            <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                    <span className="p-1.5 bg-pink-500/20 text-pink-400 rounded-lg text-sm">🔧</span>
-                    Marketplace Config
-                </h3>
-                {config.lastUpdated && (
-                    <span className="text-[10px] text-slate-500">
-                        Updated: {new Date(config.lastUpdated).toLocaleTimeString()}
-                    </span>
-                )}
-            </div>
-
-            <div className="space-y-4">
-                {/* Hide User ID 1 Toggle */}
-                <div className="flex items-center justify-between bg-slate-800/50 border border-slate-700 p-3 rounded-lg">
-                    <div className="flex-1">
-                        <h4 className="text-xs font-semibold text-white mb-0.5">Hide User ID 1 (BULL1)</h4>
-                        <p className="text-[10px] text-slate-400">User ID 1's NFTs won't show in marketplace</p>
-                    </div>
-                    <Toggle
-                        checked={config.hideUserId1}
-                        onChange={handleToggleUserId1}
-                        disabled={isSaving}
-                    />
-                </div>
-
-                {/* Sort Dropdown */}
-                <div className="space-y-2">
-                    <p className="text-xs font-semibold text-slate-400 uppercase">Default Marketplace Sort</p>
-                    <select
-                        value={config.defaultSort}
-                        onChange={(e) => handleSortChange(e.target.value)}
-                        disabled={isSaving}
-                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-pink-500/50"
-                    >
-                        <option value="newest">🆕 Newest First</option>
-                        <option value="oldest">⏰ Oldest First</option>
-                        <option value="price-low">💰 Price: Low to High</option>
-                        <option value="price-high">💎 Price: High to Low</option>
-                        <option value="sales-low">📊 Sales: Low to High</option>
-                        <option value="sales-high">🔥 Sales: High to Low</option>
-                    </select>
-                    <p className="text-[10px] text-slate-400">Shuffling will continue, but this affects initial order</p>
-                </div>
             </div>
         </div>
     );

@@ -16,20 +16,10 @@ import {
     useUSDTBalance
 } from '@/hooks/useContracts';
 import { useApproveUSDT, useDayStartTimestamp, useDayLength, useCurrentDay } from '@/hooks/useAdminContracts';
-import { useMarketplaceConfig } from '@/hooks/useMarketplaceConfig';
+import { useNFTControls } from '@/hooks/useNFTControls';
+import { useLookupUser } from '@/contexts/LookupContext';
 
-interface NFTData {
-    nftId: bigint;
-    currentPrice: bigint;
-    basePrice: bigint;
-    lastPurchasePrice: bigint;
-    ownerId: bigint;
-    buyCount: bigint;
-    isListed: boolean;
-    isBurned: boolean;
-    isFeatured: boolean;
-    isHidden: boolean;
-}
+
 
 interface SelectedNFT {
     nftId: number;
@@ -90,38 +80,7 @@ function ResetTimer({ dayStart, dayLengthSeconds }: { dayStart: bigint | undefin
     );
 }
 
-// Hook to check if NFT is valid for display
-function useIsValidNFT(nftId: number, userId: bigint | undefined, config: any): { isValid: boolean; nftData: any } {
-    const { data: nftData } = useNFT(BigInt(nftId));
-
-    if (!nftData) return { isValid: false, nftData: null };
-
-    const nftArr = nftData as any[];
-    if (!nftArr || nftArr[0] === BigInt(0)) return { isValid: false, nftData: null };
-
-    // New struct: [nftId, currentPrice, basePrice, lastPurchasePrice, ownerId, buyCount, createdAt, lastTradedAt, isListed, isBurned]
-    const [, , , , ownerId, , , , isListed, isBurned] = nftArr;
-
-    // Skip if burned (always hide burned)
-    if (isBurned) return { isValid: false, nftData: null };
-
-    // Skip if not listed
-    if (!isListed) return { isValid: false, nftData: null };
-
-    // Hide own NFTs from marketplace
-    const isOwnNFT = !!(userId && userId > BigInt(0) && ownerId === userId);
-    if (isOwnNFT) return { isValid: false, nftData: null };
-
-    // Apply admin config filters
-    if (config) {
-        // Hide admin (userId 1) NFTs if enabled
-        if (config.hideAdminNFTs && Number(ownerId) === 1) return { isValid: false, nftData: null };
-    }
-
-    return { isValid: true, nftData };
-}
-
-function NFTCard({ nftId, userId, onSelect, config }: { nftId: number; userId: bigint | undefined; onSelect: (nft: SelectedNFT) => void; config: any }) {
+function NFTCard({ nftId, userId, onSelect, controls, isLookupMode }: { nftId: number; userId: bigint | undefined; onSelect: (nft: SelectedNFT) => void; controls: ReturnType<typeof useNFTControls>; isLookupMode?: boolean }) {
     const { data: nftData } = useNFT(BigInt(nftId));
 
     if (!nftData) return null;
@@ -147,12 +106,8 @@ function NFTCard({ nftId, userId, onSelect, config }: { nftId: number; userId: b
     const buyCountNum = Number(buyCount);
     const formatUSD = (value: bigint) => `$${Number(formatUnits(value, 18)).toFixed(2)}`;
 
-    // Apply admin config filters
-    if (config && config.hideUserId1) {
-        const ownerIdNum = Number(ownerId);
-        // Hide User ID 1's NFTs if enabled
-        if (ownerIdNum === 1) return null;
-    }
+    // Apply admin controls - hide hidden NFTs from marketplace
+    if (controls.isHidden(nftId)) return null;
 
     // Select bull image (1-11) based on NFT ID, cycling
     const bullImageNum = ((nftId - 1) % 11) + 1;
@@ -175,6 +130,13 @@ function NFTCard({ nftId, userId, onSelect, config }: { nftId: number; userId: b
                 <div className="absolute inset-0 flex items-center justify-center">
                     <div className="w-24 h-24 rounded-full bg-gradient-to-r from-[#EC4899]/20 to-[#EF4444]/20 blur-2xl animate-pulse" />
                 </div>
+
+                {/* NFT ID Badge - Only in Lookup Mode */}
+                {isLookupMode && (
+                    <div className="absolute top-2 left-2 bg-black/80 backdrop-blur-sm px-2 py-1 rounded-lg border border-[#EC4899]/50 z-10">
+                        <p className="text-xs font-bold text-[#EC4899]">#{nftId}</p>
+                    </div>
+                )}
 
                 {/* Bull Image - Covers full area */}
                 <img
@@ -214,12 +176,13 @@ function NFTCard({ nftId, userId, onSelect, config }: { nftId: number; userId: b
 
 export function MarketplaceTab() {
     const { address } = useAccount();
+    const { isLookupMode } = useLookupUser();
     const { data: userId } = useUserId(address);
     const { data: totalNFTs } = useTotalNFTs();
     const { data: allowance, refetch: refetchAllowance } = useUSDTAllowance(address);
     const { data: availableLimit, refetch: refetchLimit } = useUserAvailableLimit(userId as bigint);
     const { data: dailyLimitData, refetch: refetchDailyLimitData } = useUserDailyLimitData(userId as bigint);
-    const { config: marketplaceConfig } = useMarketplaceConfig();
+    const nftControls = useNFTControls();
 
     // Use availableLimit from contract (handles day reset properly, same as HomeTab)
     const actualRemainingLimit = availableLimit ? (availableLimit as bigint) : BigInt(0);
@@ -439,8 +402,13 @@ export function MarketplaceTab() {
         return () => clearInterval(interval);
     }, [nftCount]);
 
-    // Show first 20 NFTs from shuffle (NFTCard will filter, we limit display to ~12 valid ones)
-    const nftIds = shuffledIds.slice(0, 20);
+    // Apply pin to top: pinned NFTs first, then shuffled
+    const { pinnedNFTIds } = nftControls;
+    const pinnedIds = pinnedNFTIds.filter(id => id <= nftCount); // Only valid IDs
+    const unpinnedShuffled = shuffledIds.filter(id => !pinnedNFTIds.includes(id));
+    
+    // Show pinned NFTs first, then first 20 unpinned shuffled NFTs
+    const nftIds = [...pinnedIds, ...unpinnedShuffled.slice(0, 20)];
 
     const formatUSD = (value: bigint | undefined) => {
         if (!value) return '$0';
@@ -559,7 +527,8 @@ export function MarketplaceTab() {
                             nftId={id}
                             userId={userId as bigint}
                             onSelect={handleSelectNFT}
-                            config={marketplaceConfig}
+                            controls={nftControls}
+                            isLookupMode={isLookupMode}
                         />
                     ))}
                 </div>

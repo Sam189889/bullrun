@@ -16,6 +16,7 @@ import Image from 'next/image';
 import { HomeTab } from '@/app/dashboard/components/HomeTab';
 import { EarningsTab } from '@/app/dashboard/components/EarningsTab';
 import { MyNFTsTab } from '@/app/dashboard/components/MyNFTsTab';
+import { MarketplaceTab } from '@/app/dashboard/components/MarketplaceTab';
 import { TeamRankTab } from '@/app/dashboard/components/TeamRankTab';
 import { HistoryTab } from '@/app/dashboard/components/HistoryTab';
 
@@ -33,6 +34,7 @@ const tabs = [
     { id: 'home', label: 'Home', icon: '🏠' },
     { id: 'earnings', label: 'Earnings', icon: '💰' },
     { id: 'nfts', label: 'NFTs', icon: '🖼️' },
+    { id: 'marketplace', label: 'Marketplace', icon: '🛒' },
     { id: 'team', label: 'Team & Ranks', icon: '👥' },
     { id: 'history', label: 'History', icon: '📜' },
 ];
@@ -248,6 +250,7 @@ function LookupContent() {
                                 {activeTab === 'home' && <HomeTab />}
                                 {activeTab === 'earnings' && <EarningsTab />}
                                 {activeTab === 'nfts' && <MyNFTsTab />}
+                                {activeTab === 'marketplace' && <MarketplaceTab />}
                                 {activeTab === 'team' && <TeamRankTab />}
                                 {activeTab === 'history' && <HistoryTab />}
                             </div>
