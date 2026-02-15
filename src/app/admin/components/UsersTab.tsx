@@ -17,6 +17,7 @@ interface UserData {
     earningCap: bigint;
     isActive: boolean;
     directReferrals: number;
+    usernameId: number;
 }
 
 export function UsersTab() {
@@ -58,9 +59,9 @@ export function UsersTab() {
         query: { enabled: userIds.length > 0 && totalUsers > 0 }
     });
 
-    // Parse user data - users mapping returns: [referrerId, packageLevel, totalInvested, earningCap, isActive, activationDate, directReferralsCount]
+    // Parse user data - users mapping returns: [referrerId, packageLevel, totalInvested, earningCap, isActive, activationDate, directReferralsCount, usernameId]
     const users: UserData[] = userIds.map((id, idx) => {
-        const info = userInfoResults?.[idx]?.result as readonly [bigint, bigint, bigint, bigint, boolean, bigint, bigint] | undefined;
+        const info = userInfoResults?.[idx]?.result as readonly [bigint, bigint, bigint, bigint, boolean, bigint, bigint, bigint] | undefined;
         const wallet = walletResults?.[idx]?.result as string | undefined;
 
         return {
@@ -71,12 +72,17 @@ export function UsersTab() {
             earningCap: info?.[3] ?? BigInt(0),
             isActive: info?.[4] ?? false,
             directReferrals: info?.[6] ? Number(info[6]) : 0,
+            usernameId: info?.[7] ? Number(info[7]) : 0,
         };
     });
 
     // Filter by search
     const filteredUsers = search
-        ? users.filter(u => u.wallet.toLowerCase().includes(search.toLowerCase()) || u.id.toString().includes(search))
+        ? users.filter(u => 
+            u.wallet.toLowerCase().includes(search.toLowerCase()) || 
+            u.id.toString().includes(search) ||
+            (u.usernameId > 0 && `BULL${u.usernameId}`.toLowerCase().includes(search.toLowerCase()))
+        )
         : users;
 
     const totalPages = Math.ceil(totalUsers / pageSize);
@@ -96,7 +102,7 @@ export function UsersTab() {
                 <div className="flex gap-2">
                     <input
                         type="text"
-                        placeholder="Search ID or wallet..."
+                        placeholder="Search ID, username, or wallet..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         className="flex-1 sm:w-48 bg-[#1E293B] border border-[#334155] rounded-lg px-3 py-2 text-xs text-[#F8FAFC] placeholder-[#64748B]"
@@ -127,6 +133,7 @@ export function UsersTab() {
                         <thead className="bg-[#0F172A]">
                             <tr>
                                 <th className="text-left p-3 text-[#64748B] font-medium">ID</th>
+                                <th className="text-left p-3 text-[#64748B] font-medium">Username</th>
                                 <th className="text-left p-3 text-[#64748B] font-medium">Wallet</th>
                                 <th className="text-left p-3 text-[#64748B] font-medium">Package</th>
                                 <th className="text-left p-3 text-[#64748B] font-medium">Invested</th>
@@ -138,13 +145,13 @@ export function UsersTab() {
                         <tbody className="divide-y divide-[#334155]">
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan={6} className="p-8 text-center text-[#64748B]">
+                                    <td colSpan={8} className="p-8 text-center text-[#64748B]">
                                         Loading...
                                     </td>
                                 </tr>
                             ) : filteredUsers.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="p-8 text-center text-[#64748B]">
+                                    <td colSpan={8} className="p-8 text-center text-[#64748B]">
                                         No users found
                                     </td>
                                 </tr>
@@ -153,6 +160,11 @@ export function UsersTab() {
                                     <tr key={user.id} className="hover:bg-[#0F172A]/50 transition-colors">
                                         <td className="p-3">
                                             <span className="text-[#EC4899] font-bold">#{user.id}</span>
+                                        </td>
+                                        <td className="p-3">
+                                            <span className="text-[#F59E0B] font-mono text-xs font-bold">
+                                                {user.usernameId > 0 ? `BULL${user.usernameId}` : '-'}
+                                            </span>
                                         </td>
                                         <td className="p-3">
                                             <span className="text-[#F8FAFC] font-mono text-xs">
