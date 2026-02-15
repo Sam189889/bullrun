@@ -86,7 +86,13 @@
   {
     "type": "function",
     "name": "checkAndAchieveRanks",
-    "inputs": [],
+    "inputs": [
+      {
+        "name": "_userId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
     "outputs": [],
     "stateMutability": "nonpayable"
   },

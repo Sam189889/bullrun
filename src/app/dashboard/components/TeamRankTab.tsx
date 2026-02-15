@@ -139,12 +139,12 @@ export function TeamRankTab() {
     const { data: referrals } = useDirectReferrals(userId as bigint);
 
     // Qualifying volume with 60:40 rule for each rank
-    // Rank requirements: Calf=$300, Bull=$2000, LeadBull=$10000, KingBull=$50000, Titan=$100000
-    const { data: qualifyingVolCalf } = useQualifyingVolume(userId as bigint, BigInt(300e18));
-    const { data: qualifyingVolBull } = useQualifyingVolume(userId as bigint, BigInt(2000e18));
-    const { data: qualifyingVolLeadBull } = useQualifyingVolume(userId as bigint, BigInt(10000e18));
-    const { data: qualifyingVolKingBull } = useQualifyingVolume(userId as bigint, BigInt(50000e18));
-    const { data: qualifyingVolTitan } = useQualifyingVolume(userId as bigint, BigInt(100000e18));
+    // Rank requirements: Calf=$200, Bull=$1000, LeadBull=$2500, KingBull=$7000, Titan=$15000
+    const { data: qualifyingVolCalf } = useQualifyingVolume(userId as bigint, BigInt(200e18));
+    const { data: qualifyingVolBull } = useQualifyingVolume(userId as bigint, BigInt(1000e18));
+    const { data: qualifyingVolLeadBull } = useQualifyingVolume(userId as bigint, BigInt(2500e18));
+    const { data: qualifyingVolKingBull } = useQualifyingVolume(userId as bigint, BigInt(7000e18));
+    const { data: qualifyingVolTitan } = useQualifyingVolume(userId as bigint, BigInt(15000e18));
 
 
     const qualifyingVolumeMap: Record<number, bigint | undefined> = {
@@ -383,11 +383,11 @@ export function TeamRankTab() {
                         {/* Check Ranks Button */}
                         <div className="mb-4">
                             <Button
-                                onClick={() => checkRanks?.()}
-                                disabled={isLookupMode || rankCheckPending || !isRegistered}
+                                onClick={() => userId && checkRanks?.(userId as bigint)}
+                                disabled={rankCheckPending || !isRegistered || !userId}
                                 className="w-full bg-gradient-to-r from-[#EC4899] to-[#8B5CF6] hover:from-[#DB2777] hover:to-[#7C3AED] text-white font-semibold py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                {rankCheckPending ? '⏳ Checking...' : isLookupMode ? '🔄 Check & Update Ranks (View Only)' : '🔄 Check & Update Ranks'}
+                                {rankCheckPending ? '⏳ Checking...' : '🔄 Check & Update Ranks'}
                             </Button>
                         </div>
 

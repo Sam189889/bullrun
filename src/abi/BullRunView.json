@@ -1,0 +1,440 @@
+[
+  {
+    "type": "constructor",
+    "inputs": [
+      {
+        "name": "_mainContract",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "getCurrentDay",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getCurrentWeek",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getDirectReferrals",
+    "inputs": [
+      {
+        "name": "_userId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getListedNFTs",
+    "inputs": [
+      {
+        "name": "_limit",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getPackageInfo",
+    "inputs": [
+      {
+        "name": "_level",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "price",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "directSponsorBonus",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "earningCap",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getPoolBalance",
+    "inputs": [
+      {
+        "name": "_poolType",
+        "type": "uint8",
+        "internalType": "enum IBullRunMainLogic.PoolType"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "balance",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getQualifyingVolume",
+    "inputs": [
+      {
+        "name": "_userId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "_requiredVolume",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getUserAllEarnings",
+    "inputs": [
+      {
+        "name": "_userId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "directSponsor",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "levelIncome",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "rankEmi",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "fastBonus",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "tradingLevelBonus",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "nftProfit",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "luckyDraw",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "tripReward",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "weeklyPool",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "nftRefunds",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getUserAvailableLimit",
+    "inputs": [
+      {
+        "name": "_userId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getUserDashboard",
+    "inputs": [
+      {
+        "name": "_userId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "referrerId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "usernameId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "packageLevel",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "earningCap",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "isActive",
+        "type": "bool",
+        "internalType": "bool"
+      },
+      {
+        "name": "totalEarned",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "availableBalance",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "claimedBalance",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "directReferralsCount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "teamSize",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "teamVolume",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "nftCount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "tradingVolume",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "availableLimit",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getUserInfo",
+    "inputs": [
+      {
+        "name": "_userId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "referrerId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "usernameId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "packageLevel",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "earningCap",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "isActive",
+        "type": "bool",
+        "internalType": "bool"
+      },
+      {
+        "name": "registeredAt",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "directReferralsCount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "teamSize",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getUserWallet",
+    "inputs": [
+      {
+        "name": "_userId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getWeeklyShareholders",
+    "inputs": [
+      {
+        "name": "_week",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "mainContract",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract IBullRunMainLogic"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "userExists",
+    "inputs": [
+      {
+        "name": "_userId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  }
+]

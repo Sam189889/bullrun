@@ -279,11 +279,12 @@ export function useClaimFastBonus() {
 export function useCheckAndAchieveRanks() {
     const { writeContract, ...rest } = useWriteContract()
 
-    const checkRanks = () => {
+    const checkRanks = (userId: bigint) => {
         writeContract({
             address: contracts.bullRun,
             abi: BullRunMainLogicABI,
             functionName: 'checkAndAchieveRanks',
+            args: [userId],
         })
     }
 
