@@ -534,6 +534,22 @@ export function useUserWeeklyShares(userId: bigint | undefined, weekNumber: numb
 }
 
 /**
+ * Get user's trading volume for a specific week (for milestone tracking)
+ */
+export function useUserWeeklyTradingVolume(userId: bigint | undefined, weekNumber: number) {
+    return useReadContract({
+        address: contracts.bullRun,
+        abi: BullRunMainLogicABI,
+        functionName: 'userWeeklyTradingVolume',
+        args: userId ? [userId, BigInt(weekNumber)] : undefined,
+        query: { 
+            enabled: !!userId && userId > BigInt(0) && weekNumber > 0,
+            refetchInterval: 5000, // Refetch every 5 seconds for live updates
+        },
+    })
+}
+
+/**
  * Get total shares for current week
  */
 export function useTotalWeeklyShares() {

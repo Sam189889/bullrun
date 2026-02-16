@@ -75,6 +75,58 @@ export function useLuckyDrawPool() {
 }
 
 /**
+ * Check if a week's pool has been distributed
+ */
+export function useWeekDistributed(week: bigint | undefined) {
+    return useReadContract({
+        address: CONTRACTS.BULL_RUN,
+        abi: BullRunMainLogicABI,
+        functionName: 'weekDistributed',
+        args: week ? [week] : undefined,
+        query: { enabled: !!week }
+    })
+}
+
+/**
+ * Get weekly pool amount for a specific week
+ */
+export function useWeeklyPoolPerWeek(week: bigint | undefined) {
+    return useReadContract({
+        address: CONTRACTS.BULL_RUN,
+        abi: BullRunMainLogicABI,
+        functionName: 'weeklyPoolPerWeek',
+        args: week ? [week] : undefined,
+        query: { enabled: !!week }
+    })
+}
+
+/**
+ * Check if a week's lucky draw has been done
+ */
+export function useWeekLuckyDrawn(week: bigint | undefined) {
+    return useReadContract({
+        address: CONTRACTS.BULL_RUN,
+        abi: BullRunMainLogicABI,
+        functionName: 'weekLuckyDrawn',
+        args: week ? [week] : undefined,
+        query: { enabled: !!week }
+    })
+}
+
+/**
+ * Get lucky draw pool amount for a specific week
+ */
+export function useLuckyDrawPoolPerWeek(week: bigint | undefined) {
+    return useReadContract({
+        address: CONTRACTS.BULL_RUN,
+        abi: BullRunMainLogicABI,
+        functionName: 'luckyDrawPoolPerWeek',
+        args: week ? [week] : undefined,
+        query: { enabled: !!week }
+    })
+}
+
+/**
  * Get total users count
  */
 export function useTotalUsers() {

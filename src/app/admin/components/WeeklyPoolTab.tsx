@@ -11,7 +11,11 @@ import {
     useDrawLuckyWinner,
     useGetWeeklyShareholders,
     useUserWeeklyShares,
-    useWeekStartTimestamp
+    useWeekStartTimestamp,
+    useWeeklyPoolPerWeek,
+    useLuckyDrawPoolPerWeek,
+    useWeekDistributed,
+    useWeekLuckyDrawn
 } from '@/hooks/useAdminContracts';
 import { useLuckyDrawEntryEvents, useAllLuckyDrawWinners } from '@/hooks/useEvents';
 import { Card } from '@/components/ui/Card';
@@ -24,6 +28,11 @@ export function WeeklyPoolTab() {
     const { data: currentWeek, refetch: refetchWeek } = useGetCurrentWeek();
     const { data: luckyDrawPoolData, refetch: refetchLuckyDraw } = useLuckyDrawPool();
     const { data: weekStartTimestamp } = useWeekStartTimestamp();
+
+    // Get current week per-week balances
+    const currentWeekNum = currentWeek ? BigInt(currentWeek.toString()) : undefined;
+    const { data: currentWeekSharePool } = useWeeklyPoolPerWeek(currentWeekNum);
+    const { data: currentWeekLuckyPool } = useLuckyDrawPoolPerWeek(currentWeekNum);
 
     // Countdown timer state
     const [countdown, setCountdown] = useState('');
@@ -86,7 +95,7 @@ export function WeeklyPoolTab() {
                 <Card variant="glow">
                     <div className="flex items-center gap-2 mb-1">
                         <span className="text-lg">📊</span>
-                        <p className="text-[#64748B] text-xs">Weekly Pool</p>
+                        <p className="text-[#64748B] text-xs">Share Pool (Global)</p>
                     </div>
                     <p className="text-2xl font-bold text-[#EC4899] font-mono">{formatUSDT(weeklyBalance as bigint)}</p>
                 </Card>
@@ -107,7 +116,7 @@ export function WeeklyPoolTab() {
                 <Card variant="glow">
                     <div className="flex items-center gap-2 mb-1">
                         <span className="text-lg">🎰</span>
-                        <p className="text-[#64748B] text-xs">Lucky Draw Pool</p>
+                        <p className="text-[#64748B] text-xs">Lucky Draw (Global)</p>
                     </div>
                     <p className="text-2xl font-bold text-[#D946EF] font-mono">{formatUSDT(luckyDrawBalance)}</p>
                 </Card>
@@ -140,6 +149,7 @@ export function WeeklyPoolTab() {
                     label="Current Week (Ongoing)" 
                     status="ongoing"
                     canDistribute={false}
+                    poolBalance={currentWeekSharePool as bigint | undefined}
                 />
                 <WeekCard 
                     week={currentWeek && Number(currentWeek) > 0 ? BigInt(Number(currentWeek) - 1) : undefined}
@@ -158,6 +168,7 @@ export function WeeklyPoolTab() {
                         week={currentWeek ? BigInt(currentWeek.toString()) : undefined}
                         label="Current Week (Ongoing)"
                         status="ongoing"
+                        poolBalance={currentWeekLuckyPool as bigint | undefined}
                     />
                     <LuckyDrawCard 
                         week={currentWeek && Number(currentWeek) > 0 ? BigInt(Number(currentWeek) - 1) : undefined}
@@ -186,21 +197,29 @@ function ShareholderRow({ userId, week }: { userId: bigint; week: bigint | undef
 }
 
 // Week Card - Shows week stats and distribution controls
-function WeekCard({ week, label, status, canDistribute, onSuccess }: { 
+function WeekCard({ week, label, status, canDistribute, onSuccess, poolBalance }: { 
     week: bigint | undefined; 
     label: string;
     status: 'ongoing' | 'completed';
     canDistribute: boolean;
     onSuccess?: () => void;
+    poolBalance?: bigint;
 }) {
     const toastShown = useRef(false);
     const [showList, setShowList] = useState(false);
 
     const { distribute, isPending, isConfirming, isSuccess, error } = useDistributeWeeklyPool();
     const { data: shareholders } = useGetWeeklyShareholders(week);
+    const { data: isDistributed } = useWeekDistributed(week);
 
     const shareholderIds = shareholders ? (shareholders as bigint[]) : [];
     const shareholderCount = shareholderIds.length;
+    const alreadyDistributed = isDistributed === true;
+
+    const formatUSDT = (value: bigint | undefined) => {
+        if (!value) return '$0';
+        return `$${Number(formatUnits(value, 18)).toLocaleString()}`;
+    };
 
     useEffect(() => {
         if (isSuccess && !toastShown.current) {
@@ -239,18 +258,25 @@ function WeekCard({ week, label, status, canDistribute, onSuccess }: {
                         variant="primary"
                         size="sm"
                         onClick={handleDistribute}
-                        disabled={isPending || isConfirming || shareholderCount === 0 || !canDistribute}
+                        disabled={isPending || isConfirming || shareholderCount === 0 || !canDistribute || alreadyDistributed}
                     >
-                        {isPending || isConfirming ? 'Distributing...' : '💸 Distribute'}
+                        {alreadyDistributed ? '✅ Distributed' : (isPending || isConfirming ? 'Distributing...' : '💸 Distribute')}
                     </Button>
                 )}
             </div>
 
             {/* Stats Subcards */}
-            <div className="p-3 bg-[#0F172A] rounded-lg text-center mb-4">
-                <p className="text-[#64748B] text-xs mb-1">👥 Shareholders</p>
-                <p className="text-xl font-bold text-[#10B981] font-mono">{shareholderCount}</p>
-                <p className="text-xs text-[#64748B] mt-1">Total: {shareholderCount} users</p>
+            <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="p-3 bg-[#0F172A] rounded-lg text-center">
+                    <p className="text-[#64748B] text-xs mb-1">💰 Pool</p>
+                    <p className="text-lg font-bold text-[#EC4899] font-mono">{formatUSDT(poolBalance)}</p>
+                    <p className="text-xs text-[#64748B] mt-1">Week Balance</p>
+                </div>
+                <div className="p-3 bg-[#0F172A] rounded-lg text-center">
+                    <p className="text-[#64748B] text-xs mb-1">👥 Shareholders</p>
+                    <p className="text-lg font-bold text-[#10B981] font-mono">{shareholderCount}</p>
+                    <p className="text-xs text-[#64748B] mt-1">Total Users</p>
+                </div>
             </div>
 
             {/* Toggle Shareholders */}
@@ -283,11 +309,12 @@ function WeekCard({ week, label, status, canDistribute, onSuccess }: {
 }
 
 // Lucky Draw Card - Shows entries for a specific week and draw controls
-function LuckyDrawCard({ week, label, status, onSuccess }: { 
+function LuckyDrawCard({ week, label, status, onSuccess, poolBalance }: { 
     week: bigint | undefined; 
     label: string;
     status: 'ongoing' | 'completed';
     onSuccess?: () => void;
+    poolBalance?: bigint;
 }) {
     const [showEntries, setShowEntries] = useState(false);
     const toastShown = useRef(false);
@@ -295,6 +322,9 @@ function LuckyDrawCard({ week, label, status, onSuccess }: {
     const { events: entries, isLoading: entriesLoading, refetch: refetchEntries } = useLuckyDrawEntryEvents(week);
     const { events: winners, isLoading: winnersLoading, refetch: refetchWinners } = useAllLuckyDrawWinners();
     const { drawWinner, isPending, isConfirming, isSuccess, error } = useDrawLuckyWinner();
+    const { data: isDrawn } = useWeekLuckyDrawn(week);
+
+    const alreadyDrawn = isDrawn === true;
 
     useEffect(() => {
         if (isSuccess && !toastShown.current) {
@@ -340,18 +370,25 @@ function LuckyDrawCard({ week, label, status, onSuccess }: {
                         variant="primary"
                         size="sm"
                         onClick={handleDrawWinner}
-                        disabled={isPending || isConfirming || entries.length === 0}
+                        disabled={isPending || isConfirming || entries.length === 0 || alreadyDrawn}
                     >
-                        {isPending || isConfirming ? 'Drawing...' : '🎲 Draw Winner'}
+                        {alreadyDrawn ? '✅ Drawn' : (isPending || isConfirming ? 'Drawing...' : '🎲 Draw Winner')}
                     </Button>
                 )}
             </div>
 
             {/* Stats Subcards */}
-            <div className="p-3 bg-[#0F172A] rounded-lg text-center mb-4">
-                <p className="text-[#64748B] text-xs mb-1">🎫 Participants</p>
-                <p className="text-xl font-bold text-[#D946EF] font-mono">{entries.length}</p>
-                <p className="text-xs text-[#64748B] mt-1">Total: {entries.length} users</p>
+            <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="p-3 bg-[#0F172A] rounded-lg text-center">
+                    <p className="text-[#64748B] text-xs mb-1">💰 Prize</p>
+                    <p className="text-lg font-bold text-[#D946EF] font-mono">{formatUSDT(poolBalance)}</p>
+                    <p className="text-xs text-[#64748B] mt-1">Week Balance</p>
+                </div>
+                <div className="p-3 bg-[#0F172A] rounded-lg text-center">
+                    <p className="text-[#64748B] text-xs mb-1">🎫 Participants</p>
+                    <p className="text-lg font-bold text-[#10B981] font-mono">{entries.length}</p>
+                    <p className="text-xs text-[#64748B] mt-1">Total Users</p>
+                </div>
             </div>
 
             {/* Toggle Participants */}
