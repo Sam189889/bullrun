@@ -31,8 +31,10 @@ export function WeeklyPoolTab() {
 
     // Get current week per-week balances
     const currentWeekNum = currentWeek ? BigInt(currentWeek.toString()) : undefined;
+    const prevWeekNum = currentWeek && Number(currentWeek) > 0 ? BigInt(Number(currentWeek) - 1) : undefined;
     const { data: currentWeekSharePool } = useWeeklyPoolPerWeek(currentWeekNum);
     const { data: currentWeekLuckyPool } = useLuckyDrawPoolPerWeek(currentWeekNum);
+    const { data: prevWeekLuckyPool } = useLuckyDrawPoolPerWeek(prevWeekNum);
 
     // Countdown timer state
     const [countdown, setCountdown] = useState('');
@@ -175,6 +177,7 @@ export function WeeklyPoolTab() {
                         label="Previous Week (Completed)"
                         status="completed"
                         onSuccess={refetchAll}
+                        poolBalance={prevWeekLuckyPool as bigint | undefined}
                     />
                 </div>
             </div>

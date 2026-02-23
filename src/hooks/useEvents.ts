@@ -9,6 +9,26 @@ import { PublicClient, Log } from 'viem'
 
 // opBNB Mainnet has a 50k block range limit for eth_getLogs
 const MAX_BLOCK_RANGE = BigInt(45000)
+const MIN_BLOCK_RANGE = BigInt(1000)
+
+type EventCacheEntry = {
+    logs: Log[]
+    lastBlock: bigint
+    fromBlock: bigint
+}
+
+const EVENT_CACHE = new Map<string, EventCacheEntry>()
+
+const serializeArgs = (args?: Record<string, unknown>) => {
+    if (!args) return 'all'
+    return JSON.stringify(args, (_, value) =>
+        typeof value === 'bigint' ? value.toString() : value
+    )
+}
+
+const buildCacheKey = (params: { address: `0x${string}`; eventName: string; args?: Record<string, unknown>; fromBlock: bigint }) => {
+    return `${params.address}-${params.eventName}-${params.fromBlock}-${serializeArgs(params.args)}`
+}
 
 /**
  * Fetch events in chunks of 45k blocks (opBNB mainnet limit is 50k)
@@ -28,28 +48,81 @@ async function fetchEventsInChunks(
     const { fromBlock, toBlock, ...restParams } = params
     const allLogs: Log[] = []
 
-    let currentFrom = fromBlock
+    const cacheKey = buildCacheKey({
+        address: params.address,
+        eventName: params.eventName,
+        args: params.args,
+        fromBlock,
+    })
+    const cached = EVENT_CACHE.get(cacheKey)
+    let cachedLogs: Log[] = []
+    let startBlock = fromBlock
+
+    if (cached && cached.fromBlock === fromBlock) {
+        cachedLogs = cached.logs
+        startBlock = cached.lastBlock + BigInt(1)
+    }
+
+    if (startBlock > toBlock) {
+        return cachedLogs
+    }
+
+    const isLimitExceeded = (err: unknown) => {
+        const message = err instanceof Error ? err.message : String(err)
+        return message.toLowerCase().includes('limit') && message.toLowerCase().includes('exceed')
+    }
+
+    const fetchChunk = async (chunkFrom: bigint, chunkTo: bigint): Promise<Log[]> => {
+        try {
+            const logs = await getContractEvents(publicClient, {
+                ...restParams,
+                fromBlock: chunkFrom,
+                toBlock: chunkTo,
+            } as any)
+            return logs as Log[]
+        } catch (err) {
+            if (isLimitExceeded(err) && chunkFrom < chunkTo) {
+                const range = chunkTo - chunkFrom
+                if (range <= MIN_BLOCK_RANGE) {
+                    console.warn(`[fetchEventsInChunks] Limit exceeded at min range ${chunkFrom}-${chunkTo}`, err)
+                    throw err
+                }
+
+                const mid = chunkFrom + (range / BigInt(2))
+                const left = await fetchChunk(chunkFrom, mid)
+                const right = await fetchChunk(mid + BigInt(1), chunkTo)
+                return [...left, ...right]
+            }
+
+            throw err
+        }
+    }
+
+    let currentFrom = startBlock
     while (currentFrom < toBlock) {
         const currentTo = currentFrom + MAX_BLOCK_RANGE > toBlock
             ? toBlock
             : currentFrom + MAX_BLOCK_RANGE
 
         try {
-            const logs = await getContractEvents(publicClient, {
-                ...restParams,
-                fromBlock: currentFrom,
-                toBlock: currentTo,
-            } as any)
-            allLogs.push(...(logs as Log[]))
+            const logs = await fetchChunk(currentFrom, currentTo)
+            allLogs.push(...logs)
         } catch (err) {
             console.warn(`[fetchEventsInChunks] Chunk ${currentFrom}-${currentTo} failed:`, err)
-            // Continue with next chunk
+            throw err
         }
 
         currentFrom = currentTo + BigInt(1)
     }
 
-    return allLogs
+    const mergedLogs = cachedLogs.length > 0 ? [...cachedLogs, ...allLogs] : allLogs
+    EVENT_CACHE.set(cacheKey, {
+        logs: mergedLogs,
+        lastBlock: toBlock,
+        fromBlock,
+    })
+
+    return mergedLogs
 }
 
 // Event types for type safety
