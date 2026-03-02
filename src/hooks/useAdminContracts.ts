@@ -3,7 +3,7 @@
 import { useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { parseUnits } from 'viem'
 import { CONTRACTS } from '@/config/constants'
-import { BullRunMainLogicABI, USDTbABI } from '@/abi'
+import { BullRunMainLogicABI, BullRunViewABI, USDTbABI } from '@/abi'
 
 // ============ READ HOOKS ============
 
@@ -413,8 +413,8 @@ export function useDistributeWeeklyPool() {
  */
 export function useGetWeeklyShareholders(week: bigint | undefined) {
     return useReadContract({
-        address: CONTRACTS.BULL_RUN,
-        abi: BullRunMainLogicABI,
+        address: CONTRACTS.BULL_RUN_VIEW,
+        abi: BullRunViewABI,
         functionName: 'getWeeklyShareholders',
         args: week ? [week] : undefined,
         query: { enabled: !!week }
@@ -660,8 +660,8 @@ export enum PoolType {
  */
 export function useGetPoolBalance(poolType: PoolType) {
     return useReadContract({
-        address: CONTRACTS.BULL_RUN,
-        abi: BullRunMainLogicABI,
+        address: CONTRACTS.BULL_RUN_VIEW,
+        abi: BullRunViewABI,
         functionName: 'getPoolBalance',
         args: [poolType],
     })
@@ -672,38 +672,38 @@ export function useGetPoolBalance(poolType: PoolType) {
  */
 export function useAllPoolBalances() {
     const weekly = useReadContract({
-        address: CONTRACTS.BULL_RUN,
-        abi: BullRunMainLogicABI,
+        address: CONTRACTS.BULL_RUN_VIEW,
+        abi: BullRunViewABI,
         functionName: 'getPoolBalance',
         args: [PoolType.WEEKLY_POOL],
     })
     const luckyDraw = useReadContract({
-        address: CONTRACTS.BULL_RUN,
-        abi: BullRunMainLogicABI,
+        address: CONTRACTS.BULL_RUN_VIEW,
+        abi: BullRunViewABI,
         functionName: 'getPoolBalance',
         args: [PoolType.LUCKY_DRAW_POOL],
     })
     const rankEmi = useReadContract({
-        address: CONTRACTS.BULL_RUN,
-        abi: BullRunMainLogicABI,
+        address: CONTRACTS.BULL_RUN_VIEW,
+        abi: BullRunViewABI,
         functionName: 'getPoolBalance',
         args: [PoolType.RANK_EMI_POOL],
     })
     const trip = useReadContract({
-        address: CONTRACTS.BULL_RUN,
-        abi: BullRunMainLogicABI,
+        address: CONTRACTS.BULL_RUN_VIEW,
+        abi: BullRunViewABI,
         functionName: 'getPoolBalance',
         args: [PoolType.TRIP_POOL],
     })
     const buysell = useReadContract({
-        address: CONTRACTS.BULL_RUN,
-        abi: BullRunMainLogicABI,
+        address: CONTRACTS.BULL_RUN_VIEW,
+        abi: BullRunViewABI,
         functionName: 'getPoolBalance',
         args: [PoolType.BUYSELL_POOL],
     })
     const buffer = useReadContract({
-        address: CONTRACTS.BULL_RUN,
-        abi: BullRunMainLogicABI,
+        address: CONTRACTS.BULL_RUN_VIEW,
+        abi: BullRunViewABI,
         functionName: 'getPoolBalance',
         args: [PoolType.BUFFER_POOL],
     })

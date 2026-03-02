@@ -2,7 +2,7 @@
 
 import { useReadContract, useWriteContract, useAccount } from 'wagmi'
 import { contracts } from '@/config/wagmi'
-import { BullRunMainLogicABI, USDTbABI } from '@/abi'
+import { BullRunMainLogicABI, BullRunViewABI, USDTbABI } from '@/abi'
 
 // ============ READ HOOKS ============
 
@@ -14,8 +14,8 @@ export function useUserId(address?: `0x${string}`) {
     const wallet = address || connectedAddress
 
     return useReadContract({
-        address: contracts.bullRun,
-        abi: BullRunMainLogicABI,
+        address: contracts.bullRunView,
+        abi: BullRunViewABI,
         functionName: 'getUserIdByWallet',
         args: wallet ? [wallet] : undefined,
         query: { enabled: !!wallet },
@@ -27,8 +27,8 @@ export function useUserId(address?: `0x${string}`) {
  */
 export function useUserInfo(userId: bigint | undefined) {
     return useReadContract({
-        address: contracts.bullRun,
-        abi: BullRunMainLogicABI,
+        address: contracts.bullRunView,
+        abi: BullRunViewABI,
         functionName: 'getUserInfo',
         args: userId ? [userId] : undefined,
         query: { enabled: !!userId && userId > BigInt(0) },
@@ -40,8 +40,8 @@ export function useUserInfo(userId: bigint | undefined) {
  */
 export function useDirectReferrals(userId: bigint | undefined) {
     return useReadContract({
-        address: contracts.bullRun,
-        abi: BullRunMainLogicABI,
+        address: contracts.bullRunView,
+        abi: BullRunViewABI,
         functionName: 'getDirectReferrals',
         args: userId ? [userId] : undefined,
         query: { enabled: !!userId && userId > BigInt(0) },
@@ -94,8 +94,8 @@ export function useUserTeamVolume(userId: bigint | undefined) {
  */
 export function useQualifyingVolume(userId: bigint | undefined, requiredVolume: bigint) {
     return useReadContract({
-        address: contracts.bullRun,
-        abi: BullRunMainLogicABI,
+        address: contracts.bullRunView,
+        abi: BullRunViewABI,
         functionName: 'getQualifyingVolume',
         args: userId ? [userId, requiredVolume] : undefined,
         query: { enabled: !!userId && userId > BigInt(0) },
@@ -159,8 +159,8 @@ export function useUserExists(userId: bigint | undefined) {
  */
 export function usePackage(packageLevel: bigint | undefined) {
     return useReadContract({
-        address: contracts.bullRun,
-        abi: BullRunMainLogicABI,
+        address: contracts.bullRunView,
+        abi: BullRunViewABI,
         functionName: 'getPackageInfo',
         args: packageLevel ? [packageLevel] : undefined,
         query: { enabled: !!packageLevel && packageLevel > BigInt(0) },
@@ -409,8 +409,8 @@ export function useNFT(nftId: bigint | undefined) {
  */
 export function useUserAvailableLimit(userId: bigint | undefined) {
     return useReadContract({
-        address: contracts.bullRun,
-        abi: BullRunMainLogicABI,
+        address: contracts.bullRunView,
+        abi: BullRunViewABI,
         functionName: 'getUserAvailableLimit',
         args: userId ? [userId] : undefined,
         query: {

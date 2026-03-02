@@ -3,6 +3,8 @@ export const CONTRACTS = {
     USDT: '0x9e5AAC1Ba1a2e6aEd6b32689DFcF62A509Ca96f3' as `0x${string}`,  // Official opBNB USDT
     // Mainnet Deploy (2026-02-02)
     BULL_RUN: '0x31b8e2e95ee6bce2f2e139d76d25c53ceeeb1f2b' as `0x${string}`,
+    // Read-only view contract (deployed 2026-03-02)
+    BULL_RUN_VIEW: '0xF56d845Bec6e462fCab75C8762495e5830332B08' as `0x${string}`,
     PROXY_ADMIN: '0xbb959AE86fCaa0A226181F1AcDd4251298031F0C' as `0x${string}`,
     // RevenueSplitter (2026-02-03)
     REVENUE_SPLITTER: '0x5B72922F40bfD64Ce319eC26f1C2244A690b063A' as `0x${string}`,

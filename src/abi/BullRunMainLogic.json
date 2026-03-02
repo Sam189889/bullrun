@@ -302,89 +302,7 @@
   },
   {
     "type": "function",
-    "name": "getDirectReferrals",
-    "inputs": [
-      {
-        "name": "userId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256[]",
-        "internalType": "uint256[]"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "getPackageInfo",
-    "inputs": [
-      {
-        "name": "level",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "price",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "wps",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "tpv",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "dailyBidLimit",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "earningCap",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "isActive",
-        "type": "bool",
-        "internalType": "bool"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "getPoolBalance",
-    "inputs": [
-      {
-        "name": "_poolType",
-        "type": "uint8",
-        "internalType": "enum BullRunMainLogic.PoolType"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "balance",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "getQualifyingVolume",
+    "name": "getDirectReferralAt",
     "inputs": [
       {
         "name": "_userId",
@@ -392,7 +310,7 @@
         "internalType": "uint256"
       },
       {
-        "name": "_requiredVolume",
+        "name": "_index",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -408,7 +326,7 @@
   },
   {
     "type": "function",
-    "name": "getUserAvailableLimit",
+    "name": "getDirectReferralCount",
     "inputs": [
       {
         "name": "_userId",
@@ -427,12 +345,17 @@
   },
   {
     "type": "function",
-    "name": "getUserIdByWallet",
+    "name": "getWeeklyShareholderAt",
     "inputs": [
       {
-        "name": "wallet",
-        "type": "address",
-        "internalType": "address"
+        "name": "_week",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "_index",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "outputs": [
@@ -446,87 +369,7 @@
   },
   {
     "type": "function",
-    "name": "getUserInfo",
-    "inputs": [
-      {
-        "name": "userId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "tuple",
-        "internalType": "struct BullRunMainLogic.User",
-        "components": [
-          {
-            "name": "referrerId",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "packageLevel",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "totalInvested",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "earningCap",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "isActive",
-            "type": "bool",
-            "internalType": "bool"
-          },
-          {
-            "name": "activationDate",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "directReferralsCount",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "usernameId",
-            "type": "uint256",
-            "internalType": "uint256"
-          }
-        ]
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "getUserWallet",
-    "inputs": [
-      {
-        "name": "userId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "getWeeklyShareholders",
+    "name": "getWeeklyShareholderCount",
     "inputs": [
       {
         "name": "_week",
@@ -537,8 +380,8 @@
     "outputs": [
       {
         "name": "",
-        "type": "uint256[]",
-        "internalType": "uint256[]"
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "stateMutability": "view"
@@ -565,25 +408,6 @@
     "type": "function",
     "name": "initialized",
     "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "isUserRegistered",
-    "inputs": [
-      {
-        "name": "wallet",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
     "outputs": [
       {
         "name": "",

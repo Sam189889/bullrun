@@ -49,5 +49,6 @@ export const config = createConfig({
 export const contracts = {
   usdt: CONTRACTS.USDT,
   bullRun: CONTRACTS.BULL_RUN,
+  bullRunView: CONTRACTS.BULL_RUN_VIEW,
   proxyAdmin: CONTRACTS.PROXY_ADMIN,
 }
