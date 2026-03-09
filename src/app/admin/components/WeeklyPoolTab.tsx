@@ -15,7 +15,11 @@ import {
     useWeeklyPoolPerWeek,
     useLuckyDrawPoolPerWeek,
     useWeekDistributed,
-    useWeekLuckyDrawn
+    useWeekLuckyDrawn,
+    useSetWeeklyPoolGlobalBalance,
+    useSetLuckyDrawPoolGlobalBalance,
+    useSetWeeklyPoolAmount,
+    useSetLuckyDrawPoolAmount
 } from '@/hooks/useAdminContracts';
 import { useLuckyDrawEntryEvents, useAllLuckyDrawWinners } from '@/hooks/useEvents';
 import { Card } from '@/components/ui/Card';
@@ -33,8 +37,47 @@ export function WeeklyPoolTab() {
     const currentWeekNum = currentWeek ? BigInt(currentWeek.toString()) : undefined;
     const prevWeekNum = currentWeek && Number(currentWeek) > 0 ? BigInt(Number(currentWeek) - 1) : undefined;
     const { data: currentWeekSharePool } = useWeeklyPoolPerWeek(currentWeekNum);
+    const { data: prevWeekSharePool } = useWeeklyPoolPerWeek(prevWeekNum);
     const { data: currentWeekLuckyPool } = useLuckyDrawPoolPerWeek(currentWeekNum);
     const { data: prevWeekLuckyPool } = useLuckyDrawPoolPerWeek(prevWeekNum);
+
+    const [targetWeekInput, setTargetWeekInput] = useState('');
+    const [targetWeek, setTargetWeek] = useState<bigint | undefined>(prevWeekNum);
+    const [weeklyGlobalInput, setWeeklyGlobalInput] = useState('');
+    const [luckyGlobalInput, setLuckyGlobalInput] = useState('');
+    const [weeklyWeekInput, setWeeklyWeekInput] = useState('');
+    const [luckyWeekInput, setLuckyWeekInput] = useState('');
+
+    const { data: targetWeekSharePool, refetch: refetchTargetWeekSharePool } = useWeeklyPoolPerWeek(targetWeek);
+    const { data: targetWeekLuckyPool, refetch: refetchTargetWeekLuckyPool } = useLuckyDrawPoolPerWeek(targetWeek);
+
+    const {
+        setWeeklyPoolGlobalBalance,
+        isPending: isWeeklyGlobalPending,
+        isConfirming: isWeeklyGlobalConfirming,
+        isSuccess: isWeeklyGlobalSuccess,
+    } = useSetWeeklyPoolGlobalBalance();
+
+    const {
+        setLuckyDrawPoolGlobalBalance,
+        isPending: isLuckyGlobalPending,
+        isConfirming: isLuckyGlobalConfirming,
+        isSuccess: isLuckyGlobalSuccess,
+    } = useSetLuckyDrawPoolGlobalBalance();
+
+    const {
+        setWeeklyPoolAmount,
+        isPending: isWeeklyWeekPending,
+        isConfirming: isWeeklyWeekConfirming,
+        isSuccess: isWeeklyWeekSuccess,
+    } = useSetWeeklyPoolAmount();
+
+    const {
+        setLuckyDrawPoolAmount,
+        isPending: isLuckyWeekPending,
+        isConfirming: isLuckyWeekConfirming,
+        isSuccess: isLuckyWeekSuccess,
+    } = useSetLuckyDrawPoolAmount();
 
     // Countdown timer state
     const [countdown, setCountdown] = useState('');
@@ -70,6 +113,31 @@ export function WeeklyPoolTab() {
         return () => clearInterval(interval);
     }, [weekStartTimestamp, currentWeek]);
 
+    useEffect(() => {
+        if (!targetWeek && prevWeekNum) {
+            setTargetWeek(prevWeekNum);
+            setTargetWeekInput(prevWeekNum.toString());
+        }
+    }, [targetWeek, prevWeekNum]);
+
+    useEffect(() => {
+        if (isWeeklyGlobalSuccess || isLuckyGlobalSuccess || isWeeklyWeekSuccess || isLuckyWeekSuccess) {
+            refetchBalance();
+            refetchLuckyDraw();
+            refetchTargetWeekSharePool();
+            refetchTargetWeekLuckyPool();
+        }
+    }, [
+        isWeeklyGlobalSuccess,
+        isLuckyGlobalSuccess,
+        isWeeklyWeekSuccess,
+        isLuckyWeekSuccess,
+        refetchBalance,
+        refetchLuckyDraw,
+        refetchTargetWeekSharePool,
+        refetchTargetWeekLuckyPool,
+    ]);
+
     const formatUSDT = (value: bigint | undefined) => {
         if (!value) return '$0';
         return `$${Number(formatUnits(value, 18)).toLocaleString()}`;
@@ -82,6 +150,60 @@ export function WeeklyPoolTab() {
         refetchShares();
         refetchWeek();
         refetchLuckyDraw();
+    };
+
+    const isValidAmount = (value: string) => {
+        if (value.trim() === '') return false;
+        const parsed = Number(value);
+        return !Number.isNaN(parsed) && parsed >= 0;
+    };
+
+    const handleFetchWeek = () => {
+        if (!/^\d+$/.test(targetWeekInput) || targetWeekInput === '0') {
+            toast.error('Enter a valid week number (> 0)');
+            return;
+        }
+        setTargetWeek(BigInt(targetWeekInput));
+    };
+
+    const handleSetWeeklyGlobal = () => {
+        if (!isValidAmount(weeklyGlobalInput)) {
+            toast.error('Enter valid share global amount');
+            return;
+        }
+        setWeeklyPoolGlobalBalance(weeklyGlobalInput);
+    };
+
+    const handleSetLuckyGlobal = () => {
+        if (!isValidAmount(luckyGlobalInput)) {
+            toast.error('Enter valid lucky global amount');
+            return;
+        }
+        setLuckyDrawPoolGlobalBalance(luckyGlobalInput);
+    };
+
+    const handleSetWeeklyWeek = () => {
+        if (!targetWeek) {
+            toast.error('Fetch week first');
+            return;
+        }
+        if (!isValidAmount(weeklyWeekInput)) {
+            toast.error('Enter valid weekly share amount');
+            return;
+        }
+        setWeeklyPoolAmount(targetWeek, weeklyWeekInput);
+    };
+
+    const handleSetLuckyWeek = () => {
+        if (!targetWeek) {
+            toast.error('Fetch week first');
+            return;
+        }
+        if (!isValidAmount(luckyWeekInput)) {
+            toast.error('Enter valid lucky draw amount');
+            return;
+        }
+        setLuckyDrawPoolAmount(targetWeek, luckyWeekInput);
     };
 
     return (
@@ -159,6 +281,7 @@ export function WeeklyPoolTab() {
                     status="completed"
                     canDistribute={canDistribute}
                     onSuccess={refetchAll}
+                    poolBalance={prevWeekSharePool as bigint | undefined}
                 />
             </div>
 
@@ -181,6 +304,143 @@ export function WeeklyPoolTab() {
                     />
                 </div>
             </div>
+
+            {/* Pool Balance Adjustments */}
+            <Card variant="glow">
+                <div className="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 className="text-lg font-bold text-[#F8FAFC]">🛠️ Pool Balance Adjustment</h3>
+                        <p className="text-xs text-[#64748B]">Global pools direct adjust karo, weekly pools week input se fetch/update karo</p>
+                    </div>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                            refetchAll();
+                            refetchTargetWeekSharePool();
+                            refetchTargetWeekLuckyPool();
+                        }}
+                    >
+                        ↻ Refresh
+                    </Button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div className="p-3 bg-[#0F172A] rounded-lg border border-[#1E293B]">
+                        <p className="text-xs text-[#64748B] mb-2">Global Balances</p>
+                        <div className="space-y-1 text-sm">
+                            <p className="text-[#F8FAFC]">Share Pool: <span className="font-mono text-[#EC4899]">{formatUSDT(weeklyBalance as bigint)}</span></p>
+                            <p className="text-[#F8FAFC]">Lucky Draw: <span className="font-mono text-[#D946EF]">{formatUSDT(luckyDrawBalance)}</span></p>
+                        </div>
+                    </div>
+                    <div className="p-3 bg-[#0F172A] rounded-lg border border-[#1E293B]">
+                        <p className="text-xs text-[#64748B] mb-2">Last Week Snapshot (Week {prevWeekNum?.toString() || '0'})</p>
+                        <div className="space-y-1 text-sm">
+                            <p className="text-[#F8FAFC]">Share Pool: <span className="font-mono text-[#EC4899]">{formatUSDT(prevWeekSharePool as bigint)}</span></p>
+                            <p className="text-[#F8FAFC]">Lucky Draw: <span className="font-mono text-[#D946EF]">{formatUSDT(prevWeekLuckyPool as bigint)}</span></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div className="p-4 bg-[#0F172A] rounded-lg border border-[#1E293B] space-y-3">
+                        <p className="text-sm font-semibold text-[#F8FAFC]">Global Pools Adjust</p>
+                        <div className="space-y-2">
+                            <label className="block text-xs text-[#64748B]">Share Pool Global (USDT)</label>
+                            <div className="flex gap-2">
+                                <input
+                                    value={weeklyGlobalInput}
+                                    onChange={(e) => setWeeklyGlobalInput(e.target.value)}
+                                    placeholder="e.g. 12500"
+                                    className="w-full rounded-lg border border-[#334155] bg-[#020617] px-3 py-2 text-sm text-[#F8FAFC] focus:outline-none focus:border-[#EC4899]"
+                                />
+                                <Button
+                                    size="sm"
+                                    onClick={handleSetWeeklyGlobal}
+                                    disabled={isWeeklyGlobalPending || isWeeklyGlobalConfirming}
+                                >
+                                    {isWeeklyGlobalPending || isWeeklyGlobalConfirming ? 'Updating...' : 'Update'}
+                                </Button>
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="block text-xs text-[#64748B]">Lucky Draw Global (USDT)</label>
+                            <div className="flex gap-2">
+                                <input
+                                    value={luckyGlobalInput}
+                                    onChange={(e) => setLuckyGlobalInput(e.target.value)}
+                                    placeholder="e.g. 4500"
+                                    className="w-full rounded-lg border border-[#334155] bg-[#020617] px-3 py-2 text-sm text-[#F8FAFC] focus:outline-none focus:border-[#D946EF]"
+                                />
+                                <Button
+                                    size="sm"
+                                    onClick={handleSetLuckyGlobal}
+                                    disabled={isLuckyGlobalPending || isLuckyGlobalConfirming}
+                                >
+                                    {isLuckyGlobalPending || isLuckyGlobalConfirming ? 'Updating...' : 'Update'}
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="p-4 bg-[#0F172A] rounded-lg border border-[#1E293B] space-y-3">
+                        <p className="text-sm font-semibold text-[#F8FAFC]">Weekly Pools Adjust</p>
+                        <div className="space-y-2">
+                            <label className="block text-xs text-[#64748B]">Week Number</label>
+                            <div className="flex gap-2">
+                                <input
+                                    value={targetWeekInput}
+                                    onChange={(e) => setTargetWeekInput(e.target.value)}
+                                    placeholder="e.g. 12"
+                                    className="w-full rounded-lg border border-[#334155] bg-[#020617] px-3 py-2 text-sm text-[#F8FAFC] focus:outline-none focus:border-[#3B82F6]"
+                                />
+                                <Button size="sm" variant="secondary" onClick={handleFetchWeek}>Fetch</Button>
+                            </div>
+                            <p className="text-xs text-[#64748B]">
+                                Selected: Week {targetWeek?.toString() || '-'} | Share: {formatUSDT(targetWeekSharePool as bigint)} | Lucky: {formatUSDT(targetWeekLuckyPool as bigint)}
+                            </p>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="block text-xs text-[#64748B]">Set Share Pool for Selected Week (USDT)</label>
+                            <div className="flex gap-2">
+                                <input
+                                    value={weeklyWeekInput}
+                                    onChange={(e) => setWeeklyWeekInput(e.target.value)}
+                                    placeholder="e.g. 800"
+                                    className="w-full rounded-lg border border-[#334155] bg-[#020617] px-3 py-2 text-sm text-[#F8FAFC] focus:outline-none focus:border-[#EC4899]"
+                                />
+                                <Button
+                                    size="sm"
+                                    onClick={handleSetWeeklyWeek}
+                                    disabled={!targetWeek || isWeeklyWeekPending || isWeeklyWeekConfirming}
+                                >
+                                    {isWeeklyWeekPending || isWeeklyWeekConfirming ? 'Updating...' : 'Update'}
+                                </Button>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="block text-xs text-[#64748B]">Set Lucky Draw for Selected Week (USDT)</label>
+                            <div className="flex gap-2">
+                                <input
+                                    value={luckyWeekInput}
+                                    onChange={(e) => setLuckyWeekInput(e.target.value)}
+                                    placeholder="e.g. 350"
+                                    className="w-full rounded-lg border border-[#334155] bg-[#020617] px-3 py-2 text-sm text-[#F8FAFC] focus:outline-none focus:border-[#D946EF]"
+                                />
+                                <Button
+                                    size="sm"
+                                    onClick={handleSetLuckyWeek}
+                                    disabled={!targetWeek || isLuckyWeekPending || isLuckyWeekConfirming}
+                                >
+                                    {isLuckyWeekPending || isLuckyWeekConfirming ? 'Updating...' : 'Update'}
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </Card>
         </div>
     );
 }

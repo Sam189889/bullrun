@@ -977,6 +977,19 @@
   },
   {
     "type": "function",
+    "name": "setLuckyDrawPoolGlobalBalance",
+    "inputs": [
+      {
+        "name": "_amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "setQueueCount",
     "inputs": [
       {
@@ -1016,10 +1029,10 @@
   },
   {
     "type": "function",
-    "name": "setWeekLuckyDrawn",
+    "name": "setWeekStartTimestamp",
     "inputs": [
       {
-        "name": "_week",
+        "name": "_startTimestamp",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -1029,10 +1042,28 @@
   },
   {
     "type": "function",
-    "name": "setWeekStartTimestamp",
+    "name": "setWeeklyPoolAmount",
     "inputs": [
       {
-        "name": "_startTimestamp",
+        "name": "_week",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "_amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setWeeklyPoolGlobalBalance",
+    "inputs": [
+      {
+        "name": "_amount",
         "type": "uint256",
         "internalType": "uint256"
       }

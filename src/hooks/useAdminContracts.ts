@@ -550,6 +550,82 @@ export function useDrawLuckyWinner() {
 }
 
 /**
+ * Set global weekly share pool balance (admin only)
+ */
+export function useSetWeeklyPoolGlobalBalance() {
+    const { writeContract, data: hash, isPending, error } = useWriteContract()
+    const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
+
+    const setWeeklyPoolGlobalBalance = (amount: string) => {
+        writeContract({
+            address: CONTRACTS.BULL_RUN,
+            abi: BullRunMainLogicABI,
+            functionName: 'setWeeklyPoolGlobalBalance',
+            args: [parseUnits(amount, 18)],
+        })
+    }
+
+    return { setWeeklyPoolGlobalBalance, hash, isPending, isConfirming, isSuccess, error }
+}
+
+/**
+ * Set global lucky draw pool balance (admin only)
+ */
+export function useSetLuckyDrawPoolGlobalBalance() {
+    const { writeContract, data: hash, isPending, error } = useWriteContract()
+    const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
+
+    const setLuckyDrawPoolGlobalBalance = (amount: string) => {
+        writeContract({
+            address: CONTRACTS.BULL_RUN,
+            abi: BullRunMainLogicABI,
+            functionName: 'setLuckyDrawPoolGlobalBalance',
+            args: [parseUnits(amount, 18)],
+        })
+    }
+
+    return { setLuckyDrawPoolGlobalBalance, hash, isPending, isConfirming, isSuccess, error }
+}
+
+/**
+ * Set weekly share pool amount for a specific week (admin only)
+ */
+export function useSetWeeklyPoolAmount() {
+    const { writeContract, data: hash, isPending, error } = useWriteContract()
+    const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
+
+    const setWeeklyPoolAmount = (week: bigint, amount: string) => {
+        writeContract({
+            address: CONTRACTS.BULL_RUN,
+            abi: BullRunMainLogicABI,
+            functionName: 'setWeeklyPoolAmount',
+            args: [week, parseUnits(amount, 18)],
+        })
+    }
+
+    return { setWeeklyPoolAmount, hash, isPending, isConfirming, isSuccess, error }
+}
+
+/**
+ * Set lucky draw pool amount for a specific week (admin only)
+ */
+export function useSetLuckyDrawPoolAmount() {
+    const { writeContract, data: hash, isPending, error } = useWriteContract()
+    const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
+
+    const setLuckyDrawPoolAmount = (week: bigint, amount: string) => {
+        writeContract({
+            address: CONTRACTS.BULL_RUN,
+            abi: BullRunMainLogicABI,
+            functionName: 'setLuckyDrawPoolAmount',
+            args: [week, parseUnits(amount, 18)],
+        })
+    }
+
+    return { setLuckyDrawPoolAmount, hash, isPending, isConfirming, isSuccess, error }
+}
+
+/**
  * Get current day start timestamp
  */
 export function useDayStartTimestamp() {
