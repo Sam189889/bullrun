@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAccount, useWaitForTransactionReceipt } from 'wagmi';
 import { formatUnits, parseUnits } from 'viem';
 import { useUserId, useUserEarnings, useUserTradingEarnings, useUserBalance, useWithdraw, useLuckyDrawPool, useUserLuckyDrawEntries, useTotalLuckyDrawEntries, useLuckyDrawThreshold, useCurrentWeek, useUserWeeklyShares, useTotalWeeklyShares, useWeeklyPoolBalance, useTradingShareThreshold, useTradingSharesPerThreshold, useUserNftRefunds, useUserPoolEarnings, useWeekStartTimestamp } from '@/hooks/useContracts';
+import { useAdminControls } from '@/hooks/useAdminControls';
 import { Button } from '@/components/ui/Button';
 import { IncomeHistoryModal } from './IncomeHistoryModal';
 import { useLookupUser } from '@/contexts/LookupContext';
@@ -75,6 +76,9 @@ export function EarningsTab() {
 
     // Check if in lookup mode
     const { targetUserId, isLookupMode } = useLookupUser();
+
+    // Check admin controls
+    const { controls } = useAdminControls();
 
     const openModal = (type: string, icon: string, color: string) => {
         setSelectedIncome({ type, icon, color });
@@ -482,10 +486,10 @@ export function EarningsTab() {
                             variant="primary"
                             size="sm"
                             onClick={handleClaim}
-                            disabled={isClaiming || isConfirming || !claimAmount}
+                            disabled={!controls.claim_withdraw_enabled || isClaiming || isConfirming || !claimAmount}
                             className="px-4"
                         >
-                            {isClaiming || isConfirming ? '...' : 'Claim'}
+                            {!controls.claim_withdraw_enabled ? '🔒 Disabled' : (isClaiming || isConfirming ? '...' : 'Claim')}
                         </Button>
                     </div>
                 </div>

@@ -33,6 +33,19 @@
   },
   {
     "type": "function",
+    "name": "bufferPercent",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "bufferPoolBalance",
     "inputs": [],
     "outputs": [
@@ -48,6 +61,11 @@
     "type": "function",
     "name": "buyNFT",
     "inputs": [
+      {
+        "name": "_user",
+        "type": "address",
+        "internalType": "address"
+      },
       {
         "name": "_nftId",
         "type": "uint256",
@@ -101,6 +119,11 @@
     "name": "claimFastBonus",
     "inputs": [
       {
+        "name": "_user",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
         "name": "_rank",
         "type": "uint8",
         "internalType": "enum BullRunMainLogic.Rank"
@@ -144,6 +167,19 @@
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "creatorPercent",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -270,6 +306,19 @@
         "name": "",
         "type": "address",
         "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getAvailableBuffer",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "stateMutability": "view"
@@ -443,6 +492,19 @@
   },
   {
     "type": "function",
+    "name": "levelBonusPercent",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "levelDirectsRequired",
     "inputs": [
       {
@@ -482,6 +544,19 @@
   {
     "type": "function",
     "name": "luckyDrawEntryThreshold",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "luckyDrawPercent",
     "inputs": [],
     "outputs": [
       {
@@ -928,6 +1003,19 @@
   },
   {
     "type": "function",
+    "name": "sellerPercent",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "setDaySettings",
     "inputs": [
       {
@@ -937,6 +1025,44 @@
       },
       {
         "name": "_dayLength",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setDistributionPercents",
+    "inputs": [
+      {
+        "name": "_seller",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "_buffer",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "_level",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "_creator",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "_trip",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "_lucky",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -1214,6 +1340,19 @@
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "tripPercent",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -1829,6 +1968,29 @@
     "type": "function",
     "name": "withdraw",
     "inputs": [
+      {
+        "name": "_user",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "_amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "withdrawAvailableBuffer",
+    "inputs": [
+      {
+        "name": "_recipient",
+        "type": "address",
+        "internalType": "address"
+      },
       {
         "name": "_amount",
         "type": "uint256",

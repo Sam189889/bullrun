@@ -3,7 +3,7 @@
 import { useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { parseUnits } from 'viem'
 import { CONTRACTS } from '@/config/constants'
-import { BullRunMainLogicABI, BullRunViewABI, USDTbABI } from '@/abi'
+import { BullRunMainLogicABI, BullRunHubABI, USDTbABI } from '@/abi'
 
 // ============ READ HOOKS ============
 
@@ -414,7 +414,7 @@ export function useDistributeWeeklyPool() {
 export function useGetWeeklyShareholders(week: bigint | undefined) {
     return useReadContract({
         address: CONTRACTS.BULL_RUN_VIEW,
-        abi: BullRunViewABI,
+        abi: BullRunHubABI,
         functionName: 'getWeeklyShareholders',
         args: week ? [week] : undefined,
         query: { enabled: !!week }
@@ -737,7 +737,7 @@ export enum PoolType {
 export function useGetPoolBalance(poolType: PoolType) {
     return useReadContract({
         address: CONTRACTS.BULL_RUN_VIEW,
-        abi: BullRunViewABI,
+        abi: BullRunHubABI,
         functionName: 'getPoolBalance',
         args: [poolType],
     })
@@ -749,37 +749,37 @@ export function useGetPoolBalance(poolType: PoolType) {
 export function useAllPoolBalances() {
     const weekly = useReadContract({
         address: CONTRACTS.BULL_RUN_VIEW,
-        abi: BullRunViewABI,
+        abi: BullRunHubABI,
         functionName: 'getPoolBalance',
         args: [PoolType.WEEKLY_POOL],
     })
     const luckyDraw = useReadContract({
         address: CONTRACTS.BULL_RUN_VIEW,
-        abi: BullRunViewABI,
+        abi: BullRunHubABI,
         functionName: 'getPoolBalance',
         args: [PoolType.LUCKY_DRAW_POOL],
     })
     const rankEmi = useReadContract({
         address: CONTRACTS.BULL_RUN_VIEW,
-        abi: BullRunViewABI,
+        abi: BullRunHubABI,
         functionName: 'getPoolBalance',
         args: [PoolType.RANK_EMI_POOL],
     })
     const trip = useReadContract({
         address: CONTRACTS.BULL_RUN_VIEW,
-        abi: BullRunViewABI,
+        abi: BullRunHubABI,
         functionName: 'getPoolBalance',
         args: [PoolType.TRIP_POOL],
     })
     const buysell = useReadContract({
         address: CONTRACTS.BULL_RUN_VIEW,
-        abi: BullRunViewABI,
+        abi: BullRunHubABI,
         functionName: 'getPoolBalance',
         args: [PoolType.BUYSELL_POOL],
     })
     const buffer = useReadContract({
         address: CONTRACTS.BULL_RUN_VIEW,
-        abi: BullRunViewABI,
+        abi: BullRunHubABI,
         functionName: 'getPoolBalance',
         args: [PoolType.BUFFER_POOL],
     })
@@ -863,4 +863,111 @@ export function useUserLuckyDrawEntries(userId: bigint | undefined, week: bigint
         args: userId && week ? [userId, week] : undefined,
         query: { enabled: !!userId && !!week }
     })
+}
+
+// ============ DISTRIBUTION PERCENTAGES ============
+
+/**
+ * Get current distribution percentages
+ */
+export function useDistributionPercents() {
+    const seller = useReadContract({
+        address: CONTRACTS.BULL_RUN,
+        abi: BullRunMainLogicABI,
+        functionName: 'sellerPercent',
+    })
+    const buffer = useReadContract({
+        address: CONTRACTS.BULL_RUN,
+        abi: BullRunMainLogicABI,
+        functionName: 'bufferPercent',
+    })
+    const levelBonus = useReadContract({
+        address: CONTRACTS.BULL_RUN,
+        abi: BullRunMainLogicABI,
+        functionName: 'levelBonusPercent',
+    })
+    const creator = useReadContract({
+        address: CONTRACTS.BULL_RUN,
+        abi: BullRunMainLogicABI,
+        functionName: 'creatorPercent',
+    })
+    const trip = useReadContract({
+        address: CONTRACTS.BULL_RUN,
+        abi: BullRunMainLogicABI,
+        functionName: 'tripPercent',
+    })
+    const luckyDraw = useReadContract({
+        address: CONTRACTS.BULL_RUN,
+        abi: BullRunMainLogicABI,
+        functionName: 'luckyDrawPercent',
+    })
+
+    return {
+        seller: seller.data,
+        buffer: buffer.data,
+        levelBonus: levelBonus.data,
+        creator: creator.data,
+        trip: trip.data,
+        luckyDraw: luckyDraw.data,
+        isLoading: seller.isLoading || buffer.isLoading || levelBonus.isLoading || creator.isLoading || trip.isLoading || luckyDraw.isLoading,
+    }
+}
+
+/**
+ * Set distribution percentages (admin only)
+ */
+export function useSetDistributionPercents() {
+    const { writeContract, data: hash, isPending, error } = useWriteContract()
+    const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
+
+    const setDistributionPercents = (
+        seller: number,
+        buffer: number,
+        levelBonus: number,
+        creator: number,
+        trip: number,
+        luckyDraw: number
+    ) => {
+        writeContract({
+            address: CONTRACTS.BULL_RUN,
+            abi: BullRunMainLogicABI,
+            functionName: 'setDistributionPercents',
+            args: [BigInt(seller), BigInt(buffer), BigInt(levelBonus), BigInt(creator), BigInt(trip), BigInt(luckyDraw)],
+        })
+    }
+
+    return { setDistributionPercents, hash, isPending, isConfirming, isSuccess, error }
+}
+
+// ============ BUFFER MANAGEMENT ============
+
+/**
+ * Get available buffer (unallocated contract funds)
+ */
+export function useAvailableBuffer() {
+    return useReadContract({
+        address: CONTRACTS.BULL_RUN,
+        abi: BullRunMainLogicABI,
+        functionName: 'getAvailableBuffer',
+    })
+}
+
+/**
+ * Withdraw available buffer (admin only)
+ */
+export function useWithdrawAvailableBuffer() {
+    const { writeContract, data: hash, isPending, error } = useWriteContract()
+    const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
+
+    const withdrawAvailableBuffer = (recipient: `0x${string}`, amount: string) => {
+        const amountWei = parseUnits(amount, 18)
+        writeContract({
+            address: CONTRACTS.BULL_RUN,
+            abi: BullRunMainLogicABI,
+            functionName: 'withdrawAvailableBuffer',
+            args: [recipient, amountWei],
+        })
+    }
+
+    return { withdrawAvailableBuffer, hash, isPending, isConfirming, isSuccess, error }
 }

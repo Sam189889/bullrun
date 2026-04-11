@@ -6,6 +6,7 @@ import { formatUnits } from 'viem';
 import { useUserId, useUserInfo, useUserTeamVolume, useUserRankData, useClaimRankEmi, useClaimFastBonus, useCheckAndAchieveRanks, useDirectReferrals, useAllRankConfigs, useQualifyingVolume } from '@/hooks/useContracts';
 import { useLevelCounts } from '@/hooks/useEvents';
 import { useLookupUser } from '@/contexts/LookupContext';
+import { useAdminControls } from '@/hooks/useAdminControls';
 import { GiBull } from 'react-icons/gi';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -126,6 +127,9 @@ export function TeamRankTab() {
     const [activeSubTab, setActiveSubTab] = useState('overview');
     const [selectedLevel, setSelectedLevel] = useState(1);
     const { address } = useAccount();
+
+    // Check admin controls
+    const { controls } = useAdminControls();
 
     // Check if in lookup mode
     const { targetUserId, isLookupMode } = useLookupUser();
@@ -497,14 +501,14 @@ export function TeamRankTab() {
                                                 </div>
                                                 <Button
                                                     size="sm"
-                                                    disabled={!canEmi || emiPending}
+                                                    disabled={!controls.claim_rank_emi_enabled || !canEmi || emiPending}
                                                     onClick={() => {
                                                         claimEmi(userId as bigint, rankIndex);
                                                         setTimeout(() => refetchMap[rankIndex](), 2000);
                                                     }}
                                                     className="h-8 text-[10px]"
                                                 >
-                                                    {canEmi ? 'Claim' : nextEmi || 'Wait'}
+                                                    {!controls.claim_rank_emi_enabled ? '🔒' : (canEmi ? 'Claim' : nextEmi || 'Wait')}
                                                 </Button>
                                             </div>
 
@@ -516,14 +520,14 @@ export function TeamRankTab() {
                                                 <Button
                                                     variant="secondary"
                                                     size="sm"
-                                                    disabled={!canFast || fastBonusPending || rankData?.fastBonusClaimed}
+                                                    disabled={!controls.claim_fast_bonus_enabled || !canFast || fastBonusPending || rankData?.fastBonusClaimed}
                                                     onClick={() => {
                                                         claimFastBonus(rankIndex);
                                                         setTimeout(() => refetchMap[rankIndex](), 2000);
                                                     }}
                                                     className="h-8 text-[10px]"
                                                 >
-                                                    {rankData?.fastBonusClaimed ? 'Claimed' : canFast ? 'Claim' : '---'}
+                                                    {!controls.claim_fast_bonus_enabled ? '🔒' : (rankData?.fastBonusClaimed ? 'Claimed' : canFast ? 'Claim' : '---')}
                                                 </Button>
                                             </div>
                                         </div>

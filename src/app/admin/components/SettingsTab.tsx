@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { formatUnits } from 'viem';
-import { useSetCreatorWallet, useApproveUSDT, useCreatorWallet, useAllPoolBalances, useManagePool, PoolType, useSetFirstUser, useFirstUser, useNFTSplitThreshold, useNFTSplitCount, useNFTQueueCount, useNFTAppreciationBps, useCreateNFT, useSetQueueCount } from '@/hooks/useAdminContracts';
+import { useSetCreatorWallet, useApproveUSDT, useCreatorWallet, useAllPoolBalances, useManagePool, PoolType, useSetFirstUser, useFirstUser, useNFTSplitThreshold, useNFTSplitCount, useNFTQueueCount, useNFTAppreciationBps, useCreateNFT, useSetQueueCount, useDistributionPercents, useSetDistributionPercents, useAvailableBuffer, useWithdrawAvailableBuffer } from '@/hooks/useAdminContracts';
 import {
     useGetAllShareholders,
     usePendingBalance,
@@ -44,8 +44,14 @@ export function SettingsTab() {
             {/* Creator Wallet */}
             <CreatorWalletSettings />
 
+            {/* Distribution Percentages */}
+            <DistributionPercentsSettings />
+
             {/* Pool Management */}
             <PoolManagement />
+
+            {/* Buffer Withdrawal */}
+            <BufferWithdrawal />
 
             {/* Revenue Splitter */}
             <RevenueSplitterSection />
@@ -173,6 +179,174 @@ function CreatorWalletSettings() {
                     {isPending ? 'Confirm in Wallet...' : isConfirming ? 'Updating...' : 'Update Creator Wallet'}
                 </Button>
             </div>
+        </Card>
+    );
+}
+
+// Distribution Percentages Settings Component
+function DistributionPercentsSettings() {
+    const percentages = useDistributionPercents();
+    const { setDistributionPercents, isPending, isConfirming, isSuccess, error } = useSetDistributionPercents();
+    const toastShown = useRef(false);
+
+    const [seller, setSeller] = useState('25');
+    const [buffer, setBuffer] = useState('25');
+    const [levelBonus, setLevelBonus] = useState('25');
+    const [creator, setCreator] = useState('10');
+    const [trip, setTrip] = useState('10');
+    const [luckyDraw, setLuckyDraw] = useState('5');
+
+    // Set form values when data loads
+    useEffect(() => {
+        if (percentages.seller !== undefined) setSeller(String(percentages.seller));
+        if (percentages.buffer !== undefined) setBuffer(String(percentages.buffer));
+        if (percentages.levelBonus !== undefined) setLevelBonus(String(percentages.levelBonus));
+        if (percentages.creator !== undefined) setCreator(String(percentages.creator));
+        if (percentages.trip !== undefined) setTrip(String(percentages.trip));
+        if (percentages.luckyDraw !== undefined) setLuckyDraw(String(percentages.luckyDraw));
+    }, [percentages]);
+
+    useEffect(() => {
+        if (isSuccess && !toastShown.current) {
+            toastShown.current = true;
+            toast.success('Distribution percentages updated!');
+        }
+        if (error && !toastShown.current) {
+            toastShown.current = true;
+            toast.error('Failed to update percentages');
+        }
+    }, [isSuccess, error]);
+
+    const handleUpdate = () => {
+        const s = parseInt(seller) || 0;
+        const b = parseInt(buffer) || 0;
+        const l = parseInt(levelBonus) || 0;
+        const c = parseInt(creator) || 0;
+        const t = parseInt(trip) || 0;
+        const ld = parseInt(luckyDraw) || 0;
+
+        const total = s + b + l + c + t + ld;
+        if (total !== 100) {
+            toast.error(`Total must be 100% (currently ${total}%)`);
+            return;
+        }
+
+        toastShown.current = false;
+        setDistributionPercents(s, b, l, c, t, ld);
+    };
+
+    const total = (parseInt(seller) || 0) + (parseInt(buffer) || 0) + (parseInt(levelBonus) || 0) + (parseInt(creator) || 0) + (parseInt(trip) || 0) + (parseInt(luckyDraw) || 0);
+
+    return (
+        <Card variant="default">
+            <h3 className="text-sm font-semibold text-[#F8FAFC] mb-3">📊 Distribution Percentages</h3>
+            <p className="text-xs text-[#64748B] mb-4">Configure appreciation distribution (must total 100%)</p>
+
+            {/* Current Values from Contract */}
+            {percentages.seller !== undefined ? (
+                <div className="p-3 bg-[#1E293B] border border-[#334155] rounded-lg mb-4">
+                    <p className="text-xs text-[#64748B] font-bold mb-2">📋 Current Contract Values</p>
+                    <div className="grid grid-cols-3 gap-2 text-xs">
+                        <div>
+                            <span className="text-[#64748B]">Seller:</span>
+                            <span className="text-[#10B981] font-bold ml-1">{Number(percentages.seller ?? 0)}%</span>
+                        </div>
+                        <div>
+                            <span className="text-[#64748B]">Buffer:</span>
+                            <span className="text-[#3B82F6] font-bold ml-1">{Number(percentages.buffer ?? 0)}%</span>
+                        </div>
+                        <div>
+                            <span className="text-[#64748B]">Level:</span>
+                            <span className="text-[#EC4899] font-bold ml-1">{Number(percentages.levelBonus ?? 0)}%</span>
+                        </div>
+                        <div>
+                            <span className="text-[#64748B]">Creator:</span>
+                            <span className="text-[#8B5CF6] font-bold ml-1">{Number(percentages.creator ?? 0)}%</span>
+                        </div>
+                        <div>
+                            <span className="text-[#64748B]">Trip:</span>
+                            <span className="text-[#F59E0B] font-bold ml-1">{Number(percentages.trip ?? 0)}%</span>
+                        </div>
+                        <div>
+                            <span className="text-[#64748B]">Lucky:</span>
+                            <span className="text-[#EF4444] font-bold ml-1">{Number(percentages.luckyDraw ?? 0)}%</span>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+
+            {/* Current Total */}
+            <div className={`p-3 rounded-lg mb-4 ${total === 100 ? 'bg-[#10B981]/10 border border-[#10B981]/30' : 'bg-[#EF4444]/10 border border-[#EF4444]/30'}`}>
+                <p className={`text-xs font-bold ${total === 100 ? 'text-[#10B981]' : 'text-[#EF4444]'}`}>
+                    New Total: {total}% {total === 100 ? '✓' : '✗ Must be 100%'}
+                </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 mb-4">
+                <div>
+                    <label className="text-xs text-[#94A3B8] block mb-1">Seller %</label>
+                    <input
+                        type="number"
+                        value={seller}
+                        onChange={(e) => setSeller(e.target.value)}
+                        className="w-full px-3 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-white text-sm focus:border-[#EC4899] outline-none"
+                    />
+                </div>
+                <div>
+                    <label className="text-xs text-[#94A3B8] block mb-1">Buffer %</label>
+                    <input
+                        type="number"
+                        value={buffer}
+                        onChange={(e) => setBuffer(e.target.value)}
+                        className="w-full px-3 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-white text-sm focus:border-[#EC4899] outline-none"
+                    />
+                </div>
+                <div>
+                    <label className="text-xs text-[#94A3B8] block mb-1">Level Bonus %</label>
+                    <input
+                        type="number"
+                        value={levelBonus}
+                        onChange={(e) => setLevelBonus(e.target.value)}
+                        className="w-full px-3 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-white text-sm focus:border-[#EC4899] outline-none"
+                    />
+                </div>
+                <div>
+                    <label className="text-xs text-[#94A3B8] block mb-1">Creator %</label>
+                    <input
+                        type="number"
+                        value={creator}
+                        onChange={(e) => setCreator(e.target.value)}
+                        className="w-full px-3 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-white text-sm focus:border-[#EC4899] outline-none"
+                    />
+                </div>
+                <div>
+                    <label className="text-xs text-[#94A3B8] block mb-1">Trip Pool %</label>
+                    <input
+                        type="number"
+                        value={trip}
+                        onChange={(e) => setTrip(e.target.value)}
+                        className="w-full px-3 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-white text-sm focus:border-[#EC4899] outline-none"
+                    />
+                </div>
+                <div>
+                    <label className="text-xs text-[#94A3B8] block mb-1">Lucky Draw %</label>
+                    <input
+                        type="number"
+                        value={luckyDraw}
+                        onChange={(e) => setLuckyDraw(e.target.value)}
+                        className="w-full px-3 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-white text-sm focus:border-[#EC4899] outline-none"
+                    />
+                </div>
+            </div>
+
+            <Button
+                variant="primary"
+                onClick={handleUpdate}
+                disabled={isPending || isConfirming || total !== 100}
+                className="w-full"
+            >
+                {isPending ? 'Confirm in Wallet...' : isConfirming ? 'Updating...' : 'Update Distribution Percentages'}
+            </Button>
         </Card>
     );
 }
@@ -464,6 +638,98 @@ function UnifiedWithdrawModal({ isOpen, onClose, poolType, onSuccess }: {
                 </Button>
             </div>
         </Modal>
+    );
+}
+
+// Buffer Withdrawal Component
+function BufferWithdrawal() {
+    const { data: availableBuffer, refetch } = useAvailableBuffer();
+    const { withdrawAvailableBuffer, isPending, isConfirming, isSuccess, error } = useWithdrawAvailableBuffer();
+    const toastShown = useRef(false);
+
+    const [amount, setAmount] = useState('');
+    const [recipient, setRecipient] = useState('');
+
+    useEffect(() => {
+        if (isSuccess && !toastShown.current) {
+            toastShown.current = true;
+            toast.success('Buffer withdrawal successful!');
+            setAmount('');
+            setRecipient('');
+            refetch();
+        }
+        if (error && !toastShown.current) {
+            toastShown.current = true;
+            toast.error('Buffer withdrawal failed');
+        }
+    }, [isSuccess, error, refetch]);
+
+    const handleWithdraw = () => {
+        if (!amount || !recipient) {
+            toast.error('Enter amount and recipient address');
+            return;
+        }
+        toastShown.current = false;
+        withdrawAvailableBuffer(recipient as `0x${string}`, amount);
+    };
+
+    const availableBalanceUSD = availableBuffer ? Number(formatUnits(availableBuffer as bigint, 18)) : 0;
+
+    return (
+        <Card variant="default">
+            <h3 className="text-sm font-semibold text-[#F8FAFC] mb-3">🏦 Buffer Withdrawal</h3>
+            <p className="text-xs text-[#64748B] mb-4">Withdraw unallocated contract funds</p>
+
+            {/* Available Buffer */}
+            <div className="p-3 bg-[#6366F1]/10 border border-[#6366F1]/30 rounded-lg mb-4">
+                <p className="text-xs text-[#94A3B8] mb-1">Available Buffer</p>
+                <p className="text-lg font-bold text-[#6366F1]">${availableBalanceUSD.toFixed(2)}</p>
+                <p className="text-xs text-[#64748B] mt-1">= Total Contract Balance - All Pool Balances</p>
+            </div>
+
+            <div className="space-y-3">
+                <div>
+                    <label className="text-xs text-[#94A3B8] block mb-1">Recipient Address</label>
+                    <input
+                        type="text"
+                        value={recipient}
+                        onChange={(e) => setRecipient(e.target.value)}
+                        placeholder="0x..."
+                        className="w-full px-3 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-white font-mono text-sm focus:border-[#EC4899] outline-none"
+                    />
+                </div>
+
+                <div>
+                    <label className="text-xs text-[#94A3B8] block mb-1">Amount (USDT)</label>
+                    <div className="flex gap-2">
+                        <input
+                            type="number"
+                            value={amount}
+                            onChange={(e) => setAmount(e.target.value)}
+                            placeholder="0.00"
+                            step="0.01"
+                            className="flex-1 px-3 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-white text-sm focus:border-[#EC4899] outline-none"
+                        />
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => setAmount(availableBalanceUSD.toFixed(2))}
+                        >
+                            Max
+                        </Button>
+                    </div>
+                </div>
+
+                <Button
+                    variant="primary"
+                    onClick={handleWithdraw}
+                    disabled={isPending || isConfirming || !amount || !recipient || parseFloat(amount) > availableBalanceUSD}
+                    className="w-full"
+                >
+                    {isPending ? 'Confirm in Wallet...' : isConfirming ? 'Withdrawing...' : 'Withdraw Buffer'}
+                </Button>
+            </div>
+        </Card>
     );
 }
 

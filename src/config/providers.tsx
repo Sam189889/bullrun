@@ -12,8 +12,9 @@ import {
 import { WagmiProvider, http, createStorage, cookieStorage } from 'wagmi'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import '@rainbow-me/rainbowkit/styles.css'
-import { opBnbMainnet } from './wagmi'
-import { WALLETCONNECT_PROJECT_ID, RPC_URL } from './env'
+import { opBnbChain } from './wagmi'
+import { NETWORK } from './constants'
+import { WALLETCONNECT_PROJECT_ID } from './env'
 import Image from 'next/image'
 
 const projectId = WALLETCONNECT_PROJECT_ID
@@ -25,7 +26,7 @@ const getWagmiConfig = () => {
         wagmiConfig = getDefaultConfig({
             appName: 'Bull Run NFT',
             projectId,
-            chains: [opBnbMainnet],
+            chains: [opBnbChain],
             wallets: [
                 {
                     groupName: 'Popular',
@@ -44,7 +45,7 @@ const getWagmiConfig = () => {
                 storage: cookieStorage,
             }),
             transports: {
-                [opBnbMainnet.id]: http(RPC_URL),
+                [opBnbChain.id]: http(NETWORK.rpcUrl),
             },
         });
     }
@@ -94,7 +95,7 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
                 <RainbowKitProvider 
                     coolMode 
                     modalSize="compact" 
-                    initialChain={opBnbMainnet}
+                    initialChain={opBnbChain}
                     avatar={CustomAvatar}
                 >
                     {children}

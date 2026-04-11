@@ -1,13 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { formatUnits } from 'viem';
+import toast from 'react-hot-toast';
 import { useTotalUsers } from '@/hooks/useAdminContracts';
 import { useReadContracts } from 'wagmi';
 import { CONTRACTS } from '@/config/constants';
 import { BullRunMainLogicABI } from '@/abi';
 import { Card } from '@/components/ui/Card';
 import Link from 'next/link';
+import { API_BASE_URL } from '@/config/env';
 
 interface UserData {
     id: number;
@@ -18,12 +20,18 @@ interface UserData {
     isActive: boolean;
     directReferrals: number;
     usernameId: number;
+    queueSlots?: number;
 }
 
 export function UsersTab() {
     const [search, setSearch] = useState('');
     const [page, setPage] = useState(0);
     const pageSize = 10;
+    const [showQueueModal, setShowQueueModal] = useState(false);
+    const [selectedUser, setSelectedUser] = useState<{ id: number; username: string } | null>(null);
+    const [queueSlotsInput, setQueueSlotsInput] = useState('');
+    const [queueSlotsData, setQueueSlotsData] = useState<Record<number, number>>({});
+    const [updatingQueueSlots, setUpdatingQueueSlots] = useState(false);
 
     // Get total users count
     const { data: totalUsersData, isLoading: countLoading } = useTotalUsers();
@@ -73,8 +81,73 @@ export function UsersTab() {
             isActive: info?.[4] ?? false,
             directReferrals: info?.[6] ? Number(info[6]) : 0,
             usernameId: info?.[7] ? Number(info[7]) : 0,
+            queueSlots: queueSlotsData[id] ?? 0,
         };
     });
+
+    // Fetch queue slots when page changes
+    useEffect(() => {
+        const fetchQueueSlots = async () => {
+            if (userIds.length === 0) return;
+            
+            const promises = userIds.map(async (userId) => {
+                try {
+                    const res = await fetch(`${API_BASE_URL}/users/${userId}/queue-status`);
+                    const data = await res.json();
+                    return { userId, queueSlots: data.queue_slots || 0 };
+                } catch (err) {
+                    return { userId, queueSlots: 0 };
+                }
+            });
+            const results = await Promise.all(promises);
+            const slotsMap: Record<number, number> = {};
+            results.forEach(r => slotsMap[r.userId] = r.queueSlots);
+            setQueueSlotsData(slotsMap);
+        };
+
+        fetchQueueSlots();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [page, totalUsers]);
+
+    const updateQueueSlots = async () => {
+        if (!selectedUser) return;
+        
+        const slots = parseInt(queueSlotsInput);
+        if (isNaN(slots) || slots < 0 || slots > 10) {
+            toast.error('Queue slots must be between 0 and 10');
+            return;
+        }
+
+        setUpdatingQueueSlots(true);
+        try {
+            const res = await fetch(`${API_BASE_URL}/users/${selectedUser.id}/queue-slots`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ queue_slots: slots })
+            });
+            
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
+                throw new Error(errorData.error || `HTTP ${res.status}`);
+            }
+            
+            const result = await res.json();
+            setQueueSlotsData(prev => ({ ...prev, [selectedUser.id]: slots }));
+            setShowQueueModal(false);
+            toast.success(`✅ Queue slots updated to ${slots} for ${selectedUser.username}`);
+        } catch (err: any) {
+            console.error('Queue update error:', err);
+            toast.error(`❌ ${err.message || 'Failed to update queue slots'}`);
+        } finally {
+            setUpdatingQueueSlots(false);
+        }
+    };
+
+    const openQueueModal = (userId: number, username: string, currentSlots: number) => {
+        setSelectedUser({ id: userId, username });
+        setQueueSlotsInput(String(currentSlots));
+        setShowQueueModal(true);
+    };
 
     // Filter by search
     const filteredUsers = search
@@ -139,19 +212,20 @@ export function UsersTab() {
                                 <th className="text-left p-3 text-[#64748B] font-medium">Invested</th>
                                 <th className="text-left p-3 text-[#64748B] font-medium">Status</th>
                                 <th className="text-left p-3 text-[#64748B] font-medium">Directs</th>
+                                <th className="text-left p-3 text-[#64748B] font-medium">Queue Slots</th>
                                 <th className="text-left p-3 text-[#64748B] font-medium">Action</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-[#334155]">
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan={8} className="p-8 text-center text-[#64748B]">
+                                    <td colSpan={9} className="p-8 text-center text-[#64748B]">
                                         Loading...
                                     </td>
                                 </tr>
                             ) : filteredUsers.length === 0 ? (
                                 <tr>
-                                    <td colSpan={8} className="p-8 text-center text-[#64748B]">
+                                    <td colSpan={9} className="p-8 text-center text-[#64748B]">
                                         No users found
                                     </td>
                                 </tr>
@@ -186,6 +260,18 @@ export function UsersTab() {
                                         </td>
                                         <td className="p-3">
                                             <span className="text-[#3B82F6]">{user.directReferrals || 0}</span>
+                                        </td>
+                                        <td className="p-3">
+                                            <button
+                                                onClick={() => openQueueModal(
+                                                    user.id,
+                                                    user.usernameId > 0 ? `BULL${user.usernameId}` : `User #${user.id}`,
+                                                    user.queueSlots || 0
+                                                )}
+                                                className="flex items-center gap-1 px-2 py-1 bg-[#F59E0B]/20 text-[#F59E0B] rounded hover:bg-[#F59E0B]/30 transition-colors text-xs"
+                                            >
+                                                📦 {user.queueSlots || 0}
+                                            </button>
                                         </td>
                                         <td className="p-3">
                                             <Link
@@ -224,6 +310,78 @@ export function UsersTab() {
                     >
                         Next →
                     </button>
+                </div>
+            )}
+
+            {/* Queue Slots Modal */}
+            {showQueueModal && selectedUser && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] border-2 border-[#F59E0B]/30 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+                        {/* Header */}
+                        <div className="flex items-center justify-between mb-6">
+                            <div>
+                                <h3 className="text-xl font-bold text-[#F8FAFC] flex items-center gap-2">
+                                    📦 Queue Slots
+                                </h3>
+                                <p className="text-sm text-[#64748B] mt-1">{selectedUser.username}</p>
+                            </div>
+                            <button
+                                onClick={() => setShowQueueModal(false)}
+                                className="text-[#64748B] hover:text-[#F8FAFC] transition-colors"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        {/* Info Box */}
+                        <div className="bg-[#0F172A] border border-[#334155] rounded-xl p-4 mb-6">
+                            <p className="text-xs text-[#94A3B8] mb-2">
+                                💡 <strong>Queue slots</strong> determine how many NFTs stay <strong>unlisted</strong> (held in queue).
+                            </p>
+                            <div className="text-xs text-[#64748B] space-y-1 mt-3">
+                                <p>• 0 slots = All NFTs auto-list</p>
+                                <p>• 2 slots = First 2 NFTs held, rest listed</p>
+                                <p>• 5 slots = First 5 NFTs held, rest listed</p>
+                            </div>
+                        </div>
+
+                        {/* Input */}
+                        <div className="mb-6">
+                            <label className="block text-sm font-medium text-[#94A3B8] mb-2">
+                                Queue Slots (0-10)
+                            </label>
+                            <input
+                                type="number"
+                                min="0"
+                                max="10"
+                                value={queueSlotsInput}
+                                onChange={(e) => setQueueSlotsInput(e.target.value)}
+                                className="w-full bg-[#0F172A] border border-[#334155] rounded-lg px-4 py-3 text-[#F8FAFC] text-lg font-bold focus:border-[#F59E0B] focus:outline-none transition-colors"
+                                autoFocus
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') updateQueueSlots();
+                                    if (e.key === 'Escape') setShowQueueModal(false);
+                                }}
+                            />
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowQueueModal(false)}
+                                className="flex-1 px-4 py-3 bg-[#334155] text-[#F8FAFC] rounded-lg hover:bg-[#475569] transition-colors font-medium"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={updateQueueSlots}
+                                disabled={updatingQueueSlots}
+                                className="flex-1 px-4 py-3 bg-gradient-to-r from-[#F59E0B] to-[#FBBF24] text-[#0F172A] rounded-lg hover:from-[#FBBF24] hover:to-[#F59E0B] transition-all font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {updatingQueueSlots ? '⏳ Updating...' : '✅ Update'}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

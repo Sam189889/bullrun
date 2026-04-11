@@ -1,32 +1,39 @@
 import { http, createConfig, fallback } from 'wagmi'
 import { Chain } from 'viem'
-import { CONTRACTS } from './constants'
+import { CONTRACTS, NETWORK } from './constants'
 
-// Multiple RPC endpoints for opBNB Mainnet (fallback on rate limit)
+// Multiple RPC endpoints with fallback (auto-switches on failure)
 const RPC_ENDPOINTS = [
-  'https://opbnb-mainnet-rpc.bnbchain.org',
-  'https://opbnb.publicnode.com',
-  'https://opbnb-mainnet.nodereal.io/v1/e9a36765eb8a40b9bd12e680a1fd2bc5',
-  'https://opbnb.drpc.org',
+  NETWORK.rpcUrl,
+  ...(NETWORK.chainId === 204 ? [
+    'https://opbnb.publicnode.com',
+    'https://opbnb-mainnet.nodereal.io/v1/e9a36765eb8a40b9bd12e680a1fd2bc5',
+    'https://opbnb.drpc.org',
+  ] : [
+    'https://opbnb-testnet-rpc.bnbchain.org',
+  ])
 ]
 
-// opBNB Mainnet Chain Definition with icon
-export const opBnbMainnet: Chain = {
-  id: 204,
-  name: 'opBNB Mainnet',
+// Dynamic Chain Definition (testnet or mainnet based on constants.ts)
+export const opBnbChain: Chain = {
+  id: NETWORK.chainId,
+  name: NETWORK.name,
   nativeCurrency: {
-    decimals: 18,
-    name: 'BNB',
-    symbol: 'BNB',
+    decimals: NETWORK.currency.decimals,
+    name: NETWORK.currency.name,
+    symbol: NETWORK.currency.symbol,
   },
   rpcUrls: {
     default: { http: RPC_ENDPOINTS },
     public: { http: RPC_ENDPOINTS },
   },
   blockExplorers: {
-    default: { name: 'opBNBScan', url: 'https://opbnbscan.com' },
+    default: { 
+      name: NETWORK.chainId === 204 ? 'opBNBScan' : 'opBNB Testnet Explorer', 
+      url: NETWORK.explorerUrl 
+    },
   },
-  testnet: false,
+  testnet: NETWORK.chainId === 5611,
   // Chain icon for RainbowKit
   iconUrl: 'https://cryptologos.cc/logos/bnb-bnb-logo.png',
   iconBackground: '#F3BA2F',
@@ -34,9 +41,9 @@ export const opBnbMainnet: Chain = {
 
 // Wagmi Config with fallback transport (auto-failover on rate limit)
 export const config = createConfig({
-  chains: [opBnbMainnet],
+  chains: [opBnbChain],
   transports: {
-    [opBnbMainnet.id]: fallback(
+    [opBnbChain.id]: fallback(
       RPC_ENDPOINTS.map(url => http(url, {
         timeout: 10000,
         retryCount: 2,

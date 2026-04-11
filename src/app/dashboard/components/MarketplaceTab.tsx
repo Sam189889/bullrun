@@ -7,7 +7,6 @@ import { formatUnits } from 'viem';
 import toast from 'react-hot-toast';
 import {
     useUserId,
-    useTotalNFTs,
     useNFT,
     useBuyNFT,
     useUSDTAllowance,
@@ -17,6 +16,7 @@ import {
     useUserWeeklyTradingVolume,
     useCurrentWeek
 } from '@/hooks/useContracts';
+import { useMarketplaceNFTs, type NFT } from '@/hooks/useAdminAPI';
 import { useApproveUSDT, useDayStartTimestamp, useDayLength, useCurrentDay } from '@/hooks/useAdminContracts';
 import { useNFTControls } from '@/hooks/useNFTControls';
 import { useLookupUser } from '@/contexts/LookupContext';
@@ -134,34 +134,22 @@ function TradingMilestoneTracker({ userId, weekNumber }: { userId: bigint | unde
     );
 }
 
-function NFTCard({ nftId, userId, onSelect, controls, isLookupMode }: { nftId: number; userId: bigint | undefined; onSelect: (nft: SelectedNFT) => void; controls: ReturnType<typeof useNFTControls>; isLookupMode?: boolean }) {
-    const { data: nftData } = useNFT(BigInt(nftId));
-
-    if (!nftData) return null;
-
-    // Parse as array - contract returns tuple
-    const nftArr = nftData as any[];
-    if (!nftArr || nftArr[0] === BigInt(0)) return null;
-
-    // New struct: [nftId, currentPrice, basePrice, lastPurchasePrice, ownerId, buyCount, createdAt, lastTradedAt, isListed, isBurned]
-    const [, currentPrice, , , ownerId, buyCount, , , isListed, isBurned] = nftArr;
-
-    // Skip if burned
-    if (isBurned) return null;
-
-    // Skip if not listed (marketplace only shows listed)
-    if (!isListed) return null;
+function NFTCard({ nft, userId, onSelect, controls, isLookupMode }: { nft: NFT; userId: bigint | undefined; onSelect: (nft: SelectedNFT) => void; controls: ReturnType<typeof useNFTControls>; isLookupMode?: boolean }) {
+    // Use MySQL data directly
+    const nftId = nft.nft_id;
+    const currentPrice = BigInt(Math.floor(Number(nft.cached_current_price) * 1e18));
+    const ownerId = BigInt(nft.owner_id);
+    const buyCountNum = nft.cached_buy_count;
 
     // Hide own NFTs from marketplace
     const isOwnNFT = !!(userId && userId > BigInt(0) && ownerId === userId);
     if (isOwnNFT) return null;
 
     // Define helper variables
-    const buyCountNum = Number(buyCount);
     const formatUSD = (value: bigint) => `$${Number(formatUnits(value, 18)).toFixed(2)}`;
 
-    // Apply admin controls - hide hidden NFTs from marketplace
-    if (controls.isHidden(nftId)) return null;
+    // Apply admin controls - hide hidden NFTs from marketplace (already filtered by backend)
+    // if (controls.isHidden(nftId)) return null;
 
     // Select bull image (1-11) based on NFT ID, cycling
     const bullImageNum = ((nftId - 1) % 11) + 1;
@@ -232,7 +220,7 @@ export function MarketplaceTab() {
     const { address } = useAccount();
     const { isLookupMode, targetUserId } = useLookupUser();
     const { data: userId } = useUserId(address);
-    const { data: totalNFTs } = useTotalNFTs();
+    const { data: marketplaceData, loading: marketplaceLoading } = useMarketplaceNFTs(100);
     const { data: allowance, refetch: refetchAllowance } = useUSDTAllowance(address);
     const { data: availableLimit, refetch: refetchLimit } = useUserAvailableLimit(userId as bigint);
     const { data: dailyLimitData, refetch: refetchDailyLimitData } = useUserDailyLimitData(userId as bigint);
@@ -430,16 +418,16 @@ export function MarketplaceTab() {
         }
     };
 
-    const nftCount = Number(totalNFTs || 0);
-    const allNftIds = Array.from({ length: nftCount }, (_, i) => i + 1);
+    const marketplaceNFTs = marketplaceData?.nfts || [];
+    const nftCount = marketplaceNFTs.length;
 
     // Shuffle NFTs every 5 seconds
-    const [shuffledIds, setShuffledIds] = useState<number[]>([]);
+    const [shuffledNFTs, setShuffledNFTs] = useState<NFT[]>([]);
     const [displayCount, setDisplayCount] = useState(0);
 
     useEffect(() => {
         // Fisher-Yates shuffle algorithm
-        const shuffleArray = (array: number[]) => {
+        const shuffleArray = (array: NFT[]) => {
             const shuffled = [...array];
             for (let i = shuffled.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
@@ -448,25 +436,27 @@ export function MarketplaceTab() {
             return shuffled;
         };
 
-        // Initial shuffle
-        setShuffledIds(shuffleArray(allNftIds));
+        if (marketplaceNFTs.length > 0) {
+            // Initial shuffle
+            setShuffledNFTs(shuffleArray(marketplaceNFTs));
 
-        // Shuffle every 5 seconds
-        const interval = setInterval(() => {
-            setShuffledIds(shuffleArray(allNftIds));
-            setDisplayCount(0); // Reset display count on shuffle
-        }, 5000);
+            // Shuffle every 5 seconds
+            const interval = setInterval(() => {
+                setShuffledNFTs(shuffleArray(marketplaceNFTs));
+                setDisplayCount(0); // Reset display count on shuffle
+            }, 5000);
 
-        return () => clearInterval(interval);
-    }, [nftCount]);
+            return () => clearInterval(interval);
+        }
+    }, [marketplaceNFTs.length]);
 
     // Apply pin to top: pinned NFTs first, then shuffled
     const { pinnedNFTIds } = nftControls;
-    const pinnedIds = pinnedNFTIds.filter(id => id <= nftCount); // Only valid IDs
-    const unpinnedShuffled = shuffledIds.filter(id => !pinnedNFTIds.includes(id));
+    const pinnedNFTs = shuffledNFTs.filter(nft => pinnedNFTIds.includes(nft.nft_id));
+    const unpinnedNFTs = shuffledNFTs.filter(nft => !pinnedNFTIds.includes(nft.nft_id));
     
     // Show pinned NFTs first, then first 20 unpinned shuffled NFTs
-    const nftIds = [...pinnedIds, ...unpinnedShuffled.slice(0, 20)];
+    const displayNFTs = [...pinnedNFTs, ...unpinnedNFTs.slice(0, 20)];
 
     const formatUSD = (value: bigint | undefined) => {
         if (!value) return '$0';
@@ -587,12 +577,23 @@ export function MarketplaceTab() {
                     <p className="text-[#64748B]">No NFTs available right now</p>
                     <p className="text-xs text-[#475569] mt-1">Admin needs to create NFTs first</p>
                 </div>
+            ) : marketplaceLoading ? (
+                <div className="text-center py-12">
+                    <p className="text-5xl mb-4">⏳</p>
+                    <p className="text-[#64748B]">Loading marketplace NFTs...</p>
+                </div>
+            ) : displayNFTs.length === 0 ? (
+                <div className="text-center py-12">
+                    <p className="text-5xl mb-4">📭</p>
+                    <p className="text-[#F8FAFC] font-bold mb-2">No NFTs Available</p>
+                    <p className="text-[#64748B]">All NFTs are currently held in queues</p>
+                </div>
             ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3">
-                    {nftIds.map((id) => (
+                    {displayNFTs.map((nft) => (
                         <NFTCard
-                            key={id}
-                            nftId={id}
+                            key={nft.nft_id}
+                            nft={nft}
                             userId={userId as bigint}
                             onSelect={handleSelectNFT}
                             controls={nftControls}

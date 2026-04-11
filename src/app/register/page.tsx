@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { usePackage, useUserId, useUSDTBalance, useUSDTAllowance, useRegister, useUserExists } from '@/hooks/useContracts';
 import { useApproveUSDT } from '@/hooks/useAdminContracts';
-import { opBnbMainnet } from '@/config/wagmi';
+import { opBnbChain } from '@/config/wagmi';
 import toast from 'react-hot-toast';
 
 // Minimum gas required for transactions (0.0003 BNB)
@@ -74,7 +74,7 @@ function RegisterContent() {
     const { data: allowance, refetch: refetchAllowance } = useUSDTAllowance(address);
 
     // Native balance for gas
-    const { data: nativeBalance } = useBalance({ address, chainId: opBnbMainnet.id });
+    const { data: nativeBalance } = useBalance({ address, chainId: opBnbChain.id });
 
     // Contract write hooks
     const { approve, isPending: approvePending, isConfirming: approveConfirming, isSuccess: approveConfirmed, error: approveError } = useApproveUSDT();

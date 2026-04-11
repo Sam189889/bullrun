@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Toaster } from "react-hot-toast";
 import { Web3Provider } from "@/config/providers";
+import MaintenancePage from "@/components/MaintenancePage";
+import { MAINTENANCE_MODE, MAINTENANCE_CONFIG, isAdmin } from "@/config/constants";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -18,7 +20,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="antialiased">
         <Web3Provider>
-          {children}
+          {MAINTENANCE_MODE ? <MaintenancePage /> : children}
           <Toaster
             position="top-right"
             containerStyle={{
