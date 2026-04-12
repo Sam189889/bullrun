@@ -264,7 +264,7 @@ export function MarketplaceTab() {
     const { data: nativeBalance } = useBalance({ address });
     const { data: usdtBalance, refetch: refetchUSDTBalance } = useUSDTBalance(address);
 
-    const { buyNFT, data: buyHash, isPending: buyPending } = useBuyNFT();
+    const { buyNFT, data: buyHash, isPending: buyPending, error: buyWriteError } = useBuyNFT();
     const { approve, hash: approveHash, isPending: approvePending } = useApproveUSDT();
 
     const { isSuccess: buySuccess, isError: buyError } = useWaitForTransactionReceipt({ hash: buyHash });
@@ -280,8 +280,10 @@ export function MarketplaceTab() {
     // After approve success, execute buy automatically
     useEffect(() => {
         if (approveSuccess && pendingNftId && isWaitingForApproval) {
-            console.log('✅ Approval confirmed! Waiting for blockchain...');
+            console.log('✅ Approval confirmed! Refetching allowance...');
             setIsWaitingForApproval(false);
+            // Refetch allowance to ensure it's updated
+            refetchAllowance();
             toast.loading('⏳ Preparing purchase...', { id: 'buy-prep', duration: 3000 });
             // Longer delay to avoid RPC rate limiting
             setTimeout(() => {
@@ -289,6 +291,7 @@ export function MarketplaceTab() {
                 buyNFT(pendingNftId);
             }, 3000); // Increased to 3 seconds for RPC rate limit
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [approveSuccess, pendingNftId, isWaitingForApproval]);
 
     // After buy success, reset and refetch
@@ -336,18 +339,34 @@ export function MarketplaceTab() {
         }
     }, [approveError]);
 
-    // Handle buy errors
+    // Handle buy write errors (before transaction is submitted)
     useEffect(() => {
-        if (buyError) {
-            console.error('❌ Purchase failed!');
+        if (buyWriteError) {
+            console.error('❌ Buy write error:', buyWriteError);
             toast.dismiss('buy-prep');
-            toast.error('❌ Purchase Failed! Please try again.', {
-                duration: 4000,
+            toast.error(`❌ Purchase Failed: ${buyWriteError.message || 'Unknown error'}`, {
+                duration: 6000,
             });
             setPendingNftId(null);
             setPendingPrice(null);
         }
-    }, [buyError]);
+    }, [buyWriteError]);
+
+    // Handle buy transaction errors (after transaction is submitted but fails)
+    useEffect(() => {
+        if (buyError) {
+            console.error('❌ Purchase transaction failed!');
+            console.error('Transaction hash:', buyHash);
+            console.error('NFT ID:', pendingNftId?.toString());
+            console.error('Price:', pendingPrice ? formatUnits(pendingPrice, 18) : 'N/A');
+            toast.dismiss('buy-prep');
+            toast.error('❌ Transaction Failed! Check console for details.', {
+                duration: 5000,
+            });
+            setPendingNftId(null);
+            setPendingPrice(null);
+        }
+    }, [buyError, buyHash, pendingNftId, pendingPrice]);
 
     const handleSelectNFT = (nft: SelectedNFT) => {
         setSelectedNFT(nft);
@@ -404,6 +423,13 @@ export function MarketplaceTab() {
         setPendingPrice(price);
 
         const currentAllowance = allowance as bigint || BigInt(0);
+        
+        console.log('💰 Buy Check:', {
+            nftId: nftId.toString(),
+            price: formatUnits(price, 18),
+            currentAllowance: formatUnits(currentAllowance, 18),
+            needsApproval: currentAllowance < price,
+        });
 
         if (currentAllowance >= price) {
             // Already approved, buy directly

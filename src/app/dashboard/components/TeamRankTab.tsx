@@ -503,7 +503,7 @@ export function TeamRankTab() {
                                                     size="sm"
                                                     disabled={!controls.claim_rank_emi_enabled || !canEmi || emiPending}
                                                     onClick={() => {
-                                                        claimEmi(userId as bigint, rankIndex);
+                                                        claimEmi(rankIndex);
                                                         setTimeout(() => refetchMap[rankIndex](), 2000);
                                                     }}
                                                     className="h-8 text-[10px]"

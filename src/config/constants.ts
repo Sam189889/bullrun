@@ -6,7 +6,7 @@ const USE_TESTNET = false // true = testnet, false = mainnet
 // ========================================
 // 🔧 MAINTENANCE MODE
 // ========================================
-export const MAINTENANCE_MODE = true // Set to true to enable maintenance mode
+export const MAINTENANCE_MODE = false// Set to true to enable maintenance mode
 export const MAINTENANCE_CONFIG = {
     title: 'Platform Enhancement in Progress',
     message: 'We are implementing cutting-edge technology to deliver faster transactions, instant loading, and an even better trading experience. Thank you for your patience!',
@@ -27,11 +27,11 @@ const TESTNET_CONFIG = {
     contracts: {
         USDT: '0x9907964f13E7d6433Af61135E126326c4f6786b0' as `0x${string}`,
         BULL_RUN: '0xEbe002fd383A77f43B69D6d54FaA61aA605ee62c' as `0x${string}`,
-        BULL_RUN_VIEW: '0xEbe002fd383A77f43B69D6d54FaA61aA605ee62c' as `0x${string}`,
+        BULL_RUN_VIEW: '0x078f4177d0A5d9936D130bD53Be2f5c4c8d50C43' as `0x${string}`, // Hub contract
         PROXY_ADMIN: '0xAdc4587f4fDcFd732d3768906Df40f4277272F57' as `0x${string}`,
         REVENUE_SPLITTER: '0x0A65d031a15453aC392098C8386dA874CFF6C7A5' as `0x${string}`,
     },
-    deployBlock: BigInt(147747021), // Latest upgrade block
+    deployBlock: BigInt(148632225), // Hub deployment block
     adminWallets: [
         '0xcc51a2dCCa13d63462d9E356d979952217c3508a' as `0x${string}`, // First User
         '0x3ec7B0Ffd2607D2BA47d11145208E16e6491C90F' as `0x${string}`, // Deployer

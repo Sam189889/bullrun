@@ -2,7 +2,7 @@
 
 import { useReadContract, useWriteContract, useAccount } from 'wagmi'
 import { contracts } from '@/config/wagmi'
-import { BullRunMainLogicABI, BullRunViewABI, USDTbABI } from '@/abi'
+import { BullRunMainLogicABI, BullRunViewABI, BullRunHubABI, USDTbABI } from '@/abi'
 
 // ============ READ HOOKS ============
 
@@ -184,7 +184,7 @@ export function useUSDTBalance(address?: `0x${string}`) {
 }
 
 /**
- * Get USDT allowance for BullRun contract
+ * Get USDT allowance for Hub contract
  */
 export function useUSDTAllowance(address?: `0x${string}`) {
     const { address: connectedAddress } = useAccount()
@@ -194,7 +194,7 @@ export function useUSDTAllowance(address?: `0x${string}`) {
         address: contracts.usdt,
         abi: USDTbABI,
         functionName: 'allowance',
-        args: wallet ? [wallet, contracts.bullRun] : undefined,
+        args: wallet ? [wallet, contracts.bullRunView] : undefined, // Check Hub allowance
         query: { enabled: !!wallet },
     })
 }
@@ -202,17 +202,18 @@ export function useUSDTAllowance(address?: `0x${string}`) {
 // ============ WRITE HOOKS ============
 
 /**
- * Register new user
+ * Register new user via Hub
  */
 export function useRegister() {
     const { writeContract, ...rest } = useWriteContract()
 
     const register = (userAddress: `0x${string}`, referrerId: bigint, packageId: bigint) => {
+        // Hub uses msg.sender, so userAddress param is ignored
         writeContract({
-            address: contracts.bullRun,
-            abi: BullRunMainLogicABI,
+            address: contracts.bullRunView, // Hub contract
+            abi: BullRunHubABI,
             functionName: 'register',
-            args: [userAddress, referrerId, packageId],
+            args: [referrerId, packageId], // No userAddress needed
         })
     }
 
@@ -220,17 +221,18 @@ export function useRegister() {
 }
 
 /**
- * Purchase new package
+ * Purchase new package via Hub
  */
 export function usePurchasePackage() {
     const { writeContract, ...rest } = useWriteContract()
 
     const purchase = (userAddress: `0x${string}`, packageId: bigint) => {
+        // Hub uses msg.sender, so userAddress param is ignored
         writeContract({
-            address: contracts.bullRun,
-            abi: BullRunMainLogicABI,
+            address: contracts.bullRunView, // Hub contract
+            abi: BullRunHubABI,
             functionName: 'purchaseNewPackage',
-            args: [userAddress, packageId],
+            args: [packageId], // No userAddress needed
         })
     }
 
@@ -238,17 +240,18 @@ export function usePurchasePackage() {
 }
 
 /**
- * Claim rank EMI
+ * Claim rank EMI via Hub
  */
 export function useClaimRankEmi() {
     const { writeContract, ...rest } = useWriteContract()
 
-    const claimEmi = (userId: bigint, rank: number) => {
+    const claimEmi = (rank: number) => {
+        // Hub uses msg.sender to get userId internally
         writeContract({
-            address: contracts.bullRun,
-            abi: BullRunMainLogicABI,
+            address: contracts.bullRunView, // Hub contract
+            abi: BullRunHubABI,
             functionName: 'claimRankEmi',
-            args: [userId, rank],
+            args: [rank], // Only rank (enum uint8)
         })
     }
 
@@ -256,15 +259,15 @@ export function useClaimRankEmi() {
 }
 
 /**
- * Claim fast bonus
+ * Claim fast bonus via Hub
  */
 export function useClaimFastBonus() {
     const { writeContract, ...rest } = useWriteContract()
 
     const claimFastBonus = (rank: number) => {
         writeContract({
-            address: contracts.bullRun,
-            abi: BullRunMainLogicABI,
+            address: contracts.bullRunView, // Hub contract
+            abi: BullRunHubABI,
             functionName: 'claimFastBonus',
             args: [rank],
         })
@@ -358,15 +361,15 @@ export function useAllRankConfigs() {
 }
 
 /**
- * Withdraw available balance ($5 minimum)
+ * Withdraw available balance ($5 minimum) via Hub
  */
 export function useWithdraw() {
     const { writeContract, ...rest } = useWriteContract()
 
     const withdraw = (amount: bigint) => {
         writeContract({
-            address: contracts.bullRun,
-            abi: BullRunMainLogicABI,
+            address: contracts.bullRunView, // Hub contract
+            abi: BullRunHubABI,
             functionName: 'withdraw',
             args: [amount],
         })
@@ -476,15 +479,15 @@ export function useUserPoolEarnings(userId: bigint | undefined) {
 }
 
 /**
- * Buy NFT
+ * Buy NFT via Hub
  */
 export function useBuyNFT() {
     const { writeContract, ...rest } = useWriteContract()
 
     const buyNFT = (nftId: bigint) => {
         writeContract({
-            address: contracts.bullRun,
-            abi: BullRunMainLogicABI,
+            address: contracts.bullRunView, // Hub contract
+            abi: BullRunHubABI,
             functionName: 'buyNFT',
             args: [nftId],
         })

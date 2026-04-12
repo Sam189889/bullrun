@@ -7,7 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "biome check",
-    "format": "biome format --write"
+    "format": "biome format --write",
+    "db:api": "node database/src/api/server.js",
+    "db:sync": "node database/src/index.js",
+    "db:install": "cd database && npm install",
+    "production": "concurrently \"npm start\" \"npm run db:api\" \"npm run db:sync\""
   },
   "dependencies": {
     "@metamask/sdk": "^0.34.0",
@@ -27,6 +31,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "concurrently": "^8.2.2",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

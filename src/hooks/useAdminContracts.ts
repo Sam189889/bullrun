@@ -446,7 +446,7 @@ export function useApproveUSDT() {
             address: CONTRACTS.USDT,
             abi: USDTbABI,
             functionName: 'approve',
-            args: [CONTRACTS.BULL_RUN, parseUnits(amount, 18)],
+            args: [CONTRACTS.BULL_RUN_VIEW, parseUnits(amount, 18)], // Approve to Hub
         })
     }
 
@@ -455,7 +455,7 @@ export function useApproveUSDT() {
             address: CONTRACTS.USDT,
             abi: USDTbABI,
             functionName: 'approve',
-            args: [CONTRACTS.BULL_RUN, BigInt('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff')],
+            args: [CONTRACTS.BULL_RUN_VIEW, BigInt('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff')], // Approve to Hub
         })
     }
 
