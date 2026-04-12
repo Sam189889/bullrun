@@ -32,6 +32,7 @@ export function DashboardNav({ activeTab, onTabChange }: DashboardNavProps) {
                                         : 'text-[#64748B] hover:text-[#94A3B8]'
                                     }
                                 `}
+                            >
                                 {/* Active glow effect - matching header button style */}
                                 {activeTab === item.id && (
                                     <div
