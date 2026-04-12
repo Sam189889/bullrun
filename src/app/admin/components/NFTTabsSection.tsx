@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
     useAdminNFTs,
     useNFTStats,
@@ -171,6 +171,7 @@ function NFTGrid({ tab, onUpdate }: { tab: 'all' | 'pinned' | 'hidden'; onUpdate
     const [sortBy, setSortBy] = useState('nft_id');
     const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
     const [limit, setLimit] = useState(20);
+    const [page, setPage] = useState(1);
 
     const filters = {
         only_pinned: tab === 'pinned',
@@ -178,10 +179,16 @@ function NFTGrid({ tab, onUpdate }: { tab: 'all' | 'pinned' | 'hidden'; onUpdate
         include_hidden: tab === 'hidden',
         sort_by: sortBy,
         sort_order: sortOrder,
-        limit
+        limit,
+        offset: (page - 1) * limit
     };
 
     const { data, loading, refetch } = useAdminNFTs(filters);
+
+    // Reset to page 1 when tab or filters change
+    useEffect(() => {
+        setPage(1);
+    }, [tab, sortBy, sortOrder, limit]);
 
     const handleUpdate = () => {
         refetch();
@@ -210,15 +217,19 @@ function NFTGrid({ tab, onUpdate }: { tab: 'all' | 'pinned' | 'hidden'; onUpdate
         );
     }
 
+    const totalPages = Math.ceil(data.total / limit);
+    const startItem = (page - 1) * limit + 1;
+    const endItem = Math.min(page * limit, data.total);
+
     return (
         <div className="space-y-4">
             {/* Controls */}
             <div className="flex flex-wrap gap-4 items-center justify-between">
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                     <select
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value)}
-                        className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm"
+                        className="px-3 sm:px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs sm:text-sm"
                     >
                         <option value="nft_id">NFT ID</option>
                         <option value="cached_current_price">Price</option>
@@ -229,18 +240,31 @@ function NFTGrid({ tab, onUpdate }: { tab: 'all' | 'pinned' | 'hidden'; onUpdate
 
                     <button
                         onClick={() => setSortOrder(sortOrder === 'ASC' ? 'DESC' : 'ASC')}
-                        className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm hover:bg-slate-700"
+                        className="px-3 sm:px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm hover:bg-slate-700"
                     >
-                        {sortOrder === 'ASC' ? '↑' : '↓'}
+                        {sortOrder === 'ASC' ? '↑ Asc' : '↓ Desc'}
+                    </button>
+
+                    {/* Quick Filter: Old Untouched NFTs */}
+                    <button
+                        onClick={() => {
+                            setSortBy('cached_last_traded_at');
+                            setSortOrder('ASC');
+                            toast.success('Showing oldest untouched NFTs');
+                        }}
+                        className="px-3 sm:px-4 py-2 bg-yellow-600/20 border border-yellow-600/50 rounded-lg text-yellow-400 text-xs sm:text-sm hover:bg-yellow-600/30 whitespace-nowrap"
+                        title="Sort by oldest NFTs that haven't been traded in a long time"
+                    >
+                        ⏰ Old NFTs
                     </button>
                 </div>
 
                 <div className="flex gap-2 items-center">
-                    <span className="text-slate-400 text-sm">Show:</span>
+                    <span className="text-slate-400 text-xs sm:text-sm">Show:</span>
                     <select
                         value={limit}
                         onChange={(e) => setLimit(Number(e.target.value))}
-                        className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm"
+                        className="px-3 sm:px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs sm:text-sm"
                     >
                         <option value={10}>10</option>
                         <option value={20}>20</option>
@@ -257,10 +281,64 @@ function NFTGrid({ tab, onUpdate }: { tab: 'all' | 'pinned' | 'hidden'; onUpdate
                 ))}
             </div>
 
-            {/* Pagination Info */}
-            <div className="text-center text-slate-400 text-sm">
-                Showing {data.nfts.length} of {data.total} NFTs
-            </div>
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-800">
+                    <div className="text-slate-400 text-sm">
+                        Showing {startItem}-{endItem} of {data.total} NFTs
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        {/* Previous Button */}
+                        <button
+                            onClick={() => setPage(page - 1)}
+                            disabled={page === 1}
+                            className="px-3 sm:px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            ← Prev
+                        </button>
+
+                        {/* Page Numbers */}
+                        <div className="flex gap-1">
+                            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                let pageNum;
+                                if (totalPages <= 5) {
+                                    pageNum = i + 1;
+                                } else if (page <= 3) {
+                                    pageNum = i + 1;
+                                } else if (page >= totalPages - 2) {
+                                    pageNum = totalPages - 4 + i;
+                                } else {
+                                    pageNum = page - 2 + i;
+                                }
+                                
+                                return (
+                                    <button
+                                        key={pageNum}
+                                        onClick={() => setPage(pageNum)}
+                                        className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg text-sm font-medium transition-colors ${
+                                            page === pageNum
+                                                ? 'bg-purple-600 text-white'
+                                                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                                        }`}
+                                    >
+                                        {pageNum}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        {/* Next Button */}
+                        <button
+                            onClick={() => setPage(page + 1)}
+                            disabled={page === totalPages}
+                            className="px-3 sm:px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            Next →
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -340,9 +418,11 @@ function NFTCard({ nft, onUpdate }: { nft: NFT; onUpdate: () => void }) {
                     </p>
                 </div>
                 <div className="bg-slate-800/50 p-2 rounded-lg">
-                    <p className="text-slate-500 text-xs">Created</p>
+                    <p className="text-slate-500 text-xs">Last Traded</p>
                     <p className="text-white text-sm font-medium">
-                        {new Date(nft.cached_created_at * 1000).toLocaleDateString()}
+                        {nft.cached_last_traded_at === 0 
+                            ? 'Never' 
+                            : new Date(nft.cached_last_traded_at * 1000).toLocaleDateString()}
                     </p>
                 </div>
             </div>
