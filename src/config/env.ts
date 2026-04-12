@@ -14,4 +14,4 @@ export const RPC_URL = 'https://opbnb-mainnet-rpc.bnbchain.org'
 export const BLOCK_EXPLORER_URL = 'https://opbnbscan.com'
 
 // API Configuration
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/admin'
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://bullrunft.live/api/admin'
