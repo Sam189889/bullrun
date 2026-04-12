@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui/Button';
 import {
     useQueueRules,
@@ -192,7 +193,7 @@ export function QueueRulesSection() {
             </div>
 
             {/* Add/Edit Rule Modal */}
-            {(showAddModal || editingRule) && (
+            {(showAddModal || editingRule) && typeof window !== 'undefined' && createPortal(
                 <RuleEditorModal
                     rule={editingRule}
                     onClose={() => {
@@ -205,7 +206,8 @@ export function QueueRulesSection() {
                         setShowAddModal(false);
                         setEditingRule(null);
                     }}
-                />
+                />,
+                document.body
             )}
         </div>
     );
@@ -261,7 +263,7 @@ function RuleEditorModal({
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
             <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
                 <h3 className="text-xl font-bold text-white mb-6">
                     {rule ? 'Edit Rule' : 'Add New Rule'}
