@@ -1,7 +1,10 @@
 import mysql from 'mysql2/promise';
-import dotenv from 'dotenv';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * Import Railway database to local MySQL
@@ -11,16 +14,16 @@ async function importRailwayToLocal() {
   let localConnection, railwayConnection;
   
   try {
-    console.log('🔍 Starting Bull Run database import from Railway...');
+    console.log('🔍 Starting database import from Railway...');
     
     // Connect to Railway MySQL
     console.log('🔍 Connecting to Railway MySQL...');
     railwayConnection = await mysql.createConnection({
-      host: process.env.RAILWAY_MYSQL_HOST || 'metro.proxy.rlwy.net',
-      port: parseInt(process.env.RAILWAY_MYSQL_PORT || '3306'),
-      user: process.env.RAILWAY_MYSQL_USER || 'root',
-      password: process.env.RAILWAY_MYSQL_PASSWORD || 'lCftTiDmBPxEcaVmUcBQhSGTanfiKnyt',
-      database: process.env.RAILWAY_MYSQL_DATABASE || 'railway',
+      host: 'metro.proxy.rlwy.net',
+      port: 46906,
+      user: 'root',
+      password: 'lCftTiDmBPxEcaVmUcBQhSGTanfiKnyt',
+      database: 'railway',
       ssl: false
     });
     console.log('✅ Railway MySQL connected!');
@@ -28,11 +31,11 @@ async function importRailwayToLocal() {
     // Connect to local MySQL
     console.log('🔍 Connecting to local MySQL...');
     localConnection = await mysql.createConnection({
-      host: process.env.DB_HOST || 'localhost',
-      port: parseInt(process.env.DB_PORT || '3306'),
-      user: process.env.DB_USER || 'root',
-      password: process.env.DB_PASSWORD || '',
-      database: process.env.DB_NAME || 'bull_run'
+      host: 'localhost',
+      port: 3306,
+      user: 'root',
+      password: '',
+      database: 'bull_run'
     });
     console.log('✅ Local MySQL connected!');
 
@@ -59,7 +62,7 @@ async function importRailwayToLocal() {
     // Copy table structures and data
     for (const table of railwayTables) {
       const tableName = Object.values(table)[0];
-      console.log(`\n📋 Processing table: ${tableName}`);
+      console.log(`📋 Processing table: ${tableName}`);
       
       // Get CREATE TABLE statement
       const [createResult] = await railwayConnection.execute(`SHOW CREATE TABLE \`${tableName}\``);
@@ -87,19 +90,14 @@ async function importRailwayToLocal() {
         const placeholders = columns.map(() => '?').join(', ');
         
         // Insert data in batches
-        const batchSize = 500;
+        const batchSize = 100;
         for (let i = 0; i < rows.length; i += batchSize) {
           const batch = rows.slice(i, i + batchSize);
           const insertQuery = `INSERT INTO \`${tableName}\` (${columnNames}) VALUES ${batch.map(() => `(${placeholders})`).join(', ')}`;
           const values = batch.flatMap(row => Object.values(row));
           
           await localConnection.execute(insertQuery, values);
-          
-          if (rows.length > batchSize) {
-            console.log(`   ✓ Inserted ${Math.min(i + batchSize, rows.length)}/${rows.length} rows`);
-          }
         }
-        console.log(`✅ ${tableName}: ${rows.length} rows copied`);
       } else {
         console.log(`⚠️ Table ${tableName} is empty`);
       }
@@ -108,7 +106,7 @@ async function importRailwayToLocal() {
     // Re-enable foreign key checks
     await localConnection.execute('SET FOREIGN_KEY_CHECKS = 1');
     
-    console.log('\n🎉 Database import from Railway completed successfully!');
+    console.log('🎉 Database import from Railway completed successfully!');
     
     // Verify the import
     console.log('\n🔍 Verifying import...');
@@ -124,9 +122,8 @@ async function importRailwayToLocal() {
     }
 
   } catch (error) {
-    console.error('\n❌ Database import failed:', error.message);
+    console.error('❌ Database import failed:', error.message);
     console.error('Stack trace:', error.stack);
-    process.exit(1);
   } finally {
     if (railwayConnection) {
       await railwayConnection.end();

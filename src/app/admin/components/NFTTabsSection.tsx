@@ -418,11 +418,11 @@ function NFTCard({ nft, onUpdate }: { nft: NFT; onUpdate: () => void }) {
                     </p>
                 </div>
                 <div className="bg-slate-800/50 p-2 rounded-lg">
-                    <p className="text-slate-500 text-xs">Last Traded</p>
+                    <p className="text-slate-500 text-xs">Last Traded (UTC)</p>
                     <p className="text-white text-sm font-medium">
                         {nft.cached_last_traded_at === 0 
                             ? 'Never' 
-                            : new Date(nft.cached_last_traded_at * 1000).toLocaleDateString()}
+                            : new Date(nft.cached_last_traded_at * 1000).toUTCString().slice(0, -4)}
                     </p>
                 </div>
             </div>
