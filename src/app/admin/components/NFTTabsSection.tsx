@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { formatUnits } from 'viem';
 import {
     useAdminNFTs,
     useNFTStats,
@@ -9,7 +8,6 @@ import {
     pinNFT,
     type NFT
 } from '@/hooks/useAdminAPI';
-import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
 
 export function NFTTabsSection() {
@@ -65,25 +63,27 @@ export function NFTTabsSection() {
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-2 border-b border-slate-800">
-                <TabButton
-                    active={activeTab === 'all'}
-                    onClick={() => setActiveTab('all')}
-                    label="All NFTs"
-                    count={stats?.active || 0}
-                />
-                <TabButton
-                    active={activeTab === 'pinned'}
-                    onClick={() => setActiveTab('pinned')}
-                    label="📌 Pinned"
-                    count={stats?.pinned || 0}
-                />
-                <TabButton
-                    active={activeTab === 'hidden'}
-                    onClick={() => setActiveTab('hidden')}
-                    label="🙈 Hidden"
-                    count={stats?.hidden || 0}
-                />
+            <div className="sticky top-16 sm:top-20 z-40 bg-[#0F172A] py-2 -mx-3 sm:-mx-4 px-3 sm:px-4 border-b border-slate-800">
+                <div className="flex gap-1 sm:gap-2 overflow-x-auto hide-scrollbar">
+                    <TabButton
+                        active={activeTab === 'all'}
+                        onClick={() => setActiveTab('all')}
+                        label="All NFTs"
+                        count={stats?.active || 0}
+                    />
+                    <TabButton
+                        active={activeTab === 'pinned'}
+                        onClick={() => setActiveTab('pinned')}
+                        label="📌 Pinned"
+                        count={stats?.pinned || 0}
+                    />
+                    <TabButton
+                        active={activeTab === 'hidden'}
+                        onClick={() => setActiveTab('hidden')}
+                        label="🙈 Hidden"
+                        count={stats?.hidden || 0}
+                    />
+                </div>
             </div>
 
             {/* Tab Content */}
@@ -152,14 +152,14 @@ function TabButton({
     return (
         <button
             onClick={onClick}
-            className={`px-6 py-3 font-medium transition-colors ${
+            className={`flex-shrink-0 px-3 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
                 active
                     ? 'text-white border-b-2 border-purple-500'
                     : 'text-slate-400 hover:text-slate-300'
             }`}
         >
             {label}
-            <span className="ml-2 px-2 py-0.5 bg-slate-700 rounded-full text-xs">
+            <span className="ml-1 sm:ml-2 px-1.5 sm:px-2 py-0.5 bg-slate-700 rounded-full text-[10px] sm:text-xs">
                 {count}
             </span>
         </button>

@@ -92,7 +92,7 @@ export function NFTsTab() {
     };
 
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-8">
             {/* ========================================= */}
             {/*  QUEUE RULES MANAGEMENT (MySQL Data)     */}
             {/* ========================================= */}
@@ -120,8 +120,8 @@ export function NFTsTab() {
                     Contract Settings & Blockchain NFT Creation
                 </h2>
 
-            {/* Contract Stats Overview */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                {/* Contract Stats Overview */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="bg-slate-800/40 border border-slate-700 p-4 rounded-xl">
                     <p className="text-slate-400 text-sm">Total NFTs</p>
                     <p className="text-2xl font-bold text-white">{(totalNFTs as bigint)?.toString() || '0'}</p>
@@ -138,9 +138,9 @@ export function NFTsTab() {
                     <p className="text-slate-400 text-sm">Appreciation</p>
                     <p className="text-2xl font-bold text-white">{appreciation ? (Number(appreciation as bigint) / 100).toFixed(2) : '0'}%</p>
                 </div>
-            </div>
+                </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-6">
                 {/* Create NFT Form */}
                 <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl shadow-xl">
                     <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
@@ -250,7 +250,7 @@ export function NFTsTab() {
                         </div>
                     )}
                 </div>
-            </div>
+                </div>
 
             </div>
             {/* End Contract Settings wrapper */}
