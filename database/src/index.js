@@ -235,26 +235,27 @@ async function hasNFTs() {
 async function initialSync() {
     console.log('🚀 Starting initial sync...\n');
     
+    // Get last synced block from transaction history
+    const dbLastBlock = await getLastSyncedBlock();
+    
+    // Use the greater of START_BLOCK or last synced block
+    lastSyncedBlock = dbLastBlock > START_BLOCK ? dbLastBlock : START_BLOCK;
+    
+    console.log(`📍 START_BLOCK: ${START_BLOCK}`);
+    console.log(`📍 Last synced block in DB: ${dbLastBlock}`);
+    console.log(`📍 Syncing from block: ${lastSyncedBlock}\n`);
+    
     // Check if NFTs already loaded from contract
     const nftsExist = await hasNFTs();
     if (nftsExist) {
         console.log('✅ NFTs already in database (loaded from contract fetch)');
-        console.log('⏭️  Skipping historical event sync, will sync new events only\n');
-        
-        // Start from current block
-        const currentBlock = await provider.getBlockNumber();
-        lastSyncedBlock = BigInt(currentBlock);
-        console.log(`📍 Starting from current block: ${currentBlock}\n`);
+        console.log('🔄 Syncing events from block ' + lastSyncedBlock + '\n');
     } else {
-        console.log('📦 No NFTs found, syncing from events...\n');
-        
-        // Get last synced block from database
-        lastSyncedBlock = await getLastSyncedBlock();
-        console.log(`📍 Starting from block: ${lastSyncedBlock}\n`);
-        
-        // Do initial sync from events
-        await sync();
+        console.log('� No NFTs found, syncing from events...\n');
     }
+    
+    // Do initial sync from specified block
+    await sync();
     
     console.log('✅ Initial sync complete!\n');
 }

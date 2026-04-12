@@ -273,11 +273,11 @@ app.use((err, req, res, next) => {
 // START SERVER
 // ============================================================
 
-app.listen(PORT, () => {
-    console.log(`🚀 Admin API Server running on http://localhost:${PORT}`);
-    console.log(`📊 NFT endpoints: http://localhost:${PORT}/api/admin/nfts`);
-    console.log(`🎯 Queue endpoints: http://localhost:${PORT}/api/admin/queue/rules`);
-    console.log(`👤 User endpoints: http://localhost:${PORT}/api/admin/users`);
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Admin API Server running on http://0.0.0.0:${PORT}`);
+    console.log(`📊 NFT endpoints: http://0.0.0.0:${PORT}/api/admin/nfts`);
+    console.log(`🎯 Queue endpoints: http://0.0.0.0:${PORT}/api/admin/queue/rules`);
+    console.log(`👤 User endpoints: http://0.0.0.0:${PORT}/api/admin/users`);
 });
 
 export default app;

@@ -167,6 +167,27 @@ export async function handleNFTSold(event) {
 }
 
 /**
+ * Handle NFTListed event - Update NFT listing status
+ * Event fields: nftId, price
+ */
+export async function handleNFTListed(event) {
+    const { nftId, price } = event.args;
+    
+    // Update NFT listing status and price
+    await query(
+        `UPDATE nfts 
+         SET cached_is_listed = true,
+             cached_current_price = ?,
+             last_synced_block = ?,
+             updated_at = NOW()
+         WHERE nft_id = ?`,
+        [weiToDecimalFixed(price), event.blockNumber.toString(), nftId.toString()]
+    );
+    
+    console.log(`📋 NFT listed: #${nftId} at ${weiToDecimalFixed(price)} USDT`);
+}
+
+/**
  * Handle NFTBurned event - DELETE from database
  */
 export async function handleNFTBurned(event) {
@@ -414,6 +435,7 @@ export const EVENT_HANDLERS = {
     'UserRegistered': handleUserRegistered,
     'PackagePurchased': handlePackagePurchased,
     'NFTCreated': handleNFTCreated,
+    'NFTListed': handleNFTListed,
     'NFTSold': handleNFTSold,
     'NFTBurned': handleNFTBurned,
     'IncomeDistributed': handleIncomeDistributed,
