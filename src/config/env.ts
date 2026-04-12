@@ -14,4 +14,5 @@ export const RPC_URL = 'https://opbnb-mainnet-rpc.bnbchain.org'
 export const BLOCK_EXPLORER_URL = 'https://opbnbscan.com'
 
 // API Configuration
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/admin'
+// Use relative path - Next.js will proxy to Express API on port 3001
+export const API_BASE_URL = '/api/admin'
