@@ -12,9 +12,7 @@ import {
     useUSDTAllowance,
     useUserAvailableLimit,
     useUserDailyLimitData,
-    useUSDTBalance,
-    useUserWeeklyTradingVolume,
-    useCurrentWeek
+    useUSDTBalance
 } from '@/hooks/useContracts';
 import { useMarketplaceNFTs, type NFT } from '@/hooks/useAdminAPI';
 import { useApproveUSDT, useDayStartTimestamp, useDayLength, useCurrentDay } from '@/hooks/useAdminContracts';
@@ -78,58 +76,6 @@ function ResetTimer({ dayStart, dayLengthSeconds }: { dayStart: bigint | undefin
                 </div>
                 <span className="text-lg font-bold text-[#F59E0B] font-mono">{timeLeft}</span>
             </div>
-        </div>
-    );
-}
-
-// Trading Milestone Tracker - Shows weekly progress toward share rewards
-function TradingMilestoneTracker({ userId, weekNumber }: { userId: bigint | undefined; weekNumber: number }) {
-    const { data: weeklyVolume } = useUserWeeklyTradingVolume(userId, weekNumber);
-    
-    // Trading milestone settings: $1000 = 2 shares
-    const MILESTONE_THRESHOLD = 1000; // $1000 per milestone
-    const SHARES_PER_MILESTONE = 2;
-    
-    const volume = weeklyVolume ? Number(formatUnits(weeklyVolume as bigint, 18)) : 0;
-    const milestones = Math.floor(volume / MILESTONE_THRESHOLD);
-    const progressToNext = volume % MILESTONE_THRESHOLD;
-    const progressPercent = (progressToNext / MILESTONE_THRESHOLD) * 100;
-    
-    return (
-        <div className="bg-gradient-to-r from-[#EC4899]/10 to-[#3B82F6]/10 border border-[#EC4899]/30 rounded-lg p-3 animate-slide-up" style={{ animationDelay: '0.2s' }}>
-            <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                    <span className="text-lg">📈</span>
-                    <span className="text-xs text-[#64748B]">Weekly Trading Milestones</span>
-                </div>
-                <span className="text-sm font-bold text-[#EC4899]">{milestones} × {SHARES_PER_MILESTONE} = {milestones * SHARES_PER_MILESTONE} shares</span>
-            </div>
-            
-            {/* Progress Bar */}
-            <div className="mb-2">
-                <div className="h-2 bg-[#0F172A] rounded-full overflow-hidden">
-                    <div 
-                        className="h-full bg-gradient-to-r from-[#EC4899] to-[#3B82F6] transition-all duration-500"
-                        style={{ width: `${progressPercent}%` }}
-                    />
-                </div>
-            </div>
-            
-            {/* Stats */}
-            <div className="flex items-center justify-between text-xs">
-                <span className="text-[#64748B]">
-                    ${progressToNext.toFixed(2)} / ${MILESTONE_THRESHOLD}
-                </span>
-                <span className="text-[#10B981]">
-                    ${(MILESTONE_THRESHOLD - progressToNext).toFixed(2)} to next milestone
-                </span>
-            </div>
-            
-            {volume === 0 && (
-                <p className="text-xs text-[#64748B] mt-2 text-center">
-                    💡 Trade NFTs to earn shares! Every ${MILESTONE_THRESHOLD} = {SHARES_PER_MILESTONE} shares
-                </p>
-            )}
         </div>
     );
 }
@@ -233,10 +179,6 @@ export function MarketplaceTab() {
     const { data: dayStart } = useDayStartTimestamp();
     const { data: dayLength } = useDayLength();
     const { data: currentDay } = useCurrentDay();
-    
-    // Fetch current week for milestone tracking
-    const { data: currentWeek } = useCurrentWeek();
-    const weekNumber = currentWeek ? Number(currentWeek) : 0;
 
     // Debug logging with timestamp
     useEffect(() => {
@@ -555,16 +497,6 @@ export function MarketplaceTab() {
 
             {/* Reset Timer */}
             <ResetTimer dayStart={dayStart as bigint} dayLengthSeconds={dayLength as bigint} />
-
-            {/* Trading Milestone Tracker */}
-            {(() => {
-                // Use targetUserId in lookup mode, otherwise use logged-in userId
-                const displayUserId = isLookupMode ? targetUserId : userId;
-                const userIdBigint = displayUserId && typeof displayUserId === 'bigint' ? displayUserId : null;
-                return userIdBigint && userIdBigint > BigInt(0) && weekNumber > 0 ? (
-                    <TradingMilestoneTracker userId={userIdBigint} weekNumber={weekNumber} />
-                ) : null;
-            })()}
 
             {/* Error Message */}
             {error && (

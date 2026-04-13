@@ -189,21 +189,21 @@ function DistributionPercentsSettings() {
     const { setDistributionPercents, isPending, isConfirming, isSuccess, error } = useSetDistributionPercents();
     const toastShown = useRef(false);
 
-    const [seller, setSeller] = useState('25');
-    const [buffer, setBuffer] = useState('25');
+    const [seller, setSeller] = useState('12.5');
+    const [buffer, setBuffer] = useState('37.5');
     const [levelBonus, setLevelBonus] = useState('25');
     const [creator, setCreator] = useState('10');
     const [trip, setTrip] = useState('10');
     const [luckyDraw, setLuckyDraw] = useState('5');
 
-    // Set form values when data loads
+    // Set form values when data loads (convert basis points to percentage)
     useEffect(() => {
-        if (percentages.seller !== undefined) setSeller(String(percentages.seller));
-        if (percentages.buffer !== undefined) setBuffer(String(percentages.buffer));
-        if (percentages.levelBonus !== undefined) setLevelBonus(String(percentages.levelBonus));
-        if (percentages.creator !== undefined) setCreator(String(percentages.creator));
-        if (percentages.trip !== undefined) setTrip(String(percentages.trip));
-        if (percentages.luckyDraw !== undefined) setLuckyDraw(String(percentages.luckyDraw));
+        if (percentages.seller !== undefined) setSeller(String(Number(percentages.seller) / 100));
+        if (percentages.buffer !== undefined) setBuffer(String(Number(percentages.buffer) / 100));
+        if (percentages.levelBonus !== undefined) setLevelBonus(String(Number(percentages.levelBonus) / 100));
+        if (percentages.creator !== undefined) setCreator(String(Number(percentages.creator) / 100));
+        if (percentages.trip !== undefined) setTrip(String(Number(percentages.trip) / 100));
+        if (percentages.luckyDraw !== undefined) setLuckyDraw(String(Number(percentages.luckyDraw) / 100));
     }, [percentages]);
 
     useEffect(() => {
@@ -218,29 +218,37 @@ function DistributionPercentsSettings() {
     }, [isSuccess, error]);
 
     const handleUpdate = () => {
-        const s = parseInt(seller) || 0;
-        const b = parseInt(buffer) || 0;
-        const l = parseInt(levelBonus) || 0;
-        const c = parseInt(creator) || 0;
-        const t = parseInt(trip) || 0;
-        const ld = parseInt(luckyDraw) || 0;
+        const s = parseFloat(seller) || 0;
+        const b = parseFloat(buffer) || 0;
+        const l = parseFloat(levelBonus) || 0;
+        const c = parseFloat(creator) || 0;
+        const t = parseFloat(trip) || 0;
+        const ld = parseFloat(luckyDraw) || 0;
 
         const total = s + b + l + c + t + ld;
-        if (total !== 100) {
-            toast.error(`Total must be 100% (currently ${total}%)`);
+        if (Math.abs(total - 100) > 0.01) {
+            toast.error(`Total must be 100% (currently ${total.toFixed(2)}%)`);
             return;
         }
 
+        // Convert percentages to basis points (multiply by 100)
+        const sBps = Math.round(s * 100);
+        const bBps = Math.round(b * 100);
+        const lBps = Math.round(l * 100);
+        const cBps = Math.round(c * 100);
+        const tBps = Math.round(t * 100);
+        const ldBps = Math.round(ld * 100);
+
         toastShown.current = false;
-        setDistributionPercents(s, b, l, c, t, ld);
+        setDistributionPercents(sBps, bBps, lBps, cBps, tBps, ldBps);
     };
 
-    const total = (parseInt(seller) || 0) + (parseInt(buffer) || 0) + (parseInt(levelBonus) || 0) + (parseInt(creator) || 0) + (parseInt(trip) || 0) + (parseInt(luckyDraw) || 0);
+    const total = (parseFloat(seller) || 0) + (parseFloat(buffer) || 0) + (parseFloat(levelBonus) || 0) + (parseFloat(creator) || 0) + (parseFloat(trip) || 0) + (parseFloat(luckyDraw) || 0);
 
     return (
         <Card variant="default">
             <h3 className="text-sm font-semibold text-[#F8FAFC] mb-3">📊 Distribution Percentages</h3>
-            <p className="text-xs text-[#64748B] mb-4">Configure appreciation distribution (must total 100%)</p>
+            <p className="text-xs text-[#64748B] mb-4">Configure appreciation distribution (must total 100%, supports decimals)</p>
 
             {/* Current Values from Contract */}
             {percentages.seller !== undefined ? (
@@ -249,36 +257,36 @@ function DistributionPercentsSettings() {
                     <div className="grid grid-cols-3 gap-2 text-xs">
                         <div>
                             <span className="text-[#64748B]">Seller:</span>
-                            <span className="text-[#10B981] font-bold ml-1">{Number(percentages.seller ?? 0)}%</span>
+                            <span className="text-[#10B981] font-bold ml-1">{(Number(percentages.seller ?? 0) / 100).toFixed(2)}%</span>
                         </div>
                         <div>
                             <span className="text-[#64748B]">Buffer:</span>
-                            <span className="text-[#3B82F6] font-bold ml-1">{Number(percentages.buffer ?? 0)}%</span>
+                            <span className="text-[#3B82F6] font-bold ml-1">{(Number(percentages.buffer ?? 0) / 100).toFixed(2)}%</span>
                         </div>
                         <div>
                             <span className="text-[#64748B]">Level:</span>
-                            <span className="text-[#EC4899] font-bold ml-1">{Number(percentages.levelBonus ?? 0)}%</span>
+                            <span className="text-[#EC4899] font-bold ml-1">{(Number(percentages.levelBonus ?? 0) / 100).toFixed(2)}%</span>
                         </div>
                         <div>
                             <span className="text-[#64748B]">Creator:</span>
-                            <span className="text-[#8B5CF6] font-bold ml-1">{Number(percentages.creator ?? 0)}%</span>
+                            <span className="text-[#8B5CF6] font-bold ml-1">{(Number(percentages.creator ?? 0) / 100).toFixed(2)}%</span>
                         </div>
                         <div>
                             <span className="text-[#64748B]">Trip:</span>
-                            <span className="text-[#F59E0B] font-bold ml-1">{Number(percentages.trip ?? 0)}%</span>
+                            <span className="text-[#F59E0B] font-bold ml-1">{(Number(percentages.trip ?? 0) / 100).toFixed(2)}%</span>
                         </div>
                         <div>
                             <span className="text-[#64748B]">Lucky:</span>
-                            <span className="text-[#EF4444] font-bold ml-1">{Number(percentages.luckyDraw ?? 0)}%</span>
+                            <span className="text-[#EF4444] font-bold ml-1">{(Number(percentages.luckyDraw ?? 0) / 100).toFixed(2)}%</span>
                         </div>
                     </div>
                 </div>
             ) : null}
 
             {/* Current Total */}
-            <div className={`p-3 rounded-lg mb-4 ${total === 100 ? 'bg-[#10B981]/10 border border-[#10B981]/30' : 'bg-[#EF4444]/10 border border-[#EF4444]/30'}`}>
-                <p className={`text-xs font-bold ${total === 100 ? 'text-[#10B981]' : 'text-[#EF4444]'}`}>
-                    New Total: {total}% {total === 100 ? '✓' : '✗ Must be 100%'}
+            <div className={`p-3 rounded-lg mb-4 ${Math.abs(total - 100) < 0.01 ? 'bg-[#10B981]/10 border border-[#10B981]/30' : 'bg-[#EF4444]/10 border border-[#EF4444]/30'}`}>
+                <p className={`text-xs font-bold ${Math.abs(total - 100) < 0.01 ? 'text-[#10B981]' : 'text-[#EF4444]'}`}>
+                    New Total: {total.toFixed(2)}% {Math.abs(total - 100) < 0.01 ? '✓' : '✗ Must be 100%'}
                 </p>
             </div>
 

@@ -59,7 +59,7 @@ export async function getMarketplaceNFTs(filters = {}) {
         sort_order = 'DESC'
     } = filters;
 
-    // Get all listed NFTs with owner queue status
+    // Get all listed NFTs with owner queue status and pin info
     const sql = `
         SELECT 
             n.nft_id,
@@ -71,6 +71,8 @@ export async function getMarketplaceNFTs(filters = {}) {
             n.cached_last_traded_at,
             n.cached_buy_count,
             n.is_hidden,
+            n.is_pinned,
+            n.pin_order,
             n.admin_override,
             n.queue_exempt,
             COALESCE(uqs.queue_slots, 0) as owner_queue_slots
@@ -79,7 +81,10 @@ export async function getMarketplaceNFTs(filters = {}) {
         WHERE n.cached_is_listed = 1 
           AND n.is_hidden = 0
           AND n.admin_override = 0
-        ORDER BY n.${sort_by} ${sort_order}
+        ORDER BY 
+            n.is_pinned DESC,
+            n.pin_order DESC,
+            n.${sort_by} ${sort_order}
     `;
 
     const allListedNFTs = await query(sql);
