@@ -418,12 +418,12 @@ export function MarketplaceTab() {
         }
     }, [marketplaceNFTs.length]);
 
-    // Apply pin to top: pinned NFTs first, then shuffled
-    const { pinnedNFTIds } = nftControls;
-    const pinnedNFTs = shuffledNFTs.filter(nft => pinnedNFTIds.includes(nft.nft_id));
-    const unpinnedNFTs = shuffledNFTs.filter(nft => !pinnedNFTIds.includes(nft.nft_id));
+    // Backend already sorts pinned NFTs to top, just separate them for shuffle
+    // Pinned NFTs stay in order, only shuffle unpinned ones
+    const pinnedNFTs = marketplaceNFTs.filter(nft => nft.is_pinned);
+    const unpinnedNFTs = shuffledNFTs.filter(nft => !nft.is_pinned);
     
-    // Show pinned NFTs first, then first 20 unpinned shuffled NFTs
+    // Show pinned NFTs first (in pin_order), then first 20 unpinned shuffled NFTs
     const displayNFTs = [...pinnedNFTs, ...unpinnedNFTs.slice(0, 20)];
 
     const formatUSD = (value: bigint | undefined) => {

@@ -119,8 +119,19 @@ export async function getMarketplaceNFTs(filters = {}) {
         });
     }
 
-    // Sort final result
+    // Sort final result: Pinned first, then by sort preference
     marketplaceNFTs.sort((a, b) => {
+        // First priority: is_pinned (DESC - pinned first)
+        if (a.is_pinned !== b.is_pinned) {
+            return b.is_pinned - a.is_pinned;
+        }
+        
+        // Second priority: pin_order (DESC - higher order first)
+        if (a.is_pinned && b.is_pinned && a.pin_order !== b.pin_order) {
+            return b.pin_order - a.pin_order;
+        }
+        
+        // Third priority: user's sort preference
         if (sort_order === 'DESC') {
             return b[sort_by] - a[sort_by];
         } else {
