@@ -92,9 +92,10 @@ function NFTMobileCard({ nft, userId }: { nft: NFT & { calculatedStatus?: 'liste
 
 // Transaction Link Component - Fetches transaction hash from events
 function NFTTransactionLink({ nftId, userId }: { nftId: number; userId: bigint }) {
-    const { useNFTBuyEvents, useNFTSplitEvents } = require('@/hooks/useEvents');
+    const { useNFTBuyEvents } = require('@/hooks/useHistoryAPI');
     const { events: buyEvents } = useNFTBuyEvents(userId);
-    const { events: splitEvents } = useNFTSplitEvents(userId);
+    // Note: Split events not in database yet, will add if needed
+    const splitEvents: any[] = [];
 
     // First check buy events
     const nftPurchaseEvent = buyEvents?.find((event: any) => event.nftId === BigInt(nftId));

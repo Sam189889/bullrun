@@ -1,7 +1,8 @@
 'use client';
 
 import { formatUnits } from 'viem';
-import { useIncomeEvents, useRankEmiClaimedEvents, useFastBonusClaimedEvents, useNFTSellEvents, useTripRewardEvents, useLuckyDrawWinnerEvents, useWeeklyPoolPaidEvents } from '@/hooks/useEvents';
+import { useIncomeEvents, useRankEmiClaimedEvents, useFastBonusClaimedEvents, useTripRewardEvents, useLuckyDrawWinnerEvents, useWeeklyPoolPaidEvents } from '@/hooks/useHistoryAPI';
+import { useNFTSellEvents } from '@/hooks/useHistoryAPI';
 
 interface IncomeHistoryModalProps {
     isOpen: boolean;

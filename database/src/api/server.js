@@ -4,6 +4,7 @@ import * as nftAPI from './admin-nfts.js';
 import * as queueAPI from './queue-rules.js';
 import * as userAPI from './admin-users.js';
 import * as controlsAPI from './admin-controls.js';
+import * as historyAPI from './user-history.js';
 
 const app = express();
 const PORT = process.env.API_PORT || 3001;
@@ -184,6 +185,51 @@ app.get('/api/admin/users/:userId/queue-status', asyncHandler(async (req, res) =
 app.put('/api/admin/users/:userId/queue-slots', asyncHandler(async (req, res) => {
     const { queue_slots } = req.body;
     const result = await userAPI.updateUserQueueSlots(req.params.userId, queue_slots);
+    res.json(result);
+}));
+
+// ============================================================
+// USER HISTORY ENDPOINTS
+// ============================================================
+
+// GET /api/user/:userId/history - Get user transaction history
+app.get('/api/user/:userId/history', asyncHandler(async (req, res) => {
+    const filters = {
+        event_types: req.query.event_types ? req.query.event_types.split(',') : [],
+        limit: parseInt(req.query.limit) || 100,
+        offset: parseInt(req.query.offset) || 0
+    };
+    const result = await historyAPI.getUserHistory(req.params.userId, filters);
+    res.json(result);
+}));
+
+// GET /api/user/:userId/history/packages - Get package history
+app.get('/api/user/:userId/history/packages', asyncHandler(async (req, res) => {
+    const result = await historyAPI.getUserPackageHistory(req.params.userId);
+    res.json(result);
+}));
+
+// GET /api/user/:userId/history/trading - Get trading history
+app.get('/api/user/:userId/history/trading', asyncHandler(async (req, res) => {
+    const result = await historyAPI.getUserTradingHistory(req.params.userId);
+    res.json(result);
+}));
+
+// GET /api/user/:userId/history/burning - Get burning history
+app.get('/api/user/:userId/history/burning', asyncHandler(async (req, res) => {
+    const result = await historyAPI.getUserBurningHistory(req.params.userId);
+    res.json(result);
+}));
+
+// GET /api/user/:userId/history/withdrawals - Get withdrawal history
+app.get('/api/user/:userId/history/withdrawals', asyncHandler(async (req, res) => {
+    const result = await historyAPI.getUserWithdrawalHistory(req.params.userId);
+    res.json(result);
+}));
+
+// GET /api/user/:userId/history/income - Get income/earnings history
+app.get('/api/user/:userId/history/income', asyncHandler(async (req, res) => {
+    const result = await historyAPI.getUserIncomeHistory(req.params.userId);
     res.json(result);
 }));
 

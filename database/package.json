@@ -18,7 +18,8 @@
     "fetch-events": "node src/initial-events-fetch.js",
     "backup": "node scripts/backup-local-db.cjs",
     "export": "node scripts/export-to-railway.js",
-    "import": "node scripts/import-from-railway.js"
+    "import": "node scripts/import-from-railway.js",
+    "migrate": "node scripts/migrate-railway.js"
   },
   "keywords": ["blockchain", "mysql", "sync", "events"],
   "author": "",

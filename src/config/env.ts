@@ -16,3 +16,4 @@ export const BLOCK_EXPLORER_URL = 'https://opbnbscan.com'
 // API Configuration
 // Use relative path - Next.js will proxy to Express API on port 3001
 export const API_BASE_URL = '/api/admin'
+export const USER_API_BASE_URL = '/api'

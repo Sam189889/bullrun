@@ -11,7 +11,7 @@ import {
     useNFTSellEvents,
     useNFTBurnedEvents,
     useWithdrawnEvents,
-} from '@/hooks/useEvents';
+} from '@/hooks/useHistoryAPI';
 
 // Helper to truncate address
 const truncateAddress = (addr: string | undefined) => {

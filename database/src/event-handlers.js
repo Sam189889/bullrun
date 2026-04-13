@@ -236,20 +236,21 @@ export async function handleIncomeDistributed(event) {
     
     // Determine earning type
     let earningType = 'level_income';
-    if (incomeType.includes('DIRECT')) earningType = 'level_income';
+    if (incomeType.includes('DIRECT') || incomeType.includes('LEVEL')) earningType = 'level_income';
     else if (incomeType.includes('TRADING')) earningType = 'trading_level_bonus';
-    else if (incomeType.includes('SELLER')) earningType = 'nft_profit';
+    else if (incomeType.includes('PROFIT') || incomeType.includes('SELLER')) earningType = 'nft_profit';
     
     // Record earning
     await query(
         `INSERT INTO earnings_history 
-         (user_id, earning_type, amount, from_user_id, tx_hash, block_number, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+         (user_id, earning_type, amount, from_user_id, level, tx_hash, block_number, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
         [
             toUserId.toString(),
             earningType,
             weiToDecimalFixed(amount),
             fromUserId?.toString() || null,
+            level?.toString() || 0,
             event.transactionHash,
             event.blockNumber.toString()
         ]
