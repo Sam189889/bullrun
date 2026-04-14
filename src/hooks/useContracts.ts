@@ -490,7 +490,6 @@ export function useBuyNFT() {
             abi: BullRunHubABI,
             functionName: 'buyNFT',
             args: [nftId],
-            gas: BigInt(800000), // Increased for complex nested delegatecalls
         })
     }
 

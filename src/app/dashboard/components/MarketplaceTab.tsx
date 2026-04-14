@@ -271,8 +271,8 @@ export function MarketplaceTab() {
     const { buyNFT, data: buyHash, isPending: buyPending } = useBuyNFT();
     const { approve, hash: approveHash, isPending: approvePending } = useApproveUSDT();
 
-    const { isSuccess: buySuccess, isError: buyError } = useWaitForTransactionReceipt({ hash: buyHash });
-    const { isSuccess: approveSuccess, isError: approveError } = useWaitForTransactionReceipt({ hash: approveHash });
+    const { isSuccess: buySuccess, isError: isBuyError, error: buyError } = useWaitForTransactionReceipt({ hash: buyHash });
+    const { isSuccess: approveSuccess, isError: isApproveError, error: approveError } = useWaitForTransactionReceipt({ hash: approveHash });
 
     const [pendingNftId, setPendingNftId] = useState<bigint | null>(null);
     const [pendingPrice, setPendingPrice] = useState<bigint | null>(null);
@@ -344,9 +344,12 @@ export function MarketplaceTab() {
     useEffect(() => {
         if (buyError) {
             console.error('❌ Purchase failed!');
+            console.error('Error details:', buyError);
+            console.error('Error message:', buyError.message);
+            console.error('Error cause:', buyError.cause);
             toast.dismiss('buy-prep');
-            toast.error('❌ Purchase Failed! Please try again.', {
-                duration: 4000,
+            toast.error(`❌ Purchase Failed! ${buyError.message || 'Please try again.'}`, {
+                duration: 5000,
             });
             setPendingNftId(null);
             setPendingPrice(null);
