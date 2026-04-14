@@ -13,10 +13,16 @@ import {
     useNFTAppreciationBps,
     useCreateNFT,
     useSetSplitCount,
-    useSetQueueCount
+    useSetQueueCount,
+    useBurnAllFirstUserNFTs,
+    useListAllQueuedNFTs,
+    useFirstUser
 } from '@/hooks/useAdminContracts';
 
-import { useUserInfo } from '@/hooks/useContracts';
+import { useUserInfo, useUserId } from '@/hooks/useContracts';
+import { useReadContract, useReadContracts } from 'wagmi';
+import { CONTRACTS } from '@/config/constants';
+import { BullRunMainLogicABI } from '@/abi';
 import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
 import { useNFTControls } from '@/hooks/useNFTControls';
@@ -52,7 +58,7 @@ export function NFTsTab(): React.ReactElement {
     
     // NFT List filtering, sorting, pagination
     const [filterOwnerId, setFilterOwnerId] = useState('');
-    const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'price-low' | 'price-high'>('newest');
+    const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'recently-traded'>('newest');
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 50;
 
@@ -67,6 +73,52 @@ export function NFTsTab(): React.ReactElement {
     const { createNFT, isPending: creating, isConfirming: creatingConfirming, isSuccess: createSuccess } = useCreateNFT();
     const { setSplitCount: updateSplitCount, isPending: settingSplit, isSuccess: settingsSuccess } = useSetSplitCount();
     const { setQueueCount: updateQueueCount, isPending: settingQueue, isSuccess: queueSuccess } = useSetQueueCount();
+    const { burnAll, isPending: burning, isConfirming: burnConfirming, isSuccess: burnSuccess } = useBurnAllFirstUserNFTs();
+    const { listAll, isPending: listing, isConfirming: listConfirming, isSuccess: listSuccess } = useListAllQueuedNFTs();
+
+    // Get FirstUser NFT count
+    const { data: firstUserAddress } = useFirstUser();
+    const { data: firstUserId } = useUserId(firstUserAddress as `0x${string}`);
+    const { data: firstUserNFTCount } = useReadContract({
+        address: CONTRACTS.BULL_RUN,
+        abi: BullRunMainLogicABI,
+        functionName: 'userNFTCount',
+        args: firstUserId ? [firstUserId] : undefined,
+        query: { enabled: !!firstUserId },
+    });
+
+    // Get Unlisted NFT count - scan all NFTs
+    const total = totalNFTs ? Number(totalNFTs) : 0;
+    const nftCalls = total > 0 ? Array.from({ length: total }, (_, i) => ({
+        address: CONTRACTS.BULL_RUN,
+        abi: BullRunMainLogicABI,
+        functionName: 'nfts',
+        args: [BigInt(i + 1)]
+    })) : [];
+
+    const { data: allNFTsData, isLoading: nftsLoading } = useReadContracts({
+        contracts: nftCalls as any,
+        query: { 
+            enabled: total > 0,
+            staleTime: 30000,
+        }
+    });
+
+    // Calculate unlisted count from fetched data
+    const unlistedCount = allNFTsData ? allNFTsData.reduce((count, result: any) => {
+        if (result?.result) {
+            // NFT struct: [nftId, currentPrice, basePrice, lastPurchasePrice, ownerId, buyCount, createdAt, lastTradedAt, isListed, isBurned]
+            const nft = result.result as readonly [bigint, bigint, bigint, bigint, bigint, bigint, bigint, bigint, boolean, boolean];
+            const isListed = nft[8];  // Index 8
+            const isBurned = nft[9];  // Index 9
+            
+            // Count if not burned AND not listed
+            if (!isBurned && !isListed) {
+                return count + 1;
+            }
+        }
+        return count;
+    }, 0) : 0;
 
     // Refetch all data function
     const refetchAll = () => {
@@ -103,6 +155,24 @@ export function NFTsTab(): React.ReactElement {
         }
     }, [queueSuccess]);
 
+    // Refetch when burn all is confirmed
+    useEffect(() => {
+        if (burnSuccess) {
+            toast.dismiss('burn-nfts');
+            toast.success('🔥 All FirstUser NFTs Burned!');
+            refetchAll();
+        }
+    }, [burnSuccess]);
+
+    // Refetch when list all is confirmed
+    useEffect(() => {
+        if (listSuccess) {
+            toast.dismiss('list-nfts');
+            toast.success('📋 All Queued NFTs Listed!');
+            refetchAll();
+        }
+    }, [listSuccess]);
+
     const handleCreateNFT = async () => {
         try {
             const count = parseInt(nftCount) || 1;
@@ -132,6 +202,17 @@ export function NFTsTab(): React.ReactElement {
         }
     };
 
+    const handleBurnAll = () => {
+        if (!confirm('🔥 Burn ALL FirstUser NFTs? This cannot be undone!')) return;
+        burnAll();
+        toast.loading('Burning FirstUser NFTs...', { id: 'burn-nfts' });
+    };
+
+    const handleListAll = () => {
+        listAll();
+        toast.loading('Listing all queued NFTs...', { id: 'list-nfts' });
+    };
+
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Stats Overview */}
@@ -151,6 +232,81 @@ export function NFTsTab(): React.ReactElement {
                 <div className="bg-slate-800/40 border border-slate-700 p-4 rounded-xl">
                     <p className="text-slate-400 text-sm">Appreciation</p>
                     <p className="text-2xl font-bold text-white">{appreciation ? (Number(appreciation as bigint) / 100).toFixed(2) : '0'}%</p>
+                </div>
+            </div>
+
+            {/* Bulk NFT Operations */}
+            <div className="bg-gradient-to-r from-orange-500/10 via-red-500/10 to-green-500/10 border border-orange-500/30 p-6 rounded-2xl">
+                <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                    <span className="p-2 bg-orange-500/20 text-orange-400 rounded-lg">⚡</span>
+                    Bulk NFT Operations
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Burn FirstUser NFTs */}
+                    <div className="bg-slate-900/70 border border-red-500/30 rounded-xl p-5 hover:border-red-500/50 transition-all">
+                        <div className="flex justify-between items-start mb-4">
+                            <div>
+                                <p className="text-sm text-slate-400 mb-1">FirstUser NFTs</p>
+                                <p className="text-3xl font-bold text-red-400">{firstUserNFTCount ? (firstUserNFTCount as bigint).toString() : '0'}</p>
+                                <p className="text-xs text-slate-500 mt-1">Available to burn</p>
+                            </div>
+                            <div className="p-3 bg-red-500/20 rounded-lg">
+                                <span className="text-2xl">🔥</span>
+                            </div>
+                        </div>
+                        <Button 
+                            onClick={handleBurnAll}
+                            disabled={burning || burnConfirming}
+                            className="w-full bg-red-600 hover:bg-red-500 disabled:bg-slate-800 disabled:text-slate-600 py-3 rounded-xl font-semibold transition-all"
+                        >
+                            {burning || burnConfirming ? (
+                                <span className="flex items-center justify-center gap-2">
+                                    <span className="animate-spin">⚡</span>
+                                    {burning ? 'Confirming...' : 'Burning...'}
+                                </span>
+                            ) : (
+                                '🔥 Burn All FirstUser NFTs'
+                            )}
+                        </Button>
+                        <p className="text-xs text-slate-500 mt-2 text-center">⚠️ This action cannot be undone!</p>
+                    </div>
+
+                    {/* List Queued NFTs */}
+                    <div className="bg-slate-900/70 border border-green-500/30 rounded-xl p-5 hover:border-green-500/50 transition-all">
+                        <div className="flex justify-between items-start mb-4">
+                            <div>
+                                <p className="text-sm text-slate-400 mb-1">Unlisted NFTs</p>
+                                <p className="text-3xl font-bold text-green-400">
+                                    {nftsLoading ? (
+                                        <span className="flex items-center gap-2">
+                                            <span className="animate-spin">⚡</span>
+                                            <span className="text-xl">Loading...</span>
+                                        </span>
+                                    ) : unlistedCount}
+                                </p>
+                                <p className="text-xs text-slate-500 mt-1">Ready to list</p>
+                            </div>
+                            <div className="p-3 bg-green-500/20 rounded-lg">
+                                <span className="text-2xl">📋</span>
+                            </div>
+                        </div>
+                        <Button 
+                            onClick={handleListAll}
+                            disabled={listing || listConfirming}
+                            className="w-full bg-green-600 hover:bg-green-500 disabled:bg-slate-800 disabled:text-slate-600 py-3 rounded-xl font-semibold transition-all"
+                        >
+                            {listing || listConfirming ? (
+                                <span className="flex items-center justify-center gap-2">
+                                    <span className="animate-spin">⚡</span>
+                                    {listing ? 'Confirming...' : 'Listing...'}
+                                </span>
+                            ) : (
+                                '📋 List All Queued NFTs'
+                            )}
+                        </Button>
+                        <p className="text-xs text-slate-500 mt-2 text-center">✅ Makes NFTs available for sale</p>
+                    </div>
                 </div>
             </div>
 
@@ -498,8 +654,7 @@ export function NFTsTab(): React.ReactElement {
                         >
                             <option value="newest">Newest First</option>
                             <option value="oldest">Oldest First</option>
-                            <option value="price-low">Price: Low to High</option>
-                            <option value="price-high">Price: High to Low</option>
+                            <option value="recently-traded">Recently Traded</option>
                         </select>
                     </div>
 

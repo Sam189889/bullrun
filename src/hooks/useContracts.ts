@@ -409,11 +409,12 @@ export function useNFT(nftId: bigint | undefined) {
 
 /**
  * Get user's available daily trading limit (contract calculated)
+ * Note: contracts.bullRunView points to Hub contract (BullRunHubABI)
  */
 export function useUserAvailableLimit(userId: bigint | undefined) {
     return useReadContract({
         address: contracts.bullRunView,
-        abi: BullRunViewABI,
+        abi: BullRunHubABI,
         functionName: 'getUserAvailableLimit',
         args: userId ? [userId] : undefined,
         query: {

@@ -13,8 +13,9 @@ import toast from 'react-hot-toast';
 interface UserData {
     id: number;
     wallet: string;
+    usernameId: bigint;
     packageLevel: number;
-    totalInvested: bigint;
+    totalEarned: bigint;
     earningCap: bigint;
     isActive: boolean;
     directReferrals: number;
@@ -88,6 +89,13 @@ export function UsersTab() {
         args: [BigInt(id - 1)], // allUsers is 0-indexed
     }));
 
+    const balanceCalls = userIds.map(id => ({
+        address: CONTRACTS.BULL_RUN,
+        abi: BullRunMainLogicABI,
+        functionName: 'userBalances',
+        args: [BigInt(id)],
+    }));
+
     const { data: userInfoResults, isLoading: usersLoading } = useReadContracts({
         contracts: userInfoCalls as any,
         query: { enabled: userIds.length > 0 && totalUsers > 0 }
@@ -95,6 +103,11 @@ export function UsersTab() {
 
     const { data: walletResults } = useReadContracts({
         contracts: walletCalls as any,
+        query: { enabled: userIds.length > 0 && totalUsers > 0 }
+    });
+
+    const { data: balanceResults } = useReadContracts({
+        contracts: balanceCalls as any,
         query: { enabled: userIds.length > 0 && totalUsers > 0 }
     });
 
@@ -118,25 +131,33 @@ export function UsersTab() {
         });
     }, [page, totalUsers]);
 
-    // Parse user data - users mapping returns: [referrerId, packageLevel, totalInvested, earningCap, isActive, activationDate, directReferralsCount]
+    // Parse user data - users mapping returns: [referrerId, packageLevel, totalInvested, earningCap, isActive, activationDate, directReferralsCount, usernameId]
+    // userBalances returns: [totalEarned, availableBalance, withdrawnBalance]
     const users: UserData[] = userIds.map((id, idx) => {
-        const info = userInfoResults?.[idx]?.result as readonly [bigint, bigint, bigint, bigint, boolean, bigint, bigint] | undefined;
+        const info = userInfoResults?.[idx]?.result as readonly [bigint, bigint, bigint, bigint, boolean, bigint, bigint, bigint] | undefined;
         const wallet = walletResults?.[idx]?.result as string | undefined;
+        const balance = balanceResults?.[idx]?.result as readonly [bigint, bigint, bigint] | undefined;
 
         return {
             id,
             wallet: wallet || '0x...',
+            usernameId: info?.[7] ?? BigInt(0),
             packageLevel: info?.[1] ? Number(info[1]) : 0,
-            totalInvested: info?.[2] ?? BigInt(0),
+            totalEarned: balance?.[0] ?? BigInt(0),
             earningCap: info?.[3] ?? BigInt(0),
             isActive: info?.[4] ?? false,
             directReferrals: info?.[6] ? Number(info[6]) : 0,
         };
     });
 
-    // Filter by search
+    // Filter by search (ID, wallet, or username)
     const filteredUsers = search
-        ? users.filter(u => u.wallet.toLowerCase().includes(search.toLowerCase()) || u.id.toString().includes(search))
+        ? users.filter(u => 
+            u.wallet.toLowerCase().includes(search.toLowerCase()) || 
+            u.id.toString().includes(search) ||
+            u.usernameId.toString().includes(search) ||
+            `BULL${u.usernameId}`.toLowerCase().includes(search.toLowerCase())
+        )
         : users;
 
     const totalPages = Math.ceil(totalUsers / pageSize);
@@ -156,10 +177,10 @@ export function UsersTab() {
                 <div className="flex gap-2">
                     <input
                         type="text"
-                        placeholder="Search ID or wallet..."
+                        placeholder="Search ID, username, wallet..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        className="flex-1 sm:w-48 bg-[#1E293B] border border-[#334155] rounded-lg px-3 py-2 text-xs text-[#F8FAFC] placeholder-[#64748B]"
+                        className="flex-1 sm:w-64 bg-[#1E293B] border border-[#334155] rounded-lg px-3 py-2 text-xs text-[#F8FAFC] placeholder-[#64748B]"
                     />
                 </div>
             </div>
@@ -187,9 +208,10 @@ export function UsersTab() {
                         <thead className="bg-[#0F172A]">
                             <tr>
                                 <th className="text-left p-3 text-[#64748B] font-medium">ID</th>
+                                <th className="text-left p-3 text-[#64748B] font-medium">Username</th>
                                 <th className="text-left p-3 text-[#64748B] font-medium">Wallet</th>
                                 <th className="text-left p-3 text-[#64748B] font-medium">Package</th>
-                                <th className="text-left p-3 text-[#64748B] font-medium">Invested</th>
+                                <th className="text-left p-3 text-[#64748B] font-medium">Total Earned</th>
                                 <th className="text-left p-3 text-[#64748B] font-medium">Status</th>
                                 <th className="text-left p-3 text-[#64748B] font-medium">Directs</th>
                                 <th className="text-left p-3 text-[#64748B] font-medium">Queue</th>
@@ -199,33 +221,36 @@ export function UsersTab() {
                         <tbody className="divide-y divide-[#334155]">
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan={8} className="p-8 text-center text-[#64748B]">
+                                    <td colSpan={9} className="p-8 text-center text-[#64748B]">
                                         Loading...
                                     </td>
                                 </tr>
                             ) : filteredUsers.length === 0 ? (
                                 <tr>
-                                    <td colSpan={8} className="p-8 text-center text-[#64748B]">
-                                        No users found
-                                    </td>
-                                </tr>
+                                    <td colSpan={9} className="p-8 text-center text-[#64748B]">
+                                    No users found
+                                </td>
+                            </tr>
                             ) : (
                                 filteredUsers.map((user) => (
-                                    <tr key={user.id} className="hover:bg-[#0F172A]/50 transition-colors">
+                                    <tr key={user.id} className="border-b border-[#334155] hover:bg-[#0F172A]/50">
+                                        <td className="p-3 text-[#F8FAFC] font-mono">{user.id}</td>
                                         <td className="p-3">
-                                            <span className="text-[#EC4899] font-bold">#{user.id}</span>
+                                            <span className="px-2 py-1 bg-emerald-500/20 text-emerald-400 rounded text-xs font-mono font-bold">
+                                                BULL{user.usernameId.toString()}
+                                            </span>
+                                        </td>
+                                        <td className="p-3 text-[#94A3B8] font-mono text-xs">
+                                            {user.wallet.slice(0, 6)}...{user.wallet.slice(-4)}
                                         </td>
                                         <td className="p-3">
-                                            <span className="text-[#F8FAFC] font-mono text-xs">
-                                                {user.wallet.slice(0, 6)}...{user.wallet.slice(-4)}
+                                            <span className="px-2 py-1 bg-[#3B82F6]/20 text-[#3B82F6] rounded text-xs font-bold">
+                                                PKG {user.packageLevel}
                                             </span>
                                         </td>
                                         <td className="p-3">
-                                            <span className="text-[#D946EF] font-bold">Pkg {user.packageLevel}</span>
-                                        </td>
-                                        <td className="p-3">
                                             <span className="text-[#10B981] font-mono">
-                                                ${user.totalInvested ? Number(formatUnits(user.totalInvested, 18)).toFixed(0) : '0'}
+                                                ${user.totalEarned ? Number(formatUnits(user.totalEarned, 18)).toFixed(0) : '0'}
                                             </span>
                                         </td>
                                         <td className="p-3">

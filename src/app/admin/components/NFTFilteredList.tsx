@@ -7,51 +7,11 @@ import { formatUnits } from 'viem';
 interface NFTFilteredListProps {
     totalNFTs: number;
     filterOwnerId: string;
-    sortBy: 'newest' | 'oldest' | 'price-low' | 'price-high';
+    sortBy: 'newest' | 'oldest' | 'recently-traded';
     currentPage: number;
     itemsPerPage: number;
 }
 
-// NFT data type for sorting
-interface NFTData {
-    id: number;
-    currentPrice: bigint;
-    ownerId: bigint;
-}
-
-// Component to fetch and prepare NFT data for sorting
-function NFTDataFetcher({ nftId, onData }: { nftId: number; onData: (data: NFTData | null) => void }) {
-    const { data: nft } = useNFT(BigInt(nftId));
-    
-    useMemo(() => {
-        if (!nft) {
-            onData(null);
-            return;
-        }
-        
-        const nftData = nft as any[];
-        if (!nftData || nftData[0] === BigInt(0)) {
-            onData(null);
-            return;
-        }
-        
-        const [id, currentPrice, , , ownerId, , , , , isBurned] = nftData;
-        
-        // Skip burned NFTs
-        if (isBurned) {
-            onData(null);
-            return;
-        }
-        
-        onData({
-            id: Number(id),
-            currentPrice,
-            ownerId
-        });
-    }, [nft, onData]);
-    
-    return null;
-}
 
 export function NFTFilteredList({ totalNFTs, filterOwnerId, sortBy, currentPage, itemsPerPage }: NFTFilteredListProps) {
     // Generate all NFT IDs
@@ -66,8 +26,10 @@ export function NFTFilteredList({ totalNFTs, filterOwnerId, sortBy, currentPage,
         return allIds;
     }, [allIds, filterOwnerId]);
     
-    // Sort IDs based on sortBy
+    // Sort IDs based on sortBy (for simple sorts only)
     const sortedIds = useMemo(() => {
+        if (sortBy === 'recently-traded') return filteredIds; // Skip for recently-traded
+        
         let ids = [...filteredIds];
         
         switch (sortBy) {
@@ -77,24 +39,29 @@ export function NFTFilteredList({ totalNFTs, filterOwnerId, sortBy, currentPage,
             case 'oldest':
                 ids = ids.sort((a, b) => a - b);
                 break;
-            case 'price-low':
-            case 'price-high':
-                // For price sorting, we need to fetch NFT data
-                // For now, fallback to ID-based sorting
-                // Price sorting will be applied at the component level
-                ids = ids.sort((a, b) => b - a);
-                break;
         }
         
         return ids;
     }, [filteredIds, sortBy]);
     
-    // Paginate
+    // Paginate (for simple sorts only)
     const paginatedIds = useMemo(() => {
+        if (sortBy === 'recently-traded') return []; // Skip for recently-traded
+        
         const startIndex = (currentPage - 1) * itemsPerPage;
         const endIndex = startIndex + itemsPerPage;
         return sortedIds.slice(startIndex, endIndex);
-    }, [sortedIds, currentPage, itemsPerPage]);
+    }, [sortedIds, currentPage, itemsPerPage, sortBy]);
+    
+    // Conditional rendering instead of conditional return
+    if (sortBy === 'recently-traded') {
+        return <RecentlyTradedList 
+            allIds={filteredIds} 
+            filterOwnerId={filterOwnerId}
+            currentPage={currentPage}
+            itemsPerPage={itemsPerPage}
+        />;
+    }
     
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -107,6 +74,151 @@ export function NFTFilteredList({ totalNFTs, filterOwnerId, sortBy, currentPage,
             ))}
         </div>
     );
+}
+
+// Component for recently-traded sorting using contract data
+function RecentlyTradedList({ allIds, filterOwnerId, currentPage, itemsPerPage }: { 
+    allIds: number[];
+    filterOwnerId: string;
+    currentPage: number;
+    itemsPerPage: number;
+}) {
+    // Get ALL NFT IDs for accurate recently-traded sorting
+    // We need to check all NFTs to see which were traded most recently
+    const latestIds = useMemo(() => {
+        // Take all IDs in reverse order (start with highest)
+        return [...allIds].reverse();
+    }, [allIds]);
+    
+    // Use data fetcher to collect and sort
+    return <RecentlyTradedDataFetcher 
+        nftIds={latestIds}
+        filterOwnerId={filterOwnerId}
+        currentPage={currentPage}
+        itemsPerPage={itemsPerPage}
+    />;
+}
+
+// Fetcher component that collects NFT data
+function RecentlyTradedDataFetcher({ nftIds, filterOwnerId, currentPage, itemsPerPage }: {
+    nftIds: number[];
+    filterOwnerId: string;
+    currentPage: number;
+    itemsPerPage: number;
+}) {
+    const [nftData, setNftData] = React.useState<Map<number, bigint>>(new Map());
+    const [fetchedCount, setFetchedCount] = React.useState(0);
+    
+    // Collect NFT data as components mount
+    const collectNFTData = React.useCallback((id: number, lastTradedAt: bigint) => {
+        setNftData(prev => {
+            const newMap = new Map(prev);
+            newMap.set(id, lastTradedAt);
+            return newMap;
+        });
+        setFetchedCount(prev => prev + 1);
+    }, []);
+    
+    // Sort NFTs by lastTradedAt once we have data
+    const sortedIds = useMemo(() => {
+        if (nftData.size === 0) return nftIds;
+        
+        const idsWithData = Array.from(nftData.entries())
+            .sort((a, b) => Number(b[1] - a[1])) // Sort by lastTradedAt descending
+            .map(([id]) => id);
+        
+        // Add any missing IDs at the end
+        const missingIds = nftIds.filter(id => !nftData.has(id));
+        return [...idsWithData, ...missingIds];
+    }, [nftData, nftIds]);
+    
+    const paginatedIds = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        return sortedIds.slice(startIndex, endIndex);
+    }, [sortedIds, currentPage, itemsPerPage]);
+    
+    // Show loading until we have enough data for first page or all data is fetched
+    const minRequiredForDisplay = Math.min(itemsPerPage * 2, nftIds.length);
+    const isLoading = fetchedCount < minRequiredForDisplay;
+    
+    return (
+        <>
+            {/* Hidden fetchers to collect data from ALL NFTs for accurate sorting */}
+            {nftIds.map(id => (
+                <NFTDataCollector 
+                    key={`collector-${id}`}
+                    nftId={id}
+                    onData={collectNFTData}
+                />
+            ))}
+            
+            {/* Display */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {isLoading && (
+                    Array.from({ length: Math.min(itemsPerPage, 10) }).map((_, i) => (
+                        <div key={`loading-${i}`} className="bg-slate-950 border border-slate-800 p-4 rounded-xl animate-pulse h-48">
+                            <div className="h-full bg-slate-900/50 rounded-lg"></div>
+                        </div>
+                    ))
+                )}
+                
+                {!isLoading && paginatedIds.map((id) => (
+                    <NFTCompactCardWithRecentlyTradedSort 
+                        key={id} 
+                        nftId={BigInt(id)} 
+                        filterOwnerId={filterOwnerId}
+                    />
+                ))}
+            </div>
+        </>
+    );
+}
+
+// Hidden component that fetches and reports NFT data
+function NFTDataCollector({ nftId, onData }: { nftId: number; onData: (id: number, lastTradedAt: bigint) => void }) {
+    const { data: nft } = useNFT(BigInt(nftId));
+    
+    React.useEffect(() => {
+        if (!nft) return;
+        
+        const nftData = nft as any[];
+        if (!nftData || nftData[0] === BigInt(0)) return;
+        
+        const [, , , , , , , lastTradedAt, , isBurned] = nftData;
+        if (isBurned) return;
+        
+        onData(nftId, lastTradedAt as bigint);
+    }, [nft, nftId, onData]);
+    
+    return null;
+}
+
+// Specialized wrapper that shows lastTradedAt prominently for recently-traded view
+function NFTCompactCardWithRecentlyTradedSort({ nftId, filterOwnerId }: { nftId: bigint; filterOwnerId: string }) {
+    const { data: nft, isLoading } = useNFT(nftId);
+    
+    if (isLoading) return (
+        <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl animate-pulse h-40">
+            <div className="h-full bg-slate-900/50 rounded-lg"></div>
+        </div>
+    );
+    
+    const nftData = nft as any[] | undefined;
+    if (!nftData || nftData[0] === BigInt(0)) return null;
+    
+    const [, , , , ownerId, , , , , isBurned] = nftData;
+    
+    // Hide burned NFTs
+    if (isBurned) return null;
+    
+    // Filter by owner if specified
+    if (filterOwnerId && Number(ownerId) !== parseInt(filterOwnerId)) {
+        return null;
+    }
+    
+    // Render actual card
+    return <NFTCompactCardDisplay nftId={nftId} nftData={nftData} />;
 }
 
 // Wrapper component that filters by owner
@@ -191,7 +303,20 @@ function NFTCompactCardDisplay({ nftId, nftData }: { nftId: bigint; nftData: any
         }
     };
     
-    const [id, currentPrice, basePrice, , ownerId, , , , isListed, isBurned] = nftData;
+    const [id, currentPrice, basePrice, , ownerId, , , lastTradedAt, isListed, isBurned] = nftData;
+    
+    // Format timestamp to actual date/time
+    const formatTimestamp = (timestamp: bigint) => {
+        const date = new Date(Number(timestamp) * 1000);
+        return date.toLocaleString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        });
+    };
     
     return (
         <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl hover:border-slate-700 transition-all group">
@@ -226,6 +351,11 @@ function NFTCompactCardDisplay({ nftId, nftData }: { nftId: bigint; nftData: any
                     <p className="text-slate-500">Base Price</p>
                     <p className="text-white">${Number(formatUnits(basePrice, 18)).toFixed(2)}</p>
                 </div>
+            </div>
+            
+            <div className="bg-slate-900/50 p-2 rounded-lg mb-4">
+                <p className="text-slate-500 text-[10px]">Last Traded</p>
+                <p className="text-amber-400 text-xs font-mono">{formatTimestamp(lastTradedAt)}</p>
             </div>
             
             <div className="flex gap-2 mb-2">

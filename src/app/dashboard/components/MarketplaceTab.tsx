@@ -223,46 +223,28 @@ function NFTCard({ nftId, userId, hiddenNFTs, unlistedNFTIds, isLookupMode, onSe
 
 export function MarketplaceTab() {
     const { address } = useAccount();
-    const { isLookupMode } = useLookupUser();
-    const { data: userId } = useUserId(address);
+    const { targetUserId, isLookupMode } = useLookupUser();
+    const { data: walletUserId } = useUserId(address);
+    const userId = isLookupMode ? targetUserId : (walletUserId as bigint);
     const { data: totalNFTs } = useTotalNFTs();
     const { hiddenNFTs, pinnedNFTs } = useNFTControls();
     const { unlistedNFTIds } = useUnlistedNFTIds();
     const { data: allowance, refetch: refetchAllowance } = useUSDTAllowance(address);
-    const { data: availableLimit, refetch: refetchLimit } = useUserAvailableLimit(userId as bigint);
     const { data: dailyLimitData, refetch: refetchDailyLimitData } = useUserDailyLimitData(userId as bigint);
-
-    // Calculate actual remaining limit (totalLimit - usedLimit)
-    const actualRemainingLimit = dailyLimitData
-        ? (dailyLimitData as readonly [bigint, bigint, bigint])[0] - (dailyLimitData as readonly [bigint, bigint, bigint])[1]
-        : BigInt(0);
+    const { data: availableLimit, refetch: refetchLimit } = useUserAvailableLimit(userId as bigint);
 
     // Fetch day settings for debugging
     const { data: dayStart } = useDayStartTimestamp();
     const { data: dayLength } = useDayLength();
     const { data: currentDay } = useCurrentDay();
 
-    // Debug logging with timestamp
-    useEffect(() => {
-        if (availableLimit !== undefined && availableLimit !== null) {
-            const now = new Date().toLocaleTimeString();
-            console.log(`📊 [${now}] Available Limit:`, {
-                userId: userId?.toString(),
-                availableLimit: availableLimit.toString(),
-                formatted: `$${Number(formatUnits(availableLimit as bigint, 18)).toFixed(2)}`
-            });
-        }
-    }, [availableLimit, userId]);
+    // Calculate daily trade limit - USE availableLimit from contract (handles day reset) - COPIED FROM HOMETAB
+    const dailyLimit = dailyLimitData as readonly [bigint, bigint, bigint] | undefined;
+    const totalDailyLimit = dailyLimit ? dailyLimit[0] : BigInt(0);
+    // Use availableLimit from contract (properly handles day reset)
+    const remainingDailyLimit = availableLimit ? (availableLimit as bigint) : BigInt(0);
+    const usedDailyLimit = totalDailyLimit - remainingDailyLimit; // Calculate from available
 
-    // Debug day settings
-    useEffect(() => {
-        console.log('🕐 Day Settings:', {
-            dayStart: dayStart?.toString() || 'Not set',
-            dayLength: dayLength?.toString() || 'Not set',
-            currentDay: currentDay?.toString() || 'Not set',
-            dayStartDate: dayStart ? new Date(Number(dayStart) * 1000).toLocaleString() : 'N/A'
-        });
-    }, [dayStart, dayLength, currentDay]);
 
     // Fetch balances
     const { data: nativeBalance } = useBalance({ address });
@@ -388,8 +370,8 @@ export function MarketplaceTab() {
             return { isValid: false, error };
         }
 
-        // Check daily trading limit (use actual remaining)
-        const currentLimit = actualRemainingLimit || BigInt(0);
+        // Check daily trading limit
+        const currentLimit = remainingDailyLimit || BigInt(0);
         if (currentLimit < price) {
             const error = `📊 Daily limit exceeded! Available: $${Number(formatUnits(currentLimit, 18)).toFixed(2)}, Need: $${Number(formatUnits(price, 18)).toFixed(2)}`;
             setError(error);
@@ -512,18 +494,18 @@ export function MarketplaceTab() {
                 </div>
 
                 {/* Daily Limit - Show Actual Remaining */}
-                <div className={`bg-gradient-to-br from-[#1E293B] to-[#0F172A] border rounded-lg p-2 sm:p-3 ${actualRemainingLimit < BigInt('10000000000000000000')
+                <div className={`bg-gradient-to-br from-[#1E293B] to-[#0F172A] border rounded-lg p-2 sm:p-3 ${(remainingDailyLimit as bigint) < BigInt('10000000000000000000')
                     ? 'border-[#F59E0B]/50'
                     : 'border-[#334155]'
                     }`}>
                     <p className="text-[8px] sm:text-[10px] text-[#64748B] mb-1">📊 Daily Limit</p>
-                    <p className={`text-sm sm:text-base font-bold ${actualRemainingLimit === BigInt(0)
+                    <p className={`text-sm sm:text-base font-bold ${(remainingDailyLimit as bigint) === BigInt(0)
                         ? 'text-[#EF4444]'
                         : 'text-[#EC4899]'
                         }`}>
-                        {formatUSD(actualRemainingLimit)}
+                        {formatUSD(remainingDailyLimit as bigint)}
                     </p>
-                    {actualRemainingLimit === BigInt(0) && (
+                    {(remainingDailyLimit as bigint) === BigInt(0) && (
                         <p className="text-[8px] text-[#EF4444] mt-1">⚠️ Limit reached</p>
                     )}
                 </div>
@@ -664,18 +646,18 @@ export function MarketplaceTab() {
                             </div>
 
                             {/* Daily Limit - Actual Remaining */}
-                            <div className={`bg-[#0F172A] border rounded-lg p-2 ${actualRemainingLimit < selectedNFT.currentPrice
+                            <div className={`bg-[#0F172A] border rounded-lg p-2 ${(remainingDailyLimit as bigint) < selectedNFT.currentPrice
                                 ? 'border-[#EF4444] animate-pulse'
                                 : 'border-[#334155]'
                                 }`}>
                                 <p className="text-[8px] text-[#64748B] mb-1">📊 Limit</p>
-                                <p className={`text-xs font-bold ${actualRemainingLimit < selectedNFT.currentPrice
+                                <p className={`text-xs font-bold ${(remainingDailyLimit as bigint) < selectedNFT.currentPrice
                                     ? 'text-[#EF4444]'
                                     : 'text-[#EC4899]'
                                     }`}>
-                                    ${Number(formatUnits(actualRemainingLimit, 18)).toFixed(2)}
+                                    ${Number(formatUnits(remainingDailyLimit as bigint, 18)).toFixed(2)}
                                 </p>
-                                {actualRemainingLimit < selectedNFT.currentPrice && (
+                                {(remainingDailyLimit as bigint) < selectedNFT.currentPrice && (
                                     <p className="text-[8px] text-[#EF4444] mt-1">⚠️ Low</p>
                                 )}
                             </div>

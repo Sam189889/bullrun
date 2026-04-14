@@ -59,6 +59,13 @@
   },
   {
     "type": "function",
+    "name": "burnAllFirstUserNFTs",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "buyNFT",
     "inputs": [
       {
@@ -540,6 +547,13 @@
       }
     ],
     "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "listAllQueuedNFTs",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -2677,6 +2691,26 @@
   },
   {
     "type": "error",
+    "name": "DailyLimitExceeded",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "EarningCapExceeded",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ExceedsAvailableBuffer",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "FirstPurchaseMustBePackageOne",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "InsufficientBalance",
     "inputs": []
   },
@@ -2697,12 +2731,22 @@
   },
   {
     "type": "error",
+    "name": "InvalidDistributionSum",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "InvalidNFTId",
     "inputs": []
   },
   {
     "type": "error",
     "name": "InvalidPackageId",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidRecipient",
     "inputs": []
   },
   {
@@ -2742,6 +2786,21 @@
   },
   {
     "type": "error",
+    "name": "NoEntriesThisWeek",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NoParticipants",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NoPrizeInPool",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "NotInitialized",
     "inputs": []
   },
@@ -2773,6 +2832,21 @@
   {
     "type": "error",
     "name": "UserNotFound",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "UserNotRegistered",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "VIPCannotPurchase",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "WinnerNotFound",
     "inputs": []
   }
 ]

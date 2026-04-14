@@ -971,3 +971,39 @@ export function useWithdrawAvailableBuffer() {
 
     return { withdrawAvailableBuffer, hash, isPending, isConfirming, isSuccess, error }
 }
+
+/**
+ * Burn all firstUser's NFTs (admin only, no input needed)
+ */
+export function useBurnAllFirstUserNFTs() {
+    const { writeContract, data: hash, isPending, error } = useWriteContract()
+    const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
+
+    const burnAll = () => {
+        writeContract({
+            address: CONTRACTS.BULL_RUN,
+            abi: BullRunMainLogicABI,
+            functionName: 'burnAllFirstUserNFTs',
+        })
+    }
+
+    return { burnAll, hash, isPending, isConfirming, isSuccess, error }
+}
+
+/**
+ * List all queued/unlisted NFTs (admin only, no input needed)
+ */
+export function useListAllQueuedNFTs() {
+    const { writeContract, data: hash, isPending, error } = useWriteContract()
+    const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
+
+    const listAll = () => {
+        writeContract({
+            address: CONTRACTS.BULL_RUN,
+            abi: BullRunMainLogicABI,
+            functionName: 'listAllQueuedNFTs',
+        })
+    }
+
+    return { listAll, hash, isPending, isConfirming, isSuccess, error }
+}
