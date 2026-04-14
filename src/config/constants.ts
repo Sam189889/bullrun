@@ -1,7 +1,7 @@
 // ========================================
 // 🎯 NETWORK SWITCH - Change here only!
 // ========================================
-const USE_TESTNET = true // true = testnet, false = mainnet
+const USE_TESTNET = false // true = testnet, false = mainnet
 
 // ========================================
 // 🔧 MAINTENANCE MODE
