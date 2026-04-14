@@ -1,8 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { formatUnits } from 'viem';
-import { useIncomeEvents, useRankEmiClaimedEvents, useFastBonusClaimedEvents, useTripRewardEvents, useLuckyDrawWinnerEvents, useWeeklyPoolPaidEvents } from '@/hooks/useHistoryAPI';
-import { useNFTSellEvents } from '@/hooks/useHistoryAPI';
+import { useIncomeEvents, useRankEmiClaimedEvents, useFastBonusClaimedEvents, useNFTSellEvents, useTripRewardEvents, useLuckyDrawWinnerEvents, useWeeklyPoolPaidEvents } from '@/hooks/useEvents';
 
 interface IncomeHistoryModalProps {
     isOpen: boolean;
@@ -22,11 +22,32 @@ interface IncomeEvent {
 }
 
 export function IncomeHistoryModal({ isOpen, onClose, type, userId, color, icon }: IncomeHistoryModalProps) {
+    const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+    const [daysBack, setDaysBack] = useState<number>(0);
+
+    // Calculate days back from selected date
+    const calculateDaysBack = (dateStr: string) => {
+        const selected = new Date(dateStr);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        selected.setHours(0, 0, 0, 0);
+        const diffTime = today.getTime() - selected.getTime();
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        return Math.max(0, diffDays);
+    };
+
+    // Update daysBack when date changes
+    const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const newDate = e.target.value;
+        setSelectedDate(newDate);
+        setDaysBack(calculateDaysBack(newDate));
+    };
+
     // Fetch events based on income type
-    const { events: incomeEvents, isLoading: incomeLoading } = useIncomeEvents(userId);
+    const { events: incomeEvents, isLoading: incomeLoading } = useIncomeEvents(userId, daysBack);
     const { events: emiEvents, isLoading: emiLoading } = useRankEmiClaimedEvents(userId);
     const { events: fastBonusEvents, isLoading: fastBonusLoading } = useFastBonusClaimedEvents(userId);
-    const { events: nftSoldEvents, isLoading: nftLoading } = useNFTSellEvents(userId);
+    const { events: nftSoldEvents, isLoading: nftLoading } = useNFTSellEvents(userId, daysBack);
     const { events: tripRewardEvents, isLoading: tripLoading } = useTripRewardEvents(userId);
     const { events: luckyDrawEvents, isLoading: luckyLoading } = useLuckyDrawWinnerEvents(userId);
     const { events: weeklyPoolEvents, isLoading: weeklyLoading } = useWeeklyPoolPaidEvents(userId);
@@ -169,6 +190,29 @@ export function IncomeHistoryModal({ isOpen, onClose, type, userId, color, icon 
                         >
                             ✕
                         </button>
+                    </div>
+
+                    {/* Date Picker */}
+                    <div className="px-4 sm:px-6 py-3 border-b border-[#334155] bg-[#0F172A]/30">
+                        <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2 bg-[#1E293B] border border-[#334155] rounded-lg px-3 py-1.5 hover:border-opacity-70 transition-all"
+                                style={{ borderColor: `${color}40` }}>
+                                <span className="text-sm">📅</span>
+                                <input
+                                    type="date"
+                                    value={selectedDate}
+                                    max={new Date().toISOString().split('T')[0]}
+                                    onChange={handleDateChange}
+                                    className="bg-transparent text-xs text-white outline-none cursor-pointer"
+                                    style={{
+                                        colorScheme: 'dark',
+                                    }}
+                                />
+                            </div>
+                            <span className="text-[10px] text-[#64748B]">
+                                {daysBack === 0 ? 'Today' : `${daysBack} day${daysBack > 1 ? 's' : ''} ago`}
+                            </span>
+                        </div>
                     </div>
 
                     {/* Content */}

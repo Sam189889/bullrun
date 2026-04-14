@@ -10,6 +10,24 @@ import { PublicClient, Log } from 'viem'
 // opBNB Mainnet has a 50k block range limit for eth_getLogs
 const MAX_BLOCK_RANGE = BigInt(45000)
 
+// opBNB block time is ~1 second, so ~86400 blocks per day
+const BLOCKS_PER_DAY = BigInt(86400)
+
+/**
+ * Calculate block range for a date (defaults to last 24 hours)
+ */
+function getBlockRangeForDate(currentBlock: bigint | undefined, daysBack: number = 0): { fromBlock: bigint; toBlock: bigint } {
+    if (!currentBlock) {
+        return { fromBlock: DEPLOY_BLOCK, toBlock: DEPLOY_BLOCK }
+    }
+
+    const toBlock = currentBlock
+    const blocksBack = BLOCKS_PER_DAY * BigInt(daysBack + 1) // +1 to include full day
+    const fromBlock = toBlock > blocksBack ? toBlock - blocksBack : DEPLOY_BLOCK
+
+    return { fromBlock, toBlock }
+}
+
 /**
  * Fetch events in chunks of 45k blocks (opBNB mainnet limit is 50k)
  * This enables fetching complete history without RPC errors
@@ -162,8 +180,9 @@ export interface WithdrawnEvent {
 
 /**
  * Get all income received by a user (DIRECT_SPONSOR, LEVEL_INCOME, TRADING_LEVEL, NFT_SELLER)
+ * @param daysBack Number of days back to fetch (0 = today only, default)
  */
-export function useIncomeEvents(userId: bigint | undefined) {
+export function useIncomeEvents(userId: bigint | undefined, daysBack: number = 0) {
     const publicClient = usePublicClient()
     const { data: currentBlock } = useBlockNumber()
     const [events, setEvents] = useState<IncomeEvent[]>([])
@@ -171,21 +190,25 @@ export function useIncomeEvents(userId: bigint | undefined) {
     const [error, setError] = useState<Error | null>(null)
 
     const fetchEvents = useCallback(async () => {
-        if (!userId || !publicClient || !currentBlock) return
+        if (!publicClient || !userId || userId === BigInt(0) || !currentBlock) {
+            setEvents([])
+            return
+        }
 
         setIsLoading(true)
         setError(null)
         try {
-            console.log('[useIncomeEvents] Fetching for userId:', userId.toString(), 'blocks:', DEPLOY_BLOCK.toString(), '-', currentBlock.toString())
-            const logs = await fetchEventsInChunks(publicClient as PublicClient, {
+            const { fromBlock, toBlock } = getBlockRangeForDate(currentBlock, daysBack)
+            
+            const logs = await fetchEventsInChunks(publicClient, {
                 address: CONTRACTS.BULL_RUN,
                 abi: BullRunMainLogicABI,
                 eventName: 'IncomeDistributed',
                 args: { toUserId: userId },
-                fromBlock: DEPLOY_BLOCK,
-                toBlock: currentBlock,
+                fromBlock,
+                toBlock,
             })
-            console.log('[useIncomeEvents] Found logs:', logs.length)
+            console.log('[useIncomeEvents] Found logs:', logs.length, `(last ${daysBack + 1} days)`)
 
             const parsed: IncomeEvent[] = logs.map(log => {
                 const args = (log as any).args
@@ -208,7 +231,7 @@ export function useIncomeEvents(userId: bigint | undefined) {
         } finally {
             setIsLoading(false)
         }
-    }, [userId, publicClient, currentBlock])
+    }, [userId, publicClient, currentBlock, daysBack])
 
     useEffect(() => {
         fetchEvents()
@@ -221,8 +244,9 @@ export function useIncomeEvents(userId: bigint | undefined) {
 
 /**
  * Get NFTs bought by a user
+ * @param daysBack Number of days back to fetch (0 = last 24h, default)
  */
-export function useNFTBuyEvents(buyerId: bigint | undefined) {
+export function useNFTBuyEvents(buyerId: bigint | undefined, daysBack: number = 0) {
     const publicClient = usePublicClient()
     const { data: currentBlock } = useBlockNumber()
     const [events, setEvents] = useState<NFTSoldEvent[]>([])
@@ -235,13 +259,15 @@ export function useNFTBuyEvents(buyerId: bigint | undefined) {
         setIsLoading(true)
         setError(null)
         try {
+            const { fromBlock, toBlock } = getBlockRangeForDate(currentBlock, daysBack)
+            
             const logs = await fetchEventsInChunks(publicClient as PublicClient, {
                 address: CONTRACTS.BULL_RUN,
                 abi: BullRunMainLogicABI,
                 eventName: 'NFTSold',
                 args: { buyerId },
-                fromBlock: DEPLOY_BLOCK,
-                toBlock: currentBlock,
+                fromBlock,
+                toBlock,
             })
 
             const parsed: NFTSoldEvent[] = logs.map(log => {
@@ -265,7 +291,7 @@ export function useNFTBuyEvents(buyerId: bigint | undefined) {
         } finally {
             setIsLoading(false)
         }
-    }, [buyerId, publicClient, currentBlock])
+    }, [buyerId, publicClient, currentBlock, daysBack])
 
     useEffect(() => {
         fetchEvents()
@@ -276,8 +302,9 @@ export function useNFTBuyEvents(buyerId: bigint | undefined) {
 
 /**
  * Get NFTs sold by a user
+ * @param daysBack Number of days back to fetch (0 = last 24h, default)
  */
-export function useNFTSellEvents(sellerId: bigint | undefined) {
+export function useNFTSellEvents(sellerId: bigint | undefined, daysBack: number = 0) {
     const publicClient = usePublicClient()
     const { data: currentBlock } = useBlockNumber()
     const [events, setEvents] = useState<NFTSoldEvent[]>([])
@@ -290,13 +317,15 @@ export function useNFTSellEvents(sellerId: bigint | undefined) {
         setIsLoading(true)
         setError(null)
         try {
+            const { fromBlock, toBlock } = getBlockRangeForDate(currentBlock, daysBack)
+            
             const logs = await fetchEventsInChunks(publicClient as PublicClient, {
                 address: CONTRACTS.BULL_RUN,
                 abi: BullRunMainLogicABI,
                 eventName: 'NFTSold',
                 args: { sellerId },
-                fromBlock: DEPLOY_BLOCK,
-                toBlock: currentBlock,
+                fromBlock,
+                toBlock,
             })
 
             const parsed: NFTSoldEvent[] = logs.map(log => {
@@ -320,7 +349,7 @@ export function useNFTSellEvents(sellerId: bigint | undefined) {
         } finally {
             setIsLoading(false)
         }
-    }, [sellerId, publicClient, currentBlock])
+    }, [sellerId, publicClient, currentBlock, daysBack])
 
     useEffect(() => {
         fetchEvents()
@@ -331,8 +360,9 @@ export function useNFTSellEvents(sellerId: bigint | undefined) {
 
 /**
  * Get NFT burned events for a user (as buyer of $200 NFT)
+ * @param daysBack Number of days back to fetch (0 = last 24h, default)
  */
-export function useNFTBurnedEvents(buyerId: bigint | undefined) {
+export function useNFTBurnedEvents(buyerId: bigint | undefined, daysBack: number = 0) {
     const publicClient = usePublicClient()
     const { data: currentBlock } = useBlockNumber()
     const [events, setEvents] = useState<NFTBurnedEvent[]>([])
@@ -345,13 +375,15 @@ export function useNFTBurnedEvents(buyerId: bigint | undefined) {
         setIsLoading(true)
         setError(null)
         try {
+            const { fromBlock, toBlock } = getBlockRangeForDate(currentBlock, daysBack)
+            
             const logs = await fetchEventsInChunks(publicClient as PublicClient, {
                 address: CONTRACTS.BULL_RUN,
                 abi: BullRunMainLogicABI,
                 eventName: 'NFTBurned',
                 args: { buyerId },
-                fromBlock: DEPLOY_BLOCK,
-                toBlock: currentBlock,
+                fromBlock,
+                toBlock,
             })
 
             const parsed: NFTBurnedEvent[] = logs.map(log => {
@@ -371,7 +403,7 @@ export function useNFTBurnedEvents(buyerId: bigint | undefined) {
         } finally {
             setIsLoading(false)
         }
-    }, [buyerId, publicClient, currentBlock])
+    }, [buyerId, publicClient, currentBlock, daysBack])
 
     useEffect(() => {
         fetchEvents()
@@ -551,8 +583,9 @@ export function useFastBonusClaimedEvents(userId: bigint | undefined) {
 
 /**
  * Get all withdrawals by a user
+ * @param daysBack Number of days back to fetch (0 = last 24h, default)
  */
-export function useWithdrawnEvents(userId: bigint | undefined) {
+export function useWithdrawnEvents(userId: bigint | undefined, daysBack: number = 0) {
     const publicClient = usePublicClient()
     const { data: currentBlock } = useBlockNumber()
     const [events, setEvents] = useState<WithdrawnEvent[]>([])
@@ -565,13 +598,15 @@ export function useWithdrawnEvents(userId: bigint | undefined) {
         setIsLoading(true)
         setError(null)
         try {
+            const { fromBlock, toBlock } = getBlockRangeForDate(currentBlock, daysBack)
+            
             const logs = await fetchEventsInChunks(publicClient as PublicClient, {
                 address: CONTRACTS.BULL_RUN,
                 abi: BullRunMainLogicABI,
                 eventName: 'Withdrawn',
                 args: { userId },
-                fromBlock: DEPLOY_BLOCK,
-                toBlock: currentBlock,
+                fromBlock,
+                toBlock,
             })
 
             const parsed: WithdrawnEvent[] = logs.map(log => {
@@ -591,7 +626,7 @@ export function useWithdrawnEvents(userId: bigint | undefined) {
         } finally {
             setIsLoading(false)
         }
-    }, [userId, publicClient, currentBlock])
+    }, [userId, publicClient, currentBlock, daysBack])
 
     useEffect(() => {
         fetchEvents()
@@ -887,8 +922,9 @@ export function useAllLuckyDrawWinners() {
 
 /**
  * Get package purchases by a user
+ * @param daysBack Number of days back to fetch (0 = last 24h, default)
  */
-export function usePackagePurchasedEvents(userId: bigint | undefined) {
+export function usePackagePurchasedEvents(userId: bigint | undefined, daysBack: number = 0) {
     const publicClient = usePublicClient()
     const { data: currentBlock } = useBlockNumber()
     const [events, setEvents] = useState<PackagePurchasedEvent[]>([])
@@ -901,13 +937,15 @@ export function usePackagePurchasedEvents(userId: bigint | undefined) {
         setIsLoading(true)
         setError(null)
         try {
+            const { fromBlock, toBlock } = getBlockRangeForDate(currentBlock, daysBack)
+            
             const logs = await fetchEventsInChunks(publicClient as PublicClient, {
                 address: CONTRACTS.BULL_RUN,
                 abi: BullRunMainLogicABI,
                 eventName: 'PackagePurchased',
                 args: { userId },
-                fromBlock: DEPLOY_BLOCK,
-                toBlock: currentBlock,
+                fromBlock,
+                toBlock,
             })
 
             const parsed: PackagePurchasedEvent[] = logs.map(log => {
@@ -927,7 +965,7 @@ export function usePackagePurchasedEvents(userId: bigint | undefined) {
         } finally {
             setIsLoading(false)
         }
-    }, [userId, publicClient, currentBlock])
+    }, [userId, publicClient, currentBlock, daysBack])
 
     useEffect(() => {
         fetchEvents()

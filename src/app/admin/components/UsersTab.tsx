@@ -2,14 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { formatUnits } from 'viem';
-import toast from 'react-hot-toast';
 import { useTotalUsers } from '@/hooks/useAdminContracts';
 import { useReadContracts } from 'wagmi';
 import { CONTRACTS } from '@/config/constants';
 import { BullRunMainLogicABI } from '@/abi';
 import { Card } from '@/components/ui/Card';
 import Link from 'next/link';
-import { API_BASE_URL } from '@/config/env';
+import toast from 'react-hot-toast';
 
 interface UserData {
     id: number;
@@ -19,19 +18,51 @@ interface UserData {
     earningCap: bigint;
     isActive: boolean;
     directReferrals: number;
-    usernameId: number;
-    queueSlots?: number;
 }
 
 export function UsersTab() {
     const [search, setSearch] = useState('');
     const [page, setPage] = useState(0);
     const pageSize = 10;
-    const [showQueueModal, setShowQueueModal] = useState(false);
-    const [selectedUser, setSelectedUser] = useState<{ id: number; username: string } | null>(null);
-    const [queueSlotsInput, setQueueSlotsInput] = useState('');
-    const [queueSlotsData, setQueueSlotsData] = useState<Record<number, number>>({});
-    const [updatingQueueSlots, setUpdatingQueueSlots] = useState(false);
+    
+    // Unlisted count modal
+    const [showUnlistedModal, setShowUnlistedModal] = useState(false);
+    const [selectedUserId, setSelectedUserId] = useState<number>(0);
+    const [unlistedInput, setUnlistedInput] = useState('');
+    const [currentCount, setCurrentCount] = useState<number>(0);
+    const [saving, setSaving] = useState(false);
+
+    const handleUpdateUnlisted = async () => {
+        if (!unlistedInput) return;
+        const count = parseInt(unlistedInput);
+        if (count < 0) {
+            toast.error('Count cannot be negative');
+            return;
+        }
+        
+        setSaving(true);
+        try {
+            const res = await fetch(`/api/admin/user-unlisted/${selectedUserId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ unlisted_count: count })
+            });
+            
+            if (res.ok) {
+                toast.success(count === 0 ? 'Queue cleared!' : `Set ${count} NFTs unlisted`);
+                setShowUnlistedModal(false);
+                setUnlistedInput('');
+                // Refresh counts
+                setUnlistedCounts(prev => ({ ...prev, [selectedUserId]: count }));
+            } else {
+                toast.error('Failed to update');
+            }
+        } catch {
+            toast.error('Error updating');
+        } finally {
+            setSaving(false);
+        }
+    };
 
     // Get total users count
     const { data: totalUsersData, isLoading: countLoading } = useTotalUsers();
@@ -67,9 +98,29 @@ export function UsersTab() {
         query: { enabled: userIds.length > 0 && totalUsers > 0 }
     });
 
-    // Parse user data - users mapping returns: [referrerId, packageLevel, totalInvested, earningCap, isActive, activationDate, directReferralsCount, usernameId]
+    // Fetch unlisted counts for displayed users
+    const [unlistedCounts, setUnlistedCounts] = useState<Record<number, number>>({});
+    
+    useEffect(() => {
+        if (userIds.length === 0) return;
+        
+        Promise.all(
+            userIds.map(id => 
+                fetch(`/api/unlisted-count/${id}`)
+                    .then(r => r.json())
+                    .then(data => ({ id, count: data.unlisted_count || 0 }))
+                    .catch(() => ({ id, count: 0 }))
+            )
+        ).then(results => {
+            const counts: Record<number, number> = {};
+            results.forEach(({ id, count }) => counts[id] = count);
+            setUnlistedCounts(counts);
+        });
+    }, [page, totalUsers]);
+
+    // Parse user data - users mapping returns: [referrerId, packageLevel, totalInvested, earningCap, isActive, activationDate, directReferralsCount]
     const users: UserData[] = userIds.map((id, idx) => {
-        const info = userInfoResults?.[idx]?.result as readonly [bigint, bigint, bigint, bigint, boolean, bigint, bigint, bigint] | undefined;
+        const info = userInfoResults?.[idx]?.result as readonly [bigint, bigint, bigint, bigint, boolean, bigint, bigint] | undefined;
         const wallet = walletResults?.[idx]?.result as string | undefined;
 
         return {
@@ -80,82 +131,12 @@ export function UsersTab() {
             earningCap: info?.[3] ?? BigInt(0),
             isActive: info?.[4] ?? false,
             directReferrals: info?.[6] ? Number(info[6]) : 0,
-            usernameId: info?.[7] ? Number(info[7]) : 0,
-            queueSlots: queueSlotsData[id] ?? 0,
         };
     });
 
-    // Fetch queue slots when page changes
-    useEffect(() => {
-        const fetchQueueSlots = async () => {
-            if (userIds.length === 0) return;
-            
-            const promises = userIds.map(async (userId) => {
-                try {
-                    const res = await fetch(`${API_BASE_URL}/users/${userId}/queue-status`);
-                    const data = await res.json();
-                    return { userId, queueSlots: data.queue_slots || 0 };
-                } catch (err) {
-                    return { userId, queueSlots: 0 };
-                }
-            });
-            const results = await Promise.all(promises);
-            const slotsMap: Record<number, number> = {};
-            results.forEach(r => slotsMap[r.userId] = r.queueSlots);
-            setQueueSlotsData(slotsMap);
-        };
-
-        fetchQueueSlots();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [page, totalUsers]);
-
-    const updateQueueSlots = async () => {
-        if (!selectedUser) return;
-        
-        const slots = parseInt(queueSlotsInput);
-        if (isNaN(slots) || slots < 0 || slots > 10) {
-            toast.error('Queue slots must be between 0 and 10');
-            return;
-        }
-
-        setUpdatingQueueSlots(true);
-        try {
-            const res = await fetch(`${API_BASE_URL}/users/${selectedUser.id}/queue-slots`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ queue_slots: slots })
-            });
-            
-            if (!res.ok) {
-                const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
-                throw new Error(errorData.error || `HTTP ${res.status}`);
-            }
-            
-            const result = await res.json();
-            setQueueSlotsData(prev => ({ ...prev, [selectedUser.id]: slots }));
-            setShowQueueModal(false);
-            toast.success(`✅ Queue slots updated to ${slots} for ${selectedUser.username}`);
-        } catch (err: any) {
-            console.error('Queue update error:', err);
-            toast.error(`❌ ${err.message || 'Failed to update queue slots'}`);
-        } finally {
-            setUpdatingQueueSlots(false);
-        }
-    };
-
-    const openQueueModal = (userId: number, username: string, currentSlots: number) => {
-        setSelectedUser({ id: userId, username });
-        setQueueSlotsInput(String(currentSlots));
-        setShowQueueModal(true);
-    };
-
     // Filter by search
     const filteredUsers = search
-        ? users.filter(u => 
-            u.wallet.toLowerCase().includes(search.toLowerCase()) || 
-            u.id.toString().includes(search) ||
-            (u.usernameId > 0 && `BULL${u.usernameId}`.toLowerCase().includes(search.toLowerCase()))
-        )
+        ? users.filter(u => u.wallet.toLowerCase().includes(search.toLowerCase()) || u.id.toString().includes(search))
         : users;
 
     const totalPages = Math.ceil(totalUsers / pageSize);
@@ -175,7 +156,7 @@ export function UsersTab() {
                 <div className="flex gap-2">
                     <input
                         type="text"
-                        placeholder="Search ID, username, or wallet..."
+                        placeholder="Search ID or wallet..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         className="flex-1 sm:w-48 bg-[#1E293B] border border-[#334155] rounded-lg px-3 py-2 text-xs text-[#F8FAFC] placeholder-[#64748B]"
@@ -206,26 +187,25 @@ export function UsersTab() {
                         <thead className="bg-[#0F172A]">
                             <tr>
                                 <th className="text-left p-3 text-[#64748B] font-medium">ID</th>
-                                <th className="text-left p-3 text-[#64748B] font-medium">Username</th>
                                 <th className="text-left p-3 text-[#64748B] font-medium">Wallet</th>
                                 <th className="text-left p-3 text-[#64748B] font-medium">Package</th>
                                 <th className="text-left p-3 text-[#64748B] font-medium">Invested</th>
                                 <th className="text-left p-3 text-[#64748B] font-medium">Status</th>
                                 <th className="text-left p-3 text-[#64748B] font-medium">Directs</th>
-                                <th className="text-left p-3 text-[#64748B] font-medium">Queue Slots</th>
+                                <th className="text-left p-3 text-[#64748B] font-medium">Queue</th>
                                 <th className="text-left p-3 text-[#64748B] font-medium">Action</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-[#334155]">
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan={9} className="p-8 text-center text-[#64748B]">
+                                    <td colSpan={8} className="p-8 text-center text-[#64748B]">
                                         Loading...
                                     </td>
                                 </tr>
                             ) : filteredUsers.length === 0 ? (
                                 <tr>
-                                    <td colSpan={9} className="p-8 text-center text-[#64748B]">
+                                    <td colSpan={8} className="p-8 text-center text-[#64748B]">
                                         No users found
                                     </td>
                                 </tr>
@@ -234,11 +214,6 @@ export function UsersTab() {
                                     <tr key={user.id} className="hover:bg-[#0F172A]/50 transition-colors">
                                         <td className="p-3">
                                             <span className="text-[#EC4899] font-bold">#{user.id}</span>
-                                        </td>
-                                        <td className="p-3">
-                                            <span className="text-[#F59E0B] font-mono text-xs font-bold">
-                                                {user.usernameId > 0 ? `BULL${user.usernameId}` : '-'}
-                                            </span>
                                         </td>
                                         <td className="p-3">
                                             <span className="text-[#F8FAFC] font-mono text-xs">
@@ -263,14 +238,15 @@ export function UsersTab() {
                                         </td>
                                         <td className="p-3">
                                             <button
-                                                onClick={() => openQueueModal(
-                                                    user.id,
-                                                    user.usernameId > 0 ? `BULL${user.usernameId}` : `User #${user.id}`,
-                                                    user.queueSlots || 0
-                                                )}
-                                                className="flex items-center gap-1 px-2 py-1 bg-[#F59E0B]/20 text-[#F59E0B] rounded hover:bg-[#F59E0B]/30 transition-colors text-xs"
+                                                onClick={() => {
+                                                    setSelectedUserId(user.id);
+                                                    setCurrentCount(unlistedCounts[user.id] || 0);
+                                                    setUnlistedInput('');
+                                                    setShowUnlistedModal(true);
+                                                }}
+                                                className="px-2 py-1 bg-[#F59E0B]/20 text-[#F59E0B] rounded text-xs hover:bg-[#F59E0B]/30 transition-colors font-bold"
                                             >
-                                                📦 {user.queueSlots || 0}
+                                                {unlistedCounts[user.id] || 0} ✏️
                                             </button>
                                         </td>
                                         <td className="p-3">
@@ -313,72 +289,43 @@ export function UsersTab() {
                 </div>
             )}
 
-            {/* Queue Slots Modal */}
-            {showQueueModal && selectedUser && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] border-2 border-[#F59E0B]/30 rounded-2xl p-6 max-w-md w-full shadow-2xl">
-                        {/* Header */}
-                        <div className="flex items-center justify-between mb-6">
-                            <div>
-                                <h3 className="text-xl font-bold text-[#F8FAFC] flex items-center gap-2">
-                                    📦 Queue Slots
-                                </h3>
-                                <p className="text-sm text-[#64748B] mt-1">{selectedUser.username}</p>
-                            </div>
-                            <button
-                                onClick={() => setShowQueueModal(false)}
-                                className="text-[#64748B] hover:text-[#F8FAFC] transition-colors"
-                            >
-                                ✕
-                            </button>
+            {/* Unlisted Count Modal */}
+            {showUnlistedModal && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setShowUnlistedModal(false)}>
+                    <div className="bg-[#1E293B] border border-[#EC4899]/50 rounded-xl p-6 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
+                        <h3 className="text-lg font-bold text-[#F8FAFC] mb-4">🎯 Set Unlisted NFTs</h3>
+                        
+                        <div className="bg-[#EC4899]/10 border border-[#EC4899]/30 rounded-lg p-3 mb-4">
+                            <p className="text-xs text-[#EC4899]">User #{selectedUserId}</p>
+                            <p className="text-[10px] text-[#94A3B8] mt-1">Current Queue: <span className="text-[#F59E0B] font-bold">{currentCount}</span></p>
                         </div>
 
-                        {/* Info Box */}
-                        <div className="bg-[#0F172A] border border-[#334155] rounded-xl p-4 mb-6">
-                            <p className="text-xs text-[#94A3B8] mb-2">
-                                💡 <strong>Queue slots</strong> determine how many NFTs stay <strong>unlisted</strong> (held in queue).
-                            </p>
-                            <div className="text-xs text-[#64748B] space-y-1 mt-3">
-                                <p>• 0 slots = All NFTs auto-list</p>
-                                <p>• 2 slots = First 2 NFTs held, rest listed</p>
-                                <p>• 5 slots = First 5 NFTs held, rest listed</p>
-                            </div>
-                        </div>
-
-                        {/* Input */}
-                        <div className="mb-6">
-                            <label className="block text-sm font-medium text-[#94A3B8] mb-2">
-                                Queue Slots (0-10)
-                            </label>
+                        <div className="mb-4">
+                            <label className="block text-sm text-[#94A3B8] mb-2">New Unlisted Count (0 to clear)</label>
                             <input
                                 type="number"
                                 min="0"
-                                max="10"
-                                value={queueSlotsInput}
-                                onChange={(e) => setQueueSlotsInput(e.target.value)}
-                                className="w-full bg-[#0F172A] border border-[#334155] rounded-lg px-4 py-3 text-[#F8FAFC] text-lg font-bold focus:border-[#F59E0B] focus:outline-none transition-colors"
+                                value={unlistedInput}
+                                onChange={(e) => setUnlistedInput(e.target.value)}
+                                className="w-full bg-[#0F172A] border border-[#334155] rounded-lg px-3 py-2 text-[#F8FAFC]"
+                                placeholder="0"
                                 autoFocus
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') updateQueueSlots();
-                                    if (e.key === 'Escape') setShowQueueModal(false);
-                                }}
                             />
                         </div>
 
-                        {/* Actions */}
-                        <div className="flex gap-3">
+                        <div className="flex gap-2">
                             <button
-                                onClick={() => setShowQueueModal(false)}
-                                className="flex-1 px-4 py-3 bg-[#334155] text-[#F8FAFC] rounded-lg hover:bg-[#475569] transition-colors font-medium"
+                                onClick={() => setShowUnlistedModal(false)}
+                                className="flex-1 bg-[#334155] hover:bg-[#475569] text-[#F8FAFC] py-2 rounded-lg text-sm"
                             >
                                 Cancel
                             </button>
                             <button
-                                onClick={updateQueueSlots}
-                                disabled={updatingQueueSlots}
-                                className="flex-1 px-4 py-3 bg-gradient-to-r from-[#F59E0B] to-[#FBBF24] text-[#0F172A] rounded-lg hover:from-[#FBBF24] hover:to-[#F59E0B] transition-all font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                                onClick={handleUpdateUnlisted}
+                                disabled={saving || !unlistedInput}
+                                className="flex-1 bg-[#EC4899] hover:bg-[#DB2777] text-white py-2 rounded-lg text-sm disabled:opacity-50"
                             >
-                                {updatingQueueSlots ? '⏳ Updating...' : '✅ Update'}
+                                {saving ? 'Saving...' : 'Save'}
                             </button>
                         </div>
                     </div>

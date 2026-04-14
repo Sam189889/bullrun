@@ -5,21 +5,25 @@ import { createPortal } from 'react-dom';
 import { useAccount, useWaitForTransactionReceipt, useBalance } from 'wagmi';
 import { formatUnits } from 'viem';
 import toast from 'react-hot-toast';
-import {
-    useUserId,
-    useNFT,
-    useBuyNFT,
-    useUSDTAllowance,
-    useUserAvailableLimit,
-    useUserDailyLimitData,
-    useUSDTBalance
-} from '@/hooks/useContracts';
-import { useMarketplaceNFTs, type NFT } from '@/hooks/useAdminAPI';
+import { useUserId, useTotalNFTs, useNFT, useBuyNFT, useUSDTAllowance, useUserAvailableLimit, useUserDailyLimitData, useUSDTBalance, useUserInfo } from '@/hooks/useContracts';
 import { useApproveUSDT, useDayStartTimestamp, useDayLength, useCurrentDay } from '@/hooks/useAdminContracts';
 import { useNFTControls } from '@/hooks/useNFTControls';
+import { sortWithPinned } from '@/utils/sortNFTs';
+import { useUnlistedNFTIds } from '@/hooks/useUnlistedNFTIds';
 import { useLookupUser } from '@/contexts/LookupContext';
 
-
+interface NFTData {
+    nftId: bigint;
+    currentPrice: bigint;
+    basePrice: bigint;
+    lastPurchasePrice: bigint;
+    ownerId: bigint;
+    buyCount: bigint;
+    isListed: boolean;
+    isBurned: boolean;
+    isFeatured: boolean;
+    isHidden: boolean;
+}
 
 interface SelectedNFT {
     nftId: number;
@@ -80,22 +84,72 @@ function ResetTimer({ dayStart, dayLengthSeconds }: { dayStart: bigint | undefin
     );
 }
 
-function NFTCard({ nft, userId, onSelect, controls, isLookupMode }: { nft: NFT; userId: bigint | undefined; onSelect: (nft: SelectedNFT) => void; controls: ReturnType<typeof useNFTControls>; isLookupMode?: boolean }) {
-    // Use MySQL data directly
-    const nftId = nft.nft_id;
-    const currentPrice = BigInt(Math.floor(Number(nft.cached_current_price) * 1e18));
-    const ownerId = BigInt(nft.owner_id);
-    const buyCountNum = nft.cached_buy_count;
+// Hook to check if NFT is valid for display
+function useIsValidNFT(nftId: number, userId: bigint | undefined, hiddenNFTs: number[]): { isValid: boolean; nftData: any } {
+    const { data: nftData } = useNFT(BigInt(nftId));
 
-    // Hide own NFTs from marketplace
+    if (!nftData) return { isValid: false, nftData: null };
+
+    const nftArr = nftData as any[];
+    if (!nftArr || nftArr[0] === BigInt(0)) return { isValid: false, nftData: null };
+
+    // New struct: [nftId, currentPrice, basePrice, lastPurchasePrice, ownerId, buyCount, createdAt, lastTradedAt, isListed, isBurned]
+    const [, , , , ownerId, , , , isListed, isBurned] = nftArr;
+
+    // Skip if admin hidden
+    if (hiddenNFTs.includes(nftId)) return { isValid: false, nftData: null };
+
+    // Skip if burned
+    if (isBurned) return { isValid: false, nftData: null };
+
+    // Skip if not listed
+    if (!isListed) return { isValid: false, nftData: null };
+
+    // Hide own NFTs
+    const isOwnNFT = !!(userId && userId > BigInt(0) && ownerId === userId);
+    if (isOwnNFT) return { isValid: false, nftData: null };
+
+    return { isValid: true, nftData };
+}
+
+function NFTCard({ nftId, userId, hiddenNFTs, unlistedNFTIds, isLookupMode, onSelect }: { 
+    nftId: number; 
+    userId: bigint | undefined; 
+    hiddenNFTs: number[]; 
+    unlistedNFTIds: Set<number>;
+    isLookupMode: boolean;
+    onSelect: (nft: SelectedNFT) => void 
+}) {
+    const { data: nftData } = useNFT(BigInt(nftId));
+    const { data: ownerInfo } = useUserInfo(nftData ? (nftData as any[])[4] : BigInt(0));
+
+    if (!nftData) return null;
+
+    const nftArr = nftData as any[];
+    if (!nftArr || nftArr[0] === BigInt(0)) return null;
+
+    const [, currentPrice, , , ownerId, buyCount, , , isListed, isBurned] = nftArr;
+    const ownerUsernameId = ownerInfo ? (ownerInfo as { usernameId: bigint }).usernameId : BigInt(0);
+
+    // Skip if admin hidden
+    if (hiddenNFTs.includes(nftId)) return null;
+
+    // Skip if in owner's unlisted queue (admin controlled)
+    if (unlistedNFTIds.has(nftId)) return null;
+
+    // Skip if burned
+    if (isBurned) return null;
+
+    // Skip if not listed
+    if (!isListed) return null;
+
+    // Hide own NFTs
     const isOwnNFT = !!(userId && userId > BigInt(0) && ownerId === userId);
     if (isOwnNFT) return null;
 
     // Define helper variables
+    const buyCountNum = Number(buyCount);
     const formatUSD = (value: bigint) => `$${Number(formatUnits(value, 18)).toFixed(2)}`;
-
-    // Apply admin controls - hide hidden NFTs from marketplace (already filtered by backend)
-    // if (controls.isHidden(nftId)) return null;
 
     // Select bull image (1-11) based on NFT ID, cycling
     const bullImageNum = ((nftId - 1) % 11) + 1;
@@ -119,13 +173,6 @@ function NFTCard({ nft, userId, onSelect, controls, isLookupMode }: { nft: NFT; 
                     <div className="w-24 h-24 rounded-full bg-gradient-to-r from-[#EC4899]/20 to-[#EF4444]/20 blur-2xl animate-pulse" />
                 </div>
 
-                {/* NFT ID Badge - Only in Lookup Mode */}
-                {isLookupMode && (
-                    <div className="absolute top-2 left-2 bg-black/80 backdrop-blur-sm px-2 py-1 rounded-lg border border-[#EC4899]/50 z-10">
-                        <p className="text-xs font-bold text-[#EC4899]">#{nftId}</p>
-                    </div>
-                )}
-
                 {/* Bull Image - Covers full area */}
                 <img
                     src={bullImage}
@@ -136,6 +183,18 @@ function NFTCard({ nft, userId, onSelect, controls, isLookupMode }: { nft: NFT; 
 
             {/* Price & Action Section */}
             <div className="p-2 sm:p-3 bg-gradient-to-t from-[#0F172A] to-transparent">
+                {/* Lookup Mode: Show NFT ID and Owner */}
+                {isLookupMode && (
+                    <div className="mb-2 space-y-1">
+                        <div className="text-center text-[10px] text-[#EC4899] font-mono">
+                            NFT #{nftId}
+                        </div>
+                        <div className="text-center text-[10px] text-[#94A3B8]">
+                            Owner: #{ownerId.toString()}
+                        </div>
+                    </div>
+                )}
+
                 {/* Price display */}
                 <div className="text-center mb-2">
                     <p className="text-lg sm:text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#EC4899] to-[#F59E0B]">
@@ -164,16 +223,19 @@ function NFTCard({ nft, userId, onSelect, controls, isLookupMode }: { nft: NFT; 
 
 export function MarketplaceTab() {
     const { address } = useAccount();
-    const { isLookupMode, targetUserId } = useLookupUser();
+    const { isLookupMode } = useLookupUser();
     const { data: userId } = useUserId(address);
-    const { data: marketplaceData, loading: marketplaceLoading } = useMarketplaceNFTs(100);
+    const { data: totalNFTs } = useTotalNFTs();
+    const { hiddenNFTs, pinnedNFTs } = useNFTControls();
+    const { unlistedNFTIds } = useUnlistedNFTIds();
     const { data: allowance, refetch: refetchAllowance } = useUSDTAllowance(address);
     const { data: availableLimit, refetch: refetchLimit } = useUserAvailableLimit(userId as bigint);
     const { data: dailyLimitData, refetch: refetchDailyLimitData } = useUserDailyLimitData(userId as bigint);
-    const nftControls = useNFTControls();
 
-    // Use availableLimit from contract (handles day reset properly, same as HomeTab)
-    const actualRemainingLimit = availableLimit ? (availableLimit as bigint) : BigInt(0);
+    // Calculate actual remaining limit (totalLimit - usedLimit)
+    const actualRemainingLimit = dailyLimitData
+        ? (dailyLimitData as readonly [bigint, bigint, bigint])[0] - (dailyLimitData as readonly [bigint, bigint, bigint])[1]
+        : BigInt(0);
 
     // Fetch day settings for debugging
     const { data: dayStart } = useDayStartTimestamp();
@@ -206,7 +268,7 @@ export function MarketplaceTab() {
     const { data: nativeBalance } = useBalance({ address });
     const { data: usdtBalance, refetch: refetchUSDTBalance } = useUSDTBalance(address);
 
-    const { buyNFT, data: buyHash, isPending: buyPending, error: buyWriteError } = useBuyNFT();
+    const { buyNFT, data: buyHash, isPending: buyPending } = useBuyNFT();
     const { approve, hash: approveHash, isPending: approvePending } = useApproveUSDT();
 
     const { isSuccess: buySuccess, isError: buyError } = useWaitForTransactionReceipt({ hash: buyHash });
@@ -222,10 +284,8 @@ export function MarketplaceTab() {
     // After approve success, execute buy automatically
     useEffect(() => {
         if (approveSuccess && pendingNftId && isWaitingForApproval) {
-            console.log('✅ Approval confirmed! Refetching allowance...');
+            console.log('✅ Approval confirmed! Waiting for blockchain...');
             setIsWaitingForApproval(false);
-            // Refetch allowance to ensure it's updated
-            refetchAllowance();
             toast.loading('⏳ Preparing purchase...', { id: 'buy-prep', duration: 3000 });
             // Longer delay to avoid RPC rate limiting
             setTimeout(() => {
@@ -233,7 +293,6 @@ export function MarketplaceTab() {
                 buyNFT(pendingNftId);
             }, 3000); // Increased to 3 seconds for RPC rate limit
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [approveSuccess, pendingNftId, isWaitingForApproval]);
 
     // After buy success, reset and refetch
@@ -281,34 +340,18 @@ export function MarketplaceTab() {
         }
     }, [approveError]);
 
-    // Handle buy write errors (before transaction is submitted)
-    useEffect(() => {
-        if (buyWriteError) {
-            console.error('❌ Buy write error:', buyWriteError);
-            toast.dismiss('buy-prep');
-            toast.error(`❌ Purchase Failed: ${buyWriteError.message || 'Unknown error'}`, {
-                duration: 6000,
-            });
-            setPendingNftId(null);
-            setPendingPrice(null);
-        }
-    }, [buyWriteError]);
-
-    // Handle buy transaction errors (after transaction is submitted but fails)
+    // Handle buy errors
     useEffect(() => {
         if (buyError) {
-            console.error('❌ Purchase transaction failed!');
-            console.error('Transaction hash:', buyHash);
-            console.error('NFT ID:', pendingNftId?.toString());
-            console.error('Price:', pendingPrice ? formatUnits(pendingPrice, 18) : 'N/A');
+            console.error('❌ Purchase failed!');
             toast.dismiss('buy-prep');
-            toast.error('❌ Transaction Failed! Check console for details.', {
-                duration: 5000,
+            toast.error('❌ Purchase Failed! Please try again.', {
+                duration: 4000,
             });
             setPendingNftId(null);
             setPendingPrice(null);
         }
-    }, [buyError, buyHash, pendingNftId, pendingPrice]);
+    }, [buyError]);
 
     const handleSelectNFT = (nft: SelectedNFT) => {
         setSelectedNFT(nft);
@@ -365,13 +408,6 @@ export function MarketplaceTab() {
         setPendingPrice(price);
 
         const currentAllowance = allowance as bigint || BigInt(0);
-        
-        console.log('💰 Buy Check:', {
-            nftId: nftId.toString(),
-            price: formatUnits(price, 18),
-            currentAllowance: formatUnits(currentAllowance, 18),
-            needsApproval: currentAllowance < price,
-        });
 
         if (currentAllowance >= price) {
             // Already approved, buy directly
@@ -386,16 +422,15 @@ export function MarketplaceTab() {
         }
     };
 
-    const marketplaceNFTs = marketplaceData?.nfts || [];
-    const nftCount = marketplaceNFTs.length;
+    const nftCount = Number(totalNFTs || 0);
+    const allNftIds = Array.from({ length: nftCount }, (_, i) => i + 1);
 
-    // Shuffle NFTs every 5 seconds
-    const [shuffledNFTs, setShuffledNFTs] = useState<NFT[]>([]);
+    // Sort with pinned first, then shuffle
+    const [shuffledIds, setShuffledIds] = useState<number[]>([]);
     const [displayCount, setDisplayCount] = useState(0);
 
     useEffect(() => {
-        // Fisher-Yates shuffle algorithm
-        const shuffleArray = (array: NFT[]) => {
+        const shuffleArray = (array: number[]) => {
             const shuffled = [...array];
             for (let i = shuffled.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
@@ -404,27 +439,23 @@ export function MarketplaceTab() {
             return shuffled;
         };
 
-        if (marketplaceNFTs.length > 0) {
-            // Initial shuffle
-            setShuffledNFTs(shuffleArray(marketplaceNFTs));
+        // Sort pinned first, then shuffle regular NFTs
+        const sorted = sortWithPinned(allNftIds, pinnedNFTs);
+        const pinnedIds = pinnedNFTs.map(p => p.nft_id);
+        const pinned = sorted.filter(id => pinnedIds.includes(id));
+        const regular = sorted.filter(id => !pinnedIds.includes(id));
+        
+        setShuffledIds([...pinned, ...shuffleArray(regular)]);
 
-            // Shuffle every 5 seconds
-            const interval = setInterval(() => {
-                setShuffledNFTs(shuffleArray(marketplaceNFTs));
-                setDisplayCount(0); // Reset display count on shuffle
-            }, 5000);
+        const interval = setInterval(() => {
+            setShuffledIds([...pinned, ...shuffleArray(regular)]);
+            setDisplayCount(0);
+        }, 5000);
 
-            return () => clearInterval(interval);
-        }
-    }, [marketplaceNFTs.length]);
+        return () => clearInterval(interval);
+    }, [nftCount, pinnedNFTs]);
 
-    // Backend already sorts pinned NFTs to top, just separate them for shuffle
-    // Pinned NFTs stay in order, only shuffle unpinned ones
-    const pinnedNFTs = marketplaceNFTs.filter(nft => nft.is_pinned);
-    const unpinnedNFTs = shuffledNFTs.filter(nft => !nft.is_pinned);
-    
-    // Show pinned NFTs first (in pin_order), then first 20 unpinned shuffled NFTs
-    const displayNFTs = [...pinnedNFTs, ...unpinnedNFTs.slice(0, 20)];
+    const nftIds = shuffledIds.slice(0, 20);
 
     const formatUSD = (value: bigint | undefined) => {
         if (!value) return '$0';
@@ -535,27 +566,17 @@ export function MarketplaceTab() {
                     <p className="text-[#64748B]">No NFTs available right now</p>
                     <p className="text-xs text-[#475569] mt-1">Admin needs to create NFTs first</p>
                 </div>
-            ) : marketplaceLoading ? (
-                <div className="text-center py-12">
-                    <p className="text-5xl mb-4">⏳</p>
-                    <p className="text-[#64748B]">Loading marketplace NFTs...</p>
-                </div>
-            ) : displayNFTs.length === 0 ? (
-                <div className="text-center py-12">
-                    <p className="text-5xl mb-4">📭</p>
-                    <p className="text-[#F8FAFC] font-bold mb-2">No NFTs Available</p>
-                    <p className="text-[#64748B]">All NFTs are currently held in queues</p>
-                </div>
             ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3">
-                    {displayNFTs.map((nft) => (
+                    {nftIds.map((id) => (
                         <NFTCard
-                            key={nft.nft_id}
-                            nft={nft}
+                            key={id}
+                            nftId={id}
                             userId={userId as bigint}
-                            onSelect={handleSelectNFT}
-                            controls={nftControls}
+                            hiddenNFTs={hiddenNFTs}
+                            unlistedNFTIds={unlistedNFTIds}
                             isLookupMode={isLookupMode}
+                            onSelect={handleSelectNFT}
                         />
                     ))}
                 </div>

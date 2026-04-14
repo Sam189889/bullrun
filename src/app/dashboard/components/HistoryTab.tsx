@@ -11,7 +11,7 @@ import {
     useNFTSellEvents,
     useNFTBurnedEvents,
     useWithdrawnEvents,
-} from '@/hooks/useHistoryAPI';
+} from '@/hooks/useEvents';
 
 // Helper to truncate address
 const truncateAddress = (addr: string | undefined) => {
@@ -54,6 +54,26 @@ interface UserInfoData {
 export function HistoryTab() {
     const { address } = useAccount();
     const [activeSubTab, setActiveSubTab] = useState<SubTab>('activation');
+    const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]); // Today's date
+    const [daysBack, setDaysBack] = useState<number>(0);
+
+    // Calculate days back from selected date
+    const calculateDaysBack = (dateStr: string) => {
+        const selected = new Date(dateStr);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        selected.setHours(0, 0, 0, 0);
+        const diffTime = today.getTime() - selected.getTime();
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        return Math.max(0, diffDays);
+    };
+
+    // Update daysBack when date changes
+    const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const newDate = e.target.value;
+        setSelectedDate(newDate);
+        setDaysBack(calculateDaysBack(newDate));
+    };
 
     // Check if in lookup mode
     const { targetUserId, isLookupMode } = useLookupUser();
@@ -85,6 +105,29 @@ export function HistoryTab() {
                 <p className="text-[10px] sm:text-xs text-[#64748B]">Track all your activities</p>
             </div>
 
+            {/* Date Picker */}
+            <div className="flex items-center gap-3 animate-slide-up" style={{ animationDelay: '0.05s' }}>
+                <div className="flex items-center gap-2 bg-[#1E293B] border border-[#334155] rounded-lg px-3 py-2 hover:border-[#EC4899]/50 transition-all">
+                    <span className="text-base">📅</span>
+                    <input
+                        type="date"
+                        value={selectedDate}
+                        max={new Date().toISOString().split('T')[0]}
+                        onChange={handleDateChange}
+                        className="bg-transparent text-sm text-white outline-none cursor-pointer"
+                        style={{
+                            colorScheme: 'dark',
+                        }}
+                    />
+                </div>
+                <div className="text-xs text-[#64748B]">
+                    {daysBack === 0 ? '(Today)' : `(${daysBack} day${daysBack > 1 ? 's' : ''} ago)`}
+                </div>
+                <span className="text-[9px] text-[#475569] ml-auto hidden sm:inline">
+                    💡 ~{Math.floor((daysBack + 1) * 86.4)}K blocks
+                </span>
+            </div>
+
             {/* Sub-tabs - Grid on Mobile, Flex on Desktop */}
             <div className="grid grid-cols-3 sm:flex gap-1.5 sm:gap-2 animate-slide-up" style={{ animationDelay: '0.1s' }}>
                 {subTabs.map((tab) => (
@@ -107,12 +150,12 @@ export function HistoryTab() {
 
             {/* Content */}
             <div className="animate-slide-up" style={{ animationDelay: '0.2s' }}>
-                {activeSubTab === 'activation' && <ActivationHistory userId={userId as bigint} usernameId={usernameId} walletAddress={address} />}
-                {activeSubTab === 'topup' && <TopUpHistory userId={userId as bigint} usernameId={usernameId} walletAddress={address} />}
-                {activeSubTab === 'upgrade' && <UpgradeHistory userId={userId as bigint} usernameId={usernameId} walletAddress={address} />}
-                {activeSubTab === 'trading' && <TradingHistory userId={userId as bigint} walletAddress={address} />}
-                {activeSubTab === 'burning' && <BurningHistory userId={userId as bigint} walletAddress={address} />}
-                {activeSubTab === 'withdrawal' && <WithdrawalHistory userId={userId as bigint} walletAddress={address} />}
+                {activeSubTab === 'activation' && <ActivationHistory userId={userId as bigint} usernameId={usernameId} walletAddress={address} daysBack={daysBack} />}
+                {activeSubTab === 'topup' && <TopUpHistory userId={userId as bigint} usernameId={usernameId} walletAddress={address} daysBack={daysBack} />}
+                {activeSubTab === 'upgrade' && <UpgradeHistory userId={userId as bigint} usernameId={usernameId} walletAddress={address} daysBack={daysBack} />}
+                {activeSubTab === 'trading' && <TradingHistory userId={userId as bigint} walletAddress={address} daysBack={daysBack} />}
+                {activeSubTab === 'burning' && <BurningHistory userId={userId as bigint} walletAddress={address} daysBack={daysBack} />}
+                {activeSubTab === 'withdrawal' && <WithdrawalHistory userId={userId as bigint} walletAddress={address} daysBack={daysBack} />}
             </div>
         </div>
     );
@@ -123,11 +166,12 @@ interface PackageHistoryProps {
     userId: bigint | undefined;
     usernameId: bigint | undefined;
     walletAddress: `0x${string}` | undefined;
+    daysBack: number;
 }
 
 // Activation History - First package purchase
-function ActivationHistory({ userId, usernameId, walletAddress }: PackageHistoryProps) {
-    const { events, isLoading } = usePackagePurchasedEvents(userId);
+function ActivationHistory({ userId, usernameId, walletAddress, daysBack }: PackageHistoryProps) {
+    const { events, isLoading } = usePackagePurchasedEvents(userId, daysBack);
 
     // First purchase is activation
     const activationEvents = events.filter((_, i) => i === 0 || events[i - 1]?.packageLevel !== events[i]?.packageLevel);
@@ -153,8 +197,8 @@ function ActivationHistory({ userId, usernameId, walletAddress }: PackageHistory
 }
 
 // Top-Up History - Same package purchases
-function TopUpHistory({ userId, usernameId, walletAddress }: PackageHistoryProps) {
-    const { events, isLoading } = usePackagePurchasedEvents(userId);
+function TopUpHistory({ userId, usernameId, walletAddress, daysBack }: PackageHistoryProps) {
+    const { events, isLoading } = usePackagePurchasedEvents(userId, daysBack);
 
     // Group by package and filter re-purchases of same package
     const topUpEvents: (PackageEvent & { count: number })[] = [];
@@ -190,8 +234,8 @@ function TopUpHistory({ userId, usernameId, walletAddress }: PackageHistoryProps
 }
 
 // Upgrade History - Package level increases
-function UpgradeHistory({ userId, usernameId, walletAddress }: PackageHistoryProps) {
-    const { events, isLoading } = usePackagePurchasedEvents(userId);
+function UpgradeHistory({ userId, usernameId, walletAddress, daysBack }: PackageHistoryProps) {
+    const { events, isLoading } = usePackagePurchasedEvents(userId, daysBack);
 
     // Filter for upgrades (higher package level than previous)
     const upgradeEvents = events.filter((event, i) => {
@@ -224,12 +268,13 @@ function UpgradeHistory({ userId, usernameId, walletAddress }: PackageHistoryPro
 interface TradingHistoryProps {
     userId: bigint | undefined;
     walletAddress: `0x${string}` | undefined;
+    daysBack: number;
 }
 
 // Trading History - NFT buys and sells
-function TradingHistory({ userId, walletAddress }: TradingHistoryProps) {
-    const { events: buyEvents, isLoading: buyLoading } = useNFTBuyEvents(userId);
-    const { events: sellEvents, isLoading: sellLoading } = useNFTSellEvents(userId);
+function TradingHistory({ userId, walletAddress, daysBack }: TradingHistoryProps) {
+    const { events: buyEvents, isLoading: buyLoading } = useNFTBuyEvents(userId, daysBack);
+    const { events: sellEvents, isLoading: sellLoading } = useNFTSellEvents(userId, daysBack);
 
     const allTrades = [
         ...buyEvents.map(e => ({ ...e, type: 'buy' as const })),
@@ -260,9 +305,9 @@ function TradingHistory({ userId, walletAddress }: TradingHistoryProps) {
 }
 
 // Burning History - NFTs burned (bought at $200 threshold)
-function BurningHistory({ userId, walletAddress }: TradingHistoryProps) {
+function BurningHistory({ userId, walletAddress, daysBack }: TradingHistoryProps) {
     // Use NFTBurned events - fires when NFT is burned at $200 threshold
-    const { events, isLoading } = useNFTBurnedEvents(userId);
+    const { events, isLoading } = useNFTBurnedEvents(userId, daysBack);
 
     if (isLoading) return <LoadingState />;
     if (!events.length) return <EmptyState message="No burning history" />;
@@ -283,8 +328,8 @@ function BurningHistory({ userId, walletAddress }: TradingHistoryProps) {
 }
 
 // Withdrawal History - All withdrawals by user
-function WithdrawalHistory({ userId, walletAddress }: TradingHistoryProps) {
-    const { events, isLoading } = useWithdrawnEvents(userId);
+function WithdrawalHistory({ userId, walletAddress, daysBack }: TradingHistoryProps) {
+    const { events, isLoading } = useWithdrawnEvents(userId, daysBack);
 
     if (isLoading) return <LoadingState />;
     if (!events.length) return <EmptyState message="No claim history" />;
