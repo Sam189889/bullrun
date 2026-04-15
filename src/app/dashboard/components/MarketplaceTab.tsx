@@ -132,20 +132,35 @@ function NFTCard({ nftId, userId, hiddenNFTs, unlistedNFTIds, isLookupMode, onSe
     const ownerUsernameId = ownerInfo ? (ownerInfo as { usernameId: bigint }).usernameId : BigInt(0);
 
     // Skip if admin hidden
-    if (hiddenNFTs.includes(nftId)) return null;
+    if (hiddenNFTs.includes(nftId)) {
+        console.log(`NFT #${nftId} hidden by admin`);
+        return null;
+    }
 
     // Skip if in owner's unlisted queue (admin controlled)
-    if (unlistedNFTIds.has(nftId)) return null;
+    if (unlistedNFTIds.has(nftId)) {
+        console.log(`NFT #${nftId} is unlisted (in queue)`);
+        return null;
+    }
 
     // Skip if burned
-    if (isBurned) return null;
+    if (isBurned) {
+        console.log(`NFT #${nftId} is burned`);
+        return null;
+    }
 
     // Skip if not listed
-    if (!isListed) return null;
+    if (!isListed) {
+        console.log(`NFT #${nftId} is not listed (owner: ${ownerId})`);
+        return null;
+    }
 
     // Hide own NFTs
     const isOwnNFT = !!(userId && userId > BigInt(0) && ownerId === userId);
-    if (isOwnNFT) return null;
+    if (isOwnNFT) {
+        console.log(`NFT #${nftId} is own NFT`);
+        return null;
+    }
 
     // Define helper variables
     const buyCountNum = Number(buyCount);
@@ -228,7 +243,7 @@ export function MarketplaceTab() {
     const userId = isLookupMode ? targetUserId : (walletUserId as bigint);
     const { data: totalNFTs } = useTotalNFTs();
     const { hiddenNFTs, pinnedNFTs } = useNFTControls();
-    const { unlistedNFTIds } = useUnlistedNFTIds();
+    const { unlistedNFTIds, loading: unlistedLoading } = useUnlistedNFTIds();
     const { data: allowance, refetch: refetchAllowance } = useUSDTAllowance(address);
     const { data: dailyLimitData, refetch: refetchDailyLimitData } = useUserDailyLimitData(userId as bigint);
     const { data: availableLimit, refetch: refetchLimit } = useUserAvailableLimit(userId as bigint);
@@ -545,7 +560,12 @@ export function MarketplaceTab() {
             )}
 
             {/* NFT Grid */}
-            {nftCount === 0 ? (
+            {unlistedLoading ? (
+                <div className="text-center py-12">
+                    <span className="text-4xl mb-4 block animate-pulse">🔄</span>
+                    <p className="text-[#64748B]">Loading marketplace...</p>
+                </div>
+            ) : nftCount === 0 ? (
                 <div className="text-center py-12">
                     <span className="text-4xl mb-4 block">📭</span>
                     <p className="text-[#64748B]">No NFTs available right now</p>
