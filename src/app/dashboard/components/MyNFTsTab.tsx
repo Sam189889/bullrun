@@ -1,10 +1,13 @@
 'use client';
 
-import { useAccount } from 'wagmi';
+import React from 'react';
+import { useAccount, useReadContracts } from 'wagmi';
 import { formatUnits } from 'viem';
 import { useUserId, useUserNFTCount, useUserNFT, useNFT, useUserInfo } from '@/hooks/useContracts';
 import { useLookupUser } from '@/contexts/LookupContext';
 import { useUserUnlistedCount } from '@/hooks/useUserUnlistedCount';
+import { CONTRACTS } from '@/config/constants';
+import { BullRunMainLogicABI } from '@/abi';
 
 // Helper component to display owner username
 function OwnerUsername({ ownerId }: { ownerId: bigint }) {
@@ -32,8 +35,81 @@ interface NFTData {
     isBurned: boolean;
 }
 
+// Helper to check if NFT should be unlisted (based on latest trades)
+function useUnlistedNFTIds(userId: bigint | undefined, nftCount: number, unlistedCount: number) {
+    // Build calls to fetch all user's NFT IDs
+    const nftIdCalls = React.useMemo(() => 
+        userId ? Array.from({ length: nftCount }, (_, i) => ({
+            address: CONTRACTS.BULL_RUN,
+            abi: BullRunMainLogicABI,
+            functionName: 'userNFTs',
+            args: [userId, BigInt(i)]
+        })) : []
+    , [userId, nftCount]);
+
+    const { data: nftIdsData } = useReadContracts({
+        contracts: nftIdCalls as any,
+        query: { enabled: nftCount > 0 && !!userId }
+    });
+
+    // Memoize nftIds array to prevent infinite loop
+    const nftIds = React.useMemo(() => 
+        nftIdsData?.map((r: any) => r?.result ? Number(r.result) : 0).filter((id: number) => id > 0) || []
+    , [nftIdsData]);
+
+    const nftDetailCalls = React.useMemo(() => 
+        nftIds.map(nftId => ({
+            address: CONTRACTS.BULL_RUN,
+            abi: BullRunMainLogicABI,
+            functionName: 'nfts',
+            args: [BigInt(nftId)]
+        }))
+    , [nftIds]);
+
+    const { data: nftDetailsData } = useReadContracts({
+        contracts: nftDetailCalls as any,
+        query: { enabled: nftIds.length > 0 }
+    });
+
+    // Compute unlisted NFT IDs
+    const unlistedNFTIds = React.useMemo(() => {
+        if (!nftDetailsData || nftIds.length === 0) return new Set<number>();
+
+        // Parse NFT data and sort by lastTradedAt
+        const nftsWithTime: { nftId: number; lastTradedAt: bigint }[] = [];
+        
+        nftDetailsData.forEach((result: any, idx: number) => {
+            if (result?.result) {
+                const nftArray = result.result as readonly [bigint, bigint, bigint, bigint, bigint, bigint, bigint, bigint, boolean, boolean];
+                nftsWithTime.push({
+                    nftId: nftIds[idx],
+                    lastTradedAt: nftArray[7] // Index 7 is lastTradedAt
+                });
+            }
+        });
+
+        // Sort by lastTradedAt DESC (newest first)
+        nftsWithTime.sort((a, b) => Number(b.lastTradedAt - a.lastTradedAt));
+
+        // First N are unlisted
+        const unlisted = new Set(nftsWithTime.slice(0, unlistedCount).map(n => n.nftId));
+        
+        console.log('🔍 Unlisted NFTs Debug:', {
+            userId,
+            totalNFTs: nftIds.length,
+            unlistedCount,
+            nftsWithTime,
+            unlistedNFTIds: Array.from(unlisted)
+        });
+        
+        return unlisted;
+    }, [nftDetailsData, nftIds, unlistedCount, userId]);
+
+    return unlistedNFTIds;
+}
+
 // Mobile Card Component
-function NFTMobileCard({ nftIndex, userId }: { nftIndex: number; userId: bigint }) {
+function NFTMobileCard({ nftIndex, userId, unlistedNFTIds }: { nftIndex: number; userId: bigint; unlistedNFTIds: Set<number> }) {
     // First get the NFT ID from userNFTs array
     const { data: nftIdData } = useUserNFT(userId, nftIndex);
     const nftId = nftIdData ? Number(nftIdData) : 0;
@@ -64,6 +140,9 @@ function NFTMobileCard({ nftIndex, userId }: { nftIndex: number; userId: bigint 
     // Don't show burned NFTs in user's collection
     if (nft.isBurned) return null;
 
+    // SQL override: check if this NFT ID is in unlisted set (latest trades)
+    const isActuallyListed = unlistedNFTIds.has(nftId) ? false : nft.isListed;
+
     const formatUSD = (value: bigint) => `$${Number(formatUnits(value, 18)).toFixed(2)}`;
     const formatDateTime = (timestamp: bigint) => {
         const date = new Date(Number(timestamp) * 1000);
@@ -85,7 +164,7 @@ function NFTMobileCard({ nftIndex, userId }: { nftIndex: number; userId: bigint 
                     <span className="font-mono text-lg text-[#EC4899] font-bold">#{nftId}</span>
                 </div>
                 <div className="flex flex-col gap-1 items-end">
-                    {nft.isListed ? (
+                    {isActuallyListed ? (
                         <span className="px-2 py-0.5 rounded-full text-[8px] font-bold bg-[#10B981]/20 text-[#10B981] border border-[#10B981]/50">
                             🟢 Listed
                         </span>
@@ -174,7 +253,7 @@ function NFTTransactionLink({ nftId, userId }: { nftId: number; userId: bigint }
 }
 
 // Desktop Table Row Component
-function NFTTableRow({ nftIndex, userId }: { nftIndex: number; userId: bigint }) {
+function NFTTableRow({ nftIndex, userId, unlistedNFTIds }: { nftIndex: number; userId: bigint; unlistedNFTIds: Set<number> }) {
     // First get the NFT ID from userNFTs array
     const { data: nftIdData } = useUserNFT(userId, nftIndex);
     const nftId = nftIdData ? Number(nftIdData) : 0;
@@ -214,6 +293,18 @@ function NFTTableRow({ nftIndex, userId }: { nftIndex: number; userId: bigint })
     // Don't show burned NFTs in user's collection
     if (nft.isBurned) return null;
 
+    // SQL override: check if this NFT ID is in unlisted set (latest trades)
+    const isActuallyListed = unlistedNFTIds.has(nftId) ? false : nft.isListed;
+    
+    console.log(`🔍 NFT #${nftId} Desktop Row:`, {
+        nftId,
+        inUnlistedSet: unlistedNFTIds.has(nftId),
+        contractIsListed: nft.isListed,
+        finalIsListed: isActuallyListed,
+        unlistedSetSize: unlistedNFTIds.size,
+        lastTradedAt: nft.lastTradedAt.toString()
+    });
+
     const formatUSD = (value: bigint) => `$${Number(formatUnits(value, 18)).toFixed(2)}`;
     const formatDateTime = (timestamp: bigint) => {
         const date = new Date(Number(timestamp) * 1000);
@@ -236,7 +327,7 @@ function NFTTableRow({ nftIndex, userId }: { nftIndex: number; userId: bigint })
             </td>
             <td className="p-3">
                 <div className="flex flex-col gap-1">
-                    {nft.isListed ? (
+                    {isActuallyListed ? (
                         <span className="px-2 py-0.5 rounded-full text-[8px] font-bold bg-[#10B981]/20 text-[#10B981] border border-[#10B981]/50 w-fit">
                             🟢 Listed
                         </span>
@@ -290,12 +381,12 @@ export function MyNFTsTab() {
 
     const nftCount = Number(userNFTCount || 0);
 
-    // Apply unlisted filter: skip first N NFTs (admin controlled)
-    const allIndices = Array.from({ length: nftCount }, (_, i) => i);
-    const visibleIndices = allIndices.slice(unlistedCount);
+    // Get unlisted NFT IDs based on latest trades
+    const unlistedNFTIds = useUnlistedNFTIds(userId || undefined, nftCount, unlistedCount);
 
-    // Sort: newest first
-    const sortedIndices = [...visibleIndices].sort((a, b) => b - a);
+    // Show all NFTs
+    const allIndices = Array.from({ length: nftCount }, (_, i) => i);
+    const sortedIndices = [...allIndices].sort((a, b) => b - a);
 
     if (!isRegistered) {
         return (
@@ -331,7 +422,7 @@ export function MyNFTsTab() {
                     {/* Mobile Card View */}
                     <div className="grid grid-cols-1 gap-3 md:hidden">
                         {sortedIndices.map((index) => (
-                            <NFTMobileCard key={index} nftIndex={index} userId={userId as bigint} />
+                            <NFTMobileCard key={index} nftIndex={index} userId={userId as bigint} unlistedNFTIds={unlistedNFTIds} />
                         ))}
                     </div>
 
@@ -350,7 +441,7 @@ export function MyNFTsTab() {
                             </thead>
                             <tbody>
                                 {sortedIndices.map((index) => (
-                                    <NFTTableRow key={index} nftIndex={index} userId={userId as bigint} />
+                                    <NFTTableRow key={index} nftIndex={index} userId={userId as bigint} unlistedNFTIds={unlistedNFTIds} />
                                 ))}
                             </tbody>
                         </table>

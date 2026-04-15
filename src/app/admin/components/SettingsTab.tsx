@@ -20,6 +20,7 @@ import { Modal } from '@/components/ui/Modal';
 import toast from 'react-hot-toast';
 import { WeekManagement } from './WeekManagement';
 import { DaySettings } from './DaySettings';
+import { AdminControlsSection } from './AdminControlsSection';
 import { CONTRACTS } from '@/config/constants';
 
 
@@ -55,6 +56,9 @@ export function SettingsTab() {
 
             {/* Revenue Splitter */}
             <RevenueSplitterSection />
+
+            {/* Admin Controls */}
+            <AdminControlsSection />
         </div>
     );
 }
