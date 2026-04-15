@@ -414,11 +414,10 @@ export function MarketplaceTab() {
             console.log('✅ Already approved, buying directly...');
             buyNFT(nftId);
         } else {
-            // Need approval first - approve with buffer (price + 10%)
-            const approvalAmount = (price * BigInt(110)) / BigInt(100);
-            console.log(`🔐 Requesting approval for $${Number(formatUnits(approvalAmount, 18)).toFixed(2)}...`);
+            // Need approval first - approve exact price
+            console.log(`🔐 Requesting approval for $${Number(formatUnits(price, 18)).toFixed(2)}...`);
             setIsWaitingForApproval(true);
-            approve(formatUnits(approvalAmount, 18));
+            approve(formatUnits(price, 18));
         }
     };
 
