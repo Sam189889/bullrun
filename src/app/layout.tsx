@@ -9,6 +9,11 @@ export const metadata: Metadata = {
   title: "Bull Run NFT Trading Platform",
   description: "Community-Driven NFT Trading with Multi-Level Rewards",
   keywords: ["NFT", "Trading", "Crypto", "DeFi", "Community"],
+  icons: {
+    icon: '/logo.png',
+    shortcut: '/logo.png',
+    apple: '/logo.png',
+  },
 };
 
 export default function RootLayout({
