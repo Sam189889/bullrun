@@ -483,7 +483,7 @@ function UnifiedDepositModal({ isOpen, onClose, poolType, onSuccess }: {
     const [step, setStep] = useState<'approve' | 'deposit'>('approve');
     const toastShown = useRef(false);
 
-    const { approve, isPending: approvePending, isConfirming: approveConfirming, isSuccess: approveSuccess, error: approveError } = useApproveUSDT();
+    const { approveForMain, isPending: approvePending, isConfirming: approveConfirming, isSuccess: approveSuccess, error: approveError } = useApproveUSDT();
     const { managePool, isPending: depositPending, isConfirming: depositConfirming, isSuccess: depositSuccess, error: depositError } = useManagePool();
 
     useEffect(() => {
@@ -523,7 +523,7 @@ function UnifiedDepositModal({ isOpen, onClose, poolType, onSuccess }: {
     const handleApprove = () => {
         if (!amount) return;
         toastShown.current = false;
-        approve(amount);
+        approveForMain(amount);
     };
 
     const handleDeposit = () => {

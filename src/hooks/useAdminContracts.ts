@@ -446,7 +446,16 @@ export function useApproveUSDT() {
             address: CONTRACTS.USDT,
             abi: USDTbABI,
             functionName: 'approve',
-            args: [CONTRACTS.BULL_RUN, parseUnits(amount, 18)], // Approve to main contract
+            args: [CONTRACTS.BULL_RUN_VIEW, parseUnits(amount, 18)], // Approve to Hub for NFT buying
+        })
+    }
+
+    const approveForMain = (amount: string) => {
+        writeContract({
+            address: CONTRACTS.USDT,
+            abi: USDTbABI,
+            functionName: 'approve',
+            args: [CONTRACTS.BULL_RUN, parseUnits(amount, 18)], // Approve to main contract for pool deposits
         })
     }
 
@@ -455,11 +464,11 @@ export function useApproveUSDT() {
             address: CONTRACTS.USDT,
             abi: USDTbABI,
             functionName: 'approve',
-            args: [CONTRACTS.BULL_RUN, BigInt('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff')], // Approve to main contract
+            args: [CONTRACTS.BULL_RUN_VIEW, BigInt('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff')], // Approve to Hub
         })
     }
 
-    return { approve, approveMax, hash, isPending, isConfirming, isSuccess, error }
+    return { approve, approveForMain, approveMax, hash, isPending, isConfirming, isSuccess, error }
 }
 
 /**
