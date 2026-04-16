@@ -10,14 +10,21 @@ interface NFTFilteredListProps {
     sortBy: 'newest' | 'oldest' | 'recently-traded';
     currentPage: number;
     itemsPerPage: number;
+    excludeHidden?: number[];
+    excludePinned?: number[];
 }
 
 
-export function NFTFilteredList({ totalNFTs, filterOwnerId, sortBy, currentPage, itemsPerPage }: NFTFilteredListProps) {
-    // Generate all NFT IDs
+export function NFTFilteredList({ totalNFTs, filterOwnerId, sortBy, currentPage, itemsPerPage, excludeHidden = [], excludePinned = [] }: NFTFilteredListProps) {
+    // Import useNFTControls here to get controls data
+    const { hiddenNFTs, pinnedNFTs, refetch } = require('@/hooks/useNFTControls').useNFTControls();
+    
+    // Generate all NFT IDs and exclude controlled ones
     const allIds = useMemo(() => {
-        return Array.from({ length: totalNFTs }, (_, i) => i + 1);
-    }, [totalNFTs]);
+        const ids = Array.from({ length: totalNFTs }, (_, i) => i + 1);
+        const pinnedIds = excludePinned;
+        return ids.filter(id => !excludeHidden.includes(id) && !pinnedIds.includes(id));
+    }, [totalNFTs, excludeHidden, excludePinned]);
     
     // Filter by owner ID if specified
     const filteredIds = useMemo(() => {
@@ -55,24 +62,30 @@ export function NFTFilteredList({ totalNFTs, filterOwnerId, sortBy, currentPage,
     
     // Conditional rendering instead of conditional return
     if (sortBy === 'recently-traded') {
-        return <RecentlyTradedList 
-            allIds={filteredIds} 
-            filterOwnerId={filterOwnerId}
-            currentPage={currentPage}
-            itemsPerPage={itemsPerPage}
-        />;
+        return (
+            <NFTControlsContext.Provider value={{ hiddenNFTs, pinnedNFTs, refetch }}>
+                <RecentlyTradedList 
+                    allIds={filteredIds} 
+                    filterOwnerId={filterOwnerId}
+                    currentPage={currentPage}
+                    itemsPerPage={itemsPerPage}
+                />
+            </NFTControlsContext.Provider>
+        );
     }
     
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {paginatedIds.map((id) => (
-                <NFTCompactCardWithFilter 
-                    key={id} 
-                    nftId={BigInt(id)} 
-                    filterOwnerId={filterOwnerId}
-                />
-            ))}
-        </div>
+        <NFTControlsContext.Provider value={{ hiddenNFTs, pinnedNFTs, refetch }}>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {paginatedIds.map((id) => (
+                    <NFTCompactCardWithFilter 
+                        key={id} 
+                        nftId={BigInt(id)} 
+                        filterOwnerId={filterOwnerId}
+                    />
+                ))}
+            </div>
+        </NFTControlsContext.Provider>
     );
 }
 
@@ -249,10 +262,26 @@ function NFTCompactCardWithFilter({ nftId, filterOwnerId }: { nftId: bigint; fil
 }
 
 // Display component (reusing existing NFTCompactCard logic)
-import { useState } from 'react';
-import { useNFTControls } from '@/hooks/useNFTControls';
+import { useState, createContext, useContext } from 'react';
 import { useUserInfo } from '@/hooks/useContracts';
 import toast from 'react-hot-toast';
+
+// Context for sharing controls data
+type NFTControlsContextType = {
+    hiddenNFTs: number[];
+    pinnedNFTs: { nft_id: number; pin_order: number }[];
+    refetch: () => void;
+};
+
+const NFTControlsContext = createContext<NFTControlsContextType | null>(null);
+
+function useNFTControlsContext() {
+    const context = useContext(NFTControlsContext);
+    if (!context) {
+        return { hiddenNFTs: [], pinnedNFTs: [], refetch: () => {} };
+    }
+    return context;
+}
 
 function OwnerUsername({ ownerId }: { ownerId: bigint }) {
     const { data: userInfo } = useUserInfo(ownerId);
@@ -262,7 +291,7 @@ function OwnerUsername({ ownerId }: { ownerId: bigint }) {
 }
 
 function NFTCompactCardDisplay({ nftId, nftData }: { nftId: bigint; nftData: any[] }) {
-    const { hiddenNFTs, pinnedNFTs, refetch } = useNFTControls();
+    const { hiddenNFTs, pinnedNFTs, refetch } = useNFTControlsContext();
     const [updating, setUpdating] = useState(false);
     
     const nftIdNum = Number(nftId);
@@ -272,16 +301,21 @@ function NFTCompactCardDisplay({ nftId, nftData }: { nftId: bigint; nftData: any
     const toggleHide = async () => {
         setUpdating(true);
         try {
-            await fetch(`/api/admin/nft-controls/${nftIdNum}/hide`, {
-                method: 'PUT',
+            const res = await fetch('/api/nft-controls/hide', {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ is_hidden: !isHidden })
+                body: JSON.stringify({ nft_id: nftIdNum, hidden: !isHidden })
             });
-            toast.success(isHidden ? 'NFT unhidden' : 'NFT hidden');
-            refetch();
-        } catch {
-            toast.error('Failed');
-        } finally {
+            
+            if (res.ok) {
+                // Reload immediately
+                window.location.reload();
+            } else {
+                toast.error('Failed to update');
+                setUpdating(false);
+            }
+        } catch (error) {
+            toast.error('Error updating NFT');
             setUpdating(false);
         }
     };
@@ -289,16 +323,21 @@ function NFTCompactCardDisplay({ nftId, nftData }: { nftId: bigint; nftData: any
     const togglePin = async () => {
         setUpdating(true);
         try {
-            await fetch(`/api/admin/nft-controls/${nftIdNum}/pin`, {
-                method: 'PUT',
+            const res = await fetch('/api/nft-controls/pin', {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ is_pinned: !isPinned, pin_order: isPinned ? 0 : 1 })
+                body: JSON.stringify({ nft_id: nftIdNum, pinned: !isPinned, pin_order: isPinned ? 0 : 1 })
             });
-            toast.success(isPinned ? 'NFT unpinned' : 'NFT pinned');
-            refetch();
-        } catch {
-            toast.error('Failed');
-        } finally {
+            
+            if (res.ok) {
+                // Reload immediately
+                window.location.reload();
+            } else {
+                toast.error('Failed to update');
+                setUpdating(false);
+            }
+        } catch (error) {
+            toast.error('Error updating NFT');
             setUpdating(false);
         }
     };

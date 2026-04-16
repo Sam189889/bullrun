@@ -16,7 +16,12 @@ import {
 } from './components';
 
 export default function AdminPage() {
-    const [activeTab, setActiveTab] = useState('overview');
+    const [activeTab, setActiveTab] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('adminActiveTab') || 'overview';
+        }
+        return 'overview';
+    });
     const [isTransitioning, setIsTransitioning] = useState(false);
     const { isAdmin, address, isConnected } = useIsAdmin();
 
@@ -25,6 +30,9 @@ export default function AdminPage() {
         setIsTransitioning(true);
         setTimeout(() => {
             setActiveTab(tab);
+            if (typeof window !== 'undefined') {
+                localStorage.setItem('adminActiveTab', tab);
+            }
             setIsTransitioning(false);
         }, 150);
     };

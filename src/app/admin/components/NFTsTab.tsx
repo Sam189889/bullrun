@@ -61,6 +61,25 @@ export function NFTsTab(): React.ReactElement {
     const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'recently-traded'>('newest');
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 50;
+    
+    // Active tab for NFT management with localStorage persistence
+    const [activeNFTTab, setActiveNFTTab] = useState<'all' | 'hidden' | 'pinned'>(() => {
+        if (typeof window !== 'undefined') {
+            return (localStorage.getItem('activeNFTTab') as 'all' | 'hidden' | 'pinned') || 'all';
+        }
+        return 'all';
+    });
+    
+    // Save tab to localStorage when it changes
+    const handleTabChange = (tab: 'all' | 'hidden' | 'pinned') => {
+        setActiveNFTTab(tab);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('activeNFTTab', tab);
+        }
+    };
+
+    // NFT Controls - hidden and pinned NFTs
+    const { hiddenNFTs, pinnedNFTs, loading: controlsLoading, refetch: refetchControls } = useNFTControls();
 
     // Reads - add refetch for all
     const { data: totalNFTs, refetch: refetchTotalNFTs } = useTotalNFTs();
@@ -610,21 +629,46 @@ export function NFTsTab(): React.ReactElement {
                 )}
             </div>
 
-            {/* All NFTs List */}
+            {/* NFT Management Tabs */}
             <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl shadow-xl">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
-                    <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                        <span className="p-2 bg-indigo-500/20 text-indigo-400 rounded-lg">📋</span>
-                        All NFTs Inventory
-                    </h3>
-                    <div className="flex items-center gap-2">
-                        <div className="text-sm text-slate-400 bg-slate-800/50 px-3 py-1 rounded-full">
-                            {totalNFTs?.toString() || '0'} NFTs
-                        </div>
-                    </div>
+                {/* Tab Headers */}
+                <div className="flex items-center gap-2 mb-6 border-b border-slate-700 pb-4">
+                    <button
+                        onClick={() => handleTabChange('all')}
+                        className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                            activeNFTTab === 'all'
+                                ? 'bg-indigo-600 text-white'
+                                : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                        }`}
+                    >
+                        📋 Normal NFTs ({totalNFTs ? Number(totalNFTs) - hiddenNFTs.length - pinnedNFTs.length : 0})
+                    </button>
+                    <button
+                        onClick={() => handleTabChange('hidden')}
+                        className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                            activeNFTTab === 'hidden'
+                                ? 'bg-red-600 text-white'
+                                : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                        }`}
+                    >
+                        🚫 Hidden ({controlsLoading ? '...' : hiddenNFTs.length})
+                    </button>
+                    <button
+                        onClick={() => handleTabChange('pinned')}
+                        className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                            activeNFTTab === 'pinned'
+                                ? 'bg-yellow-600 text-white'
+                                : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                        }`}
+                    >
+                        ⭐ Pinned ({controlsLoading ? '...' : pinnedNFTs.length})
+                    </button>
                 </div>
 
-                {/* Filters and Sorting */}
+                {/* Tab Content */}
+                {activeNFTTab === 'all' && (
+                    <>
+                        {/* Filters and Sorting */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
                     {/* Search by Owner ID */}
                     <div>
@@ -673,41 +717,144 @@ export function NFTsTab(): React.ReactElement {
                     </div>
                 </div>
 
-                <>
-                    {totalNFTs && Number(totalNFTs) > 0 ? (
-                        <NFTFilteredList 
-                            totalNFTs={Number(totalNFTs)}
-                            filterOwnerId={filterOwnerId}
-                            sortBy={sortBy}
-                            currentPage={currentPage}
-                            itemsPerPage={itemsPerPage}
-                        />
-                    ) : (
-                        <div className="bg-slate-950 border border-slate-800 rounded-xl p-12 text-center">
-                            <p className="text-3xl mb-4">🎨</p>
-                            <p className="text-slate-500">No NFTs minted yet. Use the form above to mint your first NFT.</p>
-                        </div>
-                    )}
-                </>
+                        {totalNFTs && Number(totalNFTs) > 0 ? (
+                            <NFTFilteredList 
+                                key={`normal-${hiddenNFTs.length}-${pinnedNFTs.length}`}
+                                totalNFTs={Number(totalNFTs)}
+                                filterOwnerId={filterOwnerId}
+                                sortBy={sortBy}
+                                currentPage={currentPage}
+                                itemsPerPage={itemsPerPage}
+                                excludeHidden={hiddenNFTs}
+                                excludePinned={pinnedNFTs.map(p => p.nft_id)}
+                            />
+                        ) : (
+                            <div className="bg-slate-950 border border-slate-800 rounded-xl p-12 text-center">
+                                <p className="text-3xl mb-4">🎨</p>
+                                <p className="text-slate-500">No NFTs minted yet. Use the form above to mint your first NFT.</p>
+                            </div>
+                        )}
 
-                {/* Pagination */}
-                {totalNFTs && Number(totalNFTs) > itemsPerPage && (
-                    <NFTPagination 
-                        totalNFTs={Number(totalNFTs)}
-                        filterOwnerId={filterOwnerId}
-                        currentPage={currentPage}
-                        itemsPerPage={itemsPerPage}
-                        onPageChange={setCurrentPage}
-                    />
+                        {/* Pagination */}
+                        {totalNFTs && Number(totalNFTs) > itemsPerPage && (
+                            <NFTPagination 
+                                totalNFTs={Number(totalNFTs)}
+                                filterOwnerId={filterOwnerId}
+                                currentPage={currentPage}
+                                itemsPerPage={itemsPerPage}
+                                onPageChange={setCurrentPage}
+                            />
+                        )}
+                    </>
+                )}
+
+                {/* Hidden NFTs Tab */}
+                {activeNFTTab === 'hidden' && (
+                    <div>
+                        {controlsLoading ? (
+                            <div className="text-center py-12">
+                                <span className="text-4xl animate-pulse">🔄</span>
+                                <p className="text-slate-400 mt-2">Loading hidden NFTs...</p>
+                            </div>
+                        ) : hiddenNFTs.length === 0 ? (
+                            <div className="text-center py-12">
+                                <span className="text-4xl">✅</span>
+                                <p className="text-slate-400 mt-2">No hidden NFTs</p>
+                                <p className="text-xs text-slate-500 mt-1">All NFTs are visible in marketplace</p>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 mb-4 flex items-center justify-between">
+                                    <div>
+                                        <p className="text-red-400 text-sm font-semibold">🚫 {hiddenNFTs.length} Hidden NFTs</p>
+                                        <p className="text-slate-300 text-xs mt-1">These NFTs are hidden from the marketplace</p>
+                                    </div>
+                                    <button
+                                        onClick={async () => {
+                                            if (!confirm(`Unhide all ${hiddenNFTs.length} NFTs?`)) return;
+                                            try {
+                                                const promises = hiddenNFTs.map(nftId =>
+                                                    fetch('/api/nft-controls/hide', {
+                                                        method: 'POST',
+                                                        headers: { 'Content-Type': 'application/json' },
+                                                        body: JSON.stringify({ nft_id: nftId, hidden: false })
+                                                    })
+                                                );
+                                                await Promise.all(promises);
+                                                // Reload immediately
+                                                window.location.reload();
+                                            } catch {
+                                                toast.error('Error unhiding NFTs');
+                                            }
+                                        }}
+                                        className="bg-green-500/20 hover:bg-green-500/30 text-green-400 px-4 py-2 rounded-lg text-sm font-semibold"
+                                    >
+                                        👁️ Unhide All
+                                    </button>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                    {hiddenNFTs.map((nftId) => (
+                                        <NFTCompactCard 
+                                            key={nftId} 
+                                            nftId={BigInt(nftId)} 
+                                            hiddenNFTs={hiddenNFTs}
+                                            pinnedNFTs={pinnedNFTs}
+                                            onUpdate={refetchControls} 
+                                        />
+                                    ))}
+                                </div>
+                            </>
+                        )}
+                    </div>
+                )}
+
+                {/* Pinned NFTs Tab */}
+                {activeNFTTab === 'pinned' && (
+                    <div>
+                        {controlsLoading ? (
+                            <div className="text-center py-12">
+                                <span className="text-4xl animate-pulse">🔄</span>
+                                <p className="text-slate-400 mt-2">Loading pinned NFTs...</p>
+                            </div>
+                        ) : pinnedNFTs.length === 0 ? (
+                            <div className="text-center py-12">
+                                <span className="text-4xl">📌</span>
+                                <p className="text-slate-400 mt-2">No pinned NFTs</p>
+                                <p className="text-xs text-slate-500 mt-1">Pin NFTs to feature them at the top of marketplace</p>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 mb-4">
+                                    <p className="text-yellow-400 text-sm font-semibold">⭐ {pinnedNFTs.length} Pinned NFTs</p>
+                                    <p className="text-slate-300 text-xs mt-1">These NFTs appear at the top of the marketplace</p>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                    {pinnedNFTs.map((pinned) => (
+                                        <NFTCompactCard 
+                                            key={pinned.nft_id} 
+                                            nftId={BigInt(pinned.nft_id)} 
+                                            hiddenNFTs={hiddenNFTs}
+                                            pinnedNFTs={pinnedNFTs}
+                                            onUpdate={refetchControls} 
+                                        />
+                                    ))}
+                                </div>
+                            </>
+                        )}
+                    </div>
                 )}
             </div>
         </div>
     );
 }
 
-function NFTCompactCard({ nftId }: { nftId: bigint }) {
+function NFTCompactCard({ nftId, hiddenNFTs, pinnedNFTs, onUpdate }: { 
+    nftId: bigint; 
+    hiddenNFTs: number[];
+    pinnedNFTs: { nft_id: number; pin_order: number }[];
+    onUpdate?: () => void;
+}) {
     const { data: nft, isLoading } = useNFT(nftId);
-    const { hiddenNFTs, pinnedNFTs, refetch } = useNFTControls();
     const [updating, setUpdating] = useState(false);
 
     const nftIdNum = Number(nftId);
@@ -717,16 +864,21 @@ function NFTCompactCard({ nftId }: { nftId: bigint }) {
     const toggleHide = async () => {
         setUpdating(true);
         try {
-            await fetch(`/api/admin/nft-controls/${nftIdNum}/hide`, {
-                method: 'PUT',
+            const res = await fetch('/api/nft-controls/hide', {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ is_hidden: !isHidden })
+                body: JSON.stringify({ nft_id: nftIdNum, hidden: !isHidden })
             });
-            toast.success(isHidden ? 'NFT unhidden' : 'NFT hidden');
-            refetch();
-        } catch {
-            toast.error('Failed');
-        } finally {
+            
+            if (res.ok) {
+                // Reload immediately
+                window.location.reload();
+            } else {
+                toast.error('Failed to update');
+                setUpdating(false);
+            }
+        } catch (error) {
+            toast.error('Error updating NFT');
             setUpdating(false);
         }
     };
@@ -734,16 +886,21 @@ function NFTCompactCard({ nftId }: { nftId: bigint }) {
     const togglePin = async () => {
         setUpdating(true);
         try {
-            await fetch(`/api/admin/nft-controls/${nftIdNum}/pin`, {
-                method: 'PUT',
+            const res = await fetch('/api/nft-controls/pin', {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ is_pinned: !isPinned, pin_order: isPinned ? 0 : 1 })
+                body: JSON.stringify({ nft_id: nftIdNum, pinned: !isPinned, pin_order: isPinned ? 0 : 1 })
             });
-            toast.success(isPinned ? 'NFT unpinned' : 'NFT pinned');
-            refetch();
-        } catch {
-            toast.error('Failed');
-        } finally {
+            
+            if (res.ok) {
+                // Reload immediately
+                window.location.reload();
+            } else {
+                toast.error('Failed to update');
+                setUpdating(false);
+            }
+        } catch (error) {
+            toast.error('Error updating NFT');
             setUpdating(false);
         }
     };
