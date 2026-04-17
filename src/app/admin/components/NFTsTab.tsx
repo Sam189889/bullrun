@@ -77,6 +77,75 @@ export function NFTsTab(): React.ReactElement {
             localStorage.setItem('activeNFTTab', tab);
         }
     };
+    
+    // Bulk select state
+    const [selectedNFTs, setSelectedNFTs] = useState<Set<number>>(new Set());
+    const [isBulkMode, setIsBulkMode] = useState(false);
+    
+    // Toggle bulk mode
+    const toggleBulkMode = () => {
+        setIsBulkMode(!isBulkMode);
+        setSelectedNFTs(new Set());
+    };
+    
+    // Toggle NFT selection
+    const toggleNFTSelection = (nftId: number) => {
+        const newSelected = new Set(selectedNFTs);
+        if (newSelected.has(nftId)) {
+            newSelected.delete(nftId);
+        } else {
+            newSelected.add(nftId);
+        }
+        setSelectedNFTs(newSelected);
+    };
+    
+    // Bulk hide selected NFTs
+    const bulkHideSelected = async () => {
+        if (selectedNFTs.size === 0) {
+            toast.error('No NFTs selected');
+            return;
+        }
+        
+        if (!confirm(`Hide ${selectedNFTs.size} selected NFTs?`)) return;
+        
+        try {
+            const promises = Array.from(selectedNFTs).map(nftId =>
+                fetch('/api/nft-controls/hide', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nft_id: nftId, hidden: true })
+                })
+            );
+            await Promise.all(promises);
+            window.location.reload();
+        } catch {
+            toast.error('Error hiding NFTs');
+        }
+    };
+    
+    // Bulk pin selected NFTs
+    const bulkPinSelected = async () => {
+        if (selectedNFTs.size === 0) {
+            toast.error('No NFTs selected');
+            return;
+        }
+        
+        if (!confirm(`Pin ${selectedNFTs.size} selected NFTs?`)) return;
+        
+        try {
+            const promises = Array.from(selectedNFTs).map((nftId, index) =>
+                fetch('/api/nft-controls/pin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nft_id: nftId, pinned: true, pin_order: index + 1 })
+                })
+            );
+            await Promise.all(promises);
+            window.location.reload();
+        } catch {
+            toast.error('Error pinning NFTs');
+        }
+    };
 
     // NFT Controls - hidden and pinned NFTs
     const { hiddenNFTs, pinnedNFTs, loading: controlsLoading, refetch: refetchControls } = useNFTControls();
@@ -632,37 +701,72 @@ export function NFTsTab(): React.ReactElement {
             {/* NFT Management Tabs */}
             <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl shadow-xl">
                 {/* Tab Headers */}
-                <div className="flex items-center gap-2 mb-6 border-b border-slate-700 pb-4">
-                    <button
-                        onClick={() => handleTabChange('all')}
-                        className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                            activeNFTTab === 'all'
-                                ? 'bg-indigo-600 text-white'
-                                : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-                        }`}
-                    >
-                        📋 Normal NFTs ({totalNFTs ? Number(totalNFTs) - hiddenNFTs.length - pinnedNFTs.length : 0})
-                    </button>
-                    <button
-                        onClick={() => handleTabChange('hidden')}
-                        className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                            activeNFTTab === 'hidden'
-                                ? 'bg-red-600 text-white'
-                                : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-                        }`}
-                    >
-                        🚫 Hidden ({controlsLoading ? '...' : hiddenNFTs.length})
-                    </button>
-                    <button
-                        onClick={() => handleTabChange('pinned')}
-                        className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                            activeNFTTab === 'pinned'
-                                ? 'bg-yellow-600 text-white'
-                                : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-                        }`}
-                    >
-                        ⭐ Pinned ({controlsLoading ? '...' : pinnedNFTs.length})
-                    </button>
+                <div className="flex items-center justify-between mb-6 border-b border-slate-700 pb-4">
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => handleTabChange('all')}
+                            className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                                activeNFTTab === 'all'
+                                    ? 'bg-indigo-600 text-white'
+                                    : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                            }`}
+                        >
+                            📋 Normal NFTs ({totalNFTs ? Number(totalNFTs) - hiddenNFTs.length - pinnedNFTs.length : 0})
+                        </button>
+                        <button
+                            onClick={() => handleTabChange('hidden')}
+                            className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                                activeNFTTab === 'hidden'
+                                    ? 'bg-red-600 text-white'
+                                    : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                            }`}
+                        >
+                            🚫 Hidden ({controlsLoading ? '...' : hiddenNFTs.length})
+                        </button>
+                        <button
+                            onClick={() => handleTabChange('pinned')}
+                            className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                                activeNFTTab === 'pinned'
+                                    ? 'bg-yellow-600 text-white'
+                                    : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                            }`}
+                        >
+                            ⭐ Pinned ({controlsLoading ? '...' : pinnedNFTs.length})
+                        </button>
+                    </div>
+                    
+                    {/* Bulk Mode Controls */}
+                    {activeNFTTab === 'all' && (
+                        <div className="flex items-center gap-2">
+                            {isBulkMode && selectedNFTs.size > 0 && (
+                                <>
+                                    <span className="text-sm text-slate-400">{selectedNFTs.size} selected</span>
+                                    <button
+                                        onClick={bulkHideSelected}
+                                        className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white text-sm rounded-lg font-semibold"
+                                    >
+                                        🚫 Hide Selected
+                                    </button>
+                                    <button
+                                        onClick={bulkPinSelected}
+                                        className="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-500 text-white text-sm rounded-lg font-semibold"
+                                    >
+                                        ⭐ Pin Selected
+                                    </button>
+                                </>
+                            )}
+                            <button
+                                onClick={toggleBulkMode}
+                                className={`px-3 py-1.5 text-sm rounded-lg font-semibold ${
+                                    isBulkMode
+                                        ? 'bg-green-600 hover:bg-green-500 text-white'
+                                        : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                                }`}
+                            >
+                                {isBulkMode ? '✓ Done' : '☑️ Bulk Select'}
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 {/* Tab Content */}
@@ -727,6 +831,9 @@ export function NFTsTab(): React.ReactElement {
                                 itemsPerPage={itemsPerPage}
                                 excludeHidden={hiddenNFTs}
                                 excludePinned={pinnedNFTs.map(p => p.nft_id)}
+                                isBulkMode={isBulkMode}
+                                selectedNFTs={selectedNFTs}
+                                onToggleSelection={toggleNFTSelection}
                             />
                         ) : (
                             <div className="bg-slate-950 border border-slate-800 rounded-xl p-12 text-center">

@@ -244,6 +244,12 @@ export function MarketplaceTab() {
     const { data: totalNFTs } = useTotalNFTs();
     const { hiddenNFTs, pinnedNFTs } = useNFTControls();
     const { unlistedNFTIds, loading: unlistedLoading } = useUnlistedNFTIds();
+    
+    // Debug: Log hidden NFTs count
+    useEffect(() => {
+        console.log(`[MARKETPLACE] Total hidden NFTs: ${hiddenNFTs.length}`);
+        console.log(`[MARKETPLACE] Hidden NFT IDs:`, hiddenNFTs.slice(0, 20), hiddenNFTs.length > 20 ? `... and ${hiddenNFTs.length - 20} more` : '');
+    }, [hiddenNFTs]);
     const { data: allowance, refetch: refetchAllowance } = useUSDTAllowance(address);
     const { data: dailyLimitData, refetch: refetchDailyLimitData } = useUserDailyLimitData(userId as bigint);
     const { data: availableLimit, refetch: refetchLimit } = useUserAvailableLimit(userId as bigint);

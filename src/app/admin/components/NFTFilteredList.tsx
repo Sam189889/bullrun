@@ -12,10 +12,24 @@ interface NFTFilteredListProps {
     itemsPerPage: number;
     excludeHidden?: number[];
     excludePinned?: number[];
+    isBulkMode?: boolean;
+    selectedNFTs?: Set<number>;
+    onToggleSelection?: (nftId: number) => void;
 }
 
 
-export function NFTFilteredList({ totalNFTs, filterOwnerId, sortBy, currentPage, itemsPerPage, excludeHidden = [], excludePinned = [] }: NFTFilteredListProps) {
+export function NFTFilteredList({ 
+    totalNFTs, 
+    filterOwnerId, 
+    sortBy, 
+    currentPage, 
+    itemsPerPage, 
+    excludeHidden = [], 
+    excludePinned = [],
+    isBulkMode = false,
+    selectedNFTs = new Set(),
+    onToggleSelection
+}: NFTFilteredListProps) {
     // Import useNFTControls here to get controls data
     const { hiddenNFTs, pinnedNFTs, refetch } = require('@/hooks/useNFTControls').useNFTControls();
     
@@ -63,7 +77,14 @@ export function NFTFilteredList({ totalNFTs, filterOwnerId, sortBy, currentPage,
     // Conditional rendering instead of conditional return
     if (sortBy === 'recently-traded') {
         return (
-            <NFTControlsContext.Provider value={{ hiddenNFTs, pinnedNFTs, refetch }}>
+            <NFTControlsContext.Provider value={{ 
+                hiddenNFTs, 
+                pinnedNFTs, 
+                refetch, 
+                isBulkMode, 
+                selectedNFTs, 
+                onToggleSelection 
+            }}>
                 <RecentlyTradedList 
                     allIds={filteredIds} 
                     filterOwnerId={filterOwnerId}
@@ -75,7 +96,14 @@ export function NFTFilteredList({ totalNFTs, filterOwnerId, sortBy, currentPage,
     }
     
     return (
-        <NFTControlsContext.Provider value={{ hiddenNFTs, pinnedNFTs, refetch }}>
+        <NFTControlsContext.Provider value={{ 
+            hiddenNFTs, 
+            pinnedNFTs, 
+            refetch, 
+            isBulkMode, 
+            selectedNFTs, 
+            onToggleSelection 
+        }}>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {paginatedIds.map((id) => (
                     <NFTCompactCardWithFilter 
@@ -271,6 +299,9 @@ type NFTControlsContextType = {
     hiddenNFTs: number[];
     pinnedNFTs: { nft_id: number; pin_order: number }[];
     refetch: () => void;
+    isBulkMode: boolean;
+    selectedNFTs: Set<number>;
+    onToggleSelection?: (nftId: number) => void;
 };
 
 const NFTControlsContext = createContext<NFTControlsContextType | null>(null);
@@ -278,7 +309,14 @@ const NFTControlsContext = createContext<NFTControlsContextType | null>(null);
 function useNFTControlsContext() {
     const context = useContext(NFTControlsContext);
     if (!context) {
-        return { hiddenNFTs: [], pinnedNFTs: [], refetch: () => {} };
+        return { 
+            hiddenNFTs: [], 
+            pinnedNFTs: [], 
+            refetch: () => {},
+            isBulkMode: false,
+            selectedNFTs: new Set<number>(),
+            onToggleSelection: undefined
+        };
     }
     return context;
 }
@@ -291,12 +329,13 @@ function OwnerUsername({ ownerId }: { ownerId: bigint }) {
 }
 
 function NFTCompactCardDisplay({ nftId, nftData }: { nftId: bigint; nftData: any[] }) {
-    const { hiddenNFTs, pinnedNFTs, refetch } = useNFTControlsContext();
+    const { hiddenNFTs, pinnedNFTs, refetch, isBulkMode, selectedNFTs, onToggleSelection } = useNFTControlsContext();
     const [updating, setUpdating] = useState(false);
     
     const nftIdNum = Number(nftId);
     const isHidden = hiddenNFTs.includes(nftIdNum);
     const isPinned = pinnedNFTs.some(p => p.nft_id === nftIdNum);
+    const isSelected = selectedNFTs.has(nftIdNum);
     
     const toggleHide = async () => {
         setUpdating(true);
@@ -358,7 +397,29 @@ function NFTCompactCardDisplay({ nftId, nftData }: { nftId: bigint; nftData: any
     };
     
     return (
-        <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl hover:border-slate-700 transition-all group">
+        <div 
+            className={`relative bg-slate-950 border p-4 rounded-xl transition-all group ${
+                isSelected ? 'border-green-500 shadow-[0_0_20px_rgba(34,197,94,0.3)]' : 'border-slate-800 hover:border-slate-700'
+            } ${isBulkMode ? 'cursor-pointer' : ''}`}
+            onClick={() => {
+                if (isBulkMode && onToggleSelection) {
+                    onToggleSelection(nftIdNum);
+                }
+            }}
+        >
+            {/* Bulk Mode Checkbox Overlay */}
+            {isBulkMode && (
+                <div className="absolute top-2 right-2 z-10">
+                    <div className={`w-6 h-6 rounded border-2 flex items-center justify-center ${
+                        isSelected 
+                            ? 'bg-green-500 border-green-500' 
+                            : 'bg-slate-900 border-slate-600'
+                    }`}>
+                        {isSelected && <span className="text-white text-sm">✓</span>}
+                    </div>
+                </div>
+            )}
+            
             <div className="flex justify-between items-start mb-4">
                 <div className="flex items-center gap-3">
                     <div className="w-12 h-12 bg-indigo-500/10 rounded-lg flex items-center justify-center border border-indigo-500/20">
@@ -370,8 +431,12 @@ function NFTCompactCardDisplay({ nftId, nftData }: { nftId: bigint; nftData: any
                     </div>
                 </div>
                 <div className="flex gap-1">
-                    {isListed && <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]" title="For Sale" />}
-                    {isBurned && <div className="w-2 h-2 bg-red-500 rounded-full" title="Burned" />}
+                    {!isBulkMode && (
+                        <>
+                            {isListed && <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]" title="For Sale" />}
+                            {isBurned && <div className="w-2 h-2 bg-red-500 rounded-full" title="Burned" />}
+                        </>
+                    )}
                 </div>
             </div>
             
@@ -397,31 +462,47 @@ function NFTCompactCardDisplay({ nftId, nftData }: { nftId: bigint; nftData: any
                 <p className="text-amber-400 text-xs font-mono">{formatTimestamp(lastTradedAt)}</p>
             </div>
             
-            <div className="flex gap-2 mb-2">
-                <span className={`flex-1 text-center text-[10px] font-bold py-2 rounded-lg ${isListed ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-900 text-slate-500'}`}>
-                    {isListed ? 'Listed' : 'Not Listed'}
-                </span>
-                <span className={`flex-1 text-center text-[10px] font-bold py-2 rounded-lg ${isBurned ? 'bg-red-500/20 text-red-400' : 'bg-slate-900 text-slate-500'}`}>
-                    {isBurned ? 'Burned' : 'Active'}
-                </span>
-            </div>
+            {!isBulkMode && (
+                <>
+                    <div className="flex gap-2 mb-2">
+                        <span className={`flex-1 text-center text-[10px] font-bold py-2 rounded-lg ${isListed ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-900 text-slate-500'}`}>
+                            {isListed ? 'Listed' : 'Not Listed'}
+                        </span>
+                        <span className={`flex-1 text-center text-[10px] font-bold py-2 rounded-lg ${isBurned ? 'bg-red-500/20 text-red-400' : 'bg-slate-900 text-slate-500'}`}>
+                            {isBurned ? 'Burned' : 'Active'}
+                        </span>
+                    </div>
+                    
+                    <div className="flex gap-1">
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                toggleHide();
+                            }}
+                            disabled={updating}
+                            className={`flex-1 text-[10px] font-bold py-1.5 rounded ${isHidden ? 'bg-red-500/20 text-red-400' : 'bg-slate-800 text-slate-400'} hover:opacity-80 disabled:opacity-50`}
+                        >
+                            {isHidden ? '🔒 Hidden' : '👁️ Visible'}
+                        </button>
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                togglePin();
+                            }}
+                            disabled={updating}
+                            className={`flex-1 text-[10px] font-bold py-1.5 rounded ${isPinned ? 'bg-yellow-500/20 text-yellow-400' : 'bg-slate-800 text-slate-400'} hover:opacity-80 disabled:opacity-50`}
+                        >
+                            {isPinned ? '⭐ Pinned' : '📌 Pin'}
+                        </button>
+                    </div>
+                </>
+            )}
             
-            <div className="flex gap-1">
-                <button
-                    onClick={toggleHide}
-                    disabled={updating}
-                    className={`flex-1 text-[10px] font-bold py-1.5 rounded ${isHidden ? 'bg-red-500/20 text-red-400' : 'bg-slate-800 text-slate-400'} hover:opacity-80 disabled:opacity-50`}
-                >
-                    {isHidden ? '🔒 Hidden' : '👁️ Visible'}
-                </button>
-                <button
-                    onClick={togglePin}
-                    disabled={updating}
-                    className={`flex-1 text-[10px] font-bold py-1.5 rounded ${isPinned ? 'bg-yellow-500/20 text-yellow-400' : 'bg-slate-800 text-slate-400'} hover:opacity-80 disabled:opacity-50`}
-                >
-                    {isPinned ? '⭐ Pinned' : '📌 Pin'}
-                </button>
-            </div>
+            {isBulkMode && (
+                <div className="text-center py-2">
+                    <p className="text-xs text-slate-400">Click to {isSelected ? 'deselect' : 'select'}</p>
+                </div>
+            )}
         </div>
     );
 }
